@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Forge Junction — OG Image Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #080a0c;
+    --ember:    #ff6b2b;
+    --arc:      #4ae3ff;
+    --text:     #e8eaed;
+  }
+
+  /* Centers the canvas on your screen for easy screenshotting */
+  body {
+    background: #000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    font-family: 'Syne', sans-serif;
+  }
+
+  /* 1260x600 OG Image Canvas */
+  .og-canvas {
+    width: 1260px;
+    height: 600px;
+    background: var(--bg);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+  }
+
+  /* Noise Overlay */
+  .og-canvas::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+    opacity: 0.035; /* Slightly increased for static image visibility */
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  /* Grid lines */
+  .og-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 60px 60px;
+    mask-image: radial-gradient(ellipse 90% 90% at 50% 50%, black 40%, transparent 100%);
+    -webkit-mask-image: radial-gradient(ellipse 90% 90% at 50% 50%, black 40%, transparent 100%);
+    z-index: 1;
+  }
+
+  /* Ember Glow */
+  .og-glow {
+    position: absolute;
+    bottom: -150px; left: 10%;
+    width: 80%;
+    height: 500px;
+    background: radial-gradient(ellipse at center, rgba(255,107,43,0.18) 0%, transparent 70%);
+    z-index: 2;
+  }
+
+  /* Arc Glow */
+  .og-arc-glow {
+    position: absolute;
+    top: -100px; right: -10%;
+    width: 60%;
+    height: 600px;
+    background: radial-gradient(ellipse at center, rgba(74,227,255,0.08) 0%, transparent 65%);
+    z-index: 2;
+  }
+
+  /* Typography */
+  .content-wrapper {
+    position: relative;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .hero-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 16px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--ember);
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .hero-label::before, .hero-label::after {
+    content: '';
+    width: 48px; height: 1px;
+    background: var(--ember);
+    opacity: 0.7;
+  }
+
+  h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 180px;
+    line-height: 0.9;
+    letter-spacing: 0.02em;
+    color: var(--text);
+    text-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    margin: 0;
+  }
+
+  h1 .accent { color: var(--ember); }
+</style>
+</head>
+<body>
+
+  <div class="og-canvas">
+    <div class="og-grid"></div>
+    <div class="og-glow"></div>
+    <div class="og-arc-glow"></div>
+    
+    <div class="content-wrapper">
+      <div class="hero-label">AI Media Studio</div>
+      <h1>FORGE <span class="accent">JUNCTION</span></h1>
+    </div>
+  </div>
+
+</body>
+</html>
