@@ -4,6 +4,16 @@ declare global {
   interface Window {
     electron: {
       openExternal: (url: string) => Promise<void>
+
+      // Auto-update
+      onUpdateChecking: (cb: () => void) => () => void
+      onUpdateAvailable: (cb: (info: { version: string; releaseNotes: string | null }) => void) => () => void
+      onUpdateNotAvailable: (cb: () => void) => () => void
+      onUpdateProgress: (cb: (progress: { percent: number; bytesPerSecond: number; transferred: number; total: number }) => void) => () => void
+      onUpdateDownloaded: (cb: (info: { version: string }) => void) => () => void
+      onUpdateError: (cb: (err: { message: string }) => void) => () => void
+      installUpdate: () => void
+      dismissUpdate: () => void
       onOpenDebugProtocol: (callback: () => void) => () => void
       onOpenDebugLog: (callback: () => void) => () => void
       writeDebugLog: (content: string) => Promise<string>

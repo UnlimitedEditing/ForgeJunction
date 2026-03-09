@@ -30,6 +30,40 @@ contextBridge.exposeInMainWorld('electron', {
   getLogPath: (): Promise<string> =>
     ipcRenderer.invoke('debug:getLogPath'),
 
+  // Auto-update events
+  onUpdateChecking: (cb: () => void) => {
+    const listener = () => cb()
+    ipcRenderer.on('update:checking', listener)
+    return () => ipcRenderer.removeListener('update:checking', listener)
+  },
+  onUpdateAvailable: (cb: (info: { version: string; releaseNotes: string | null }) => void) => {
+    const listener = (_e: Electron.IpcRendererEvent, info: { version: string; releaseNotes: string | null }) => cb(info)
+    ipcRenderer.on('update:available', listener)
+    return () => ipcRenderer.removeListener('update:available', listener)
+  },
+  onUpdateNotAvailable: (cb: () => void) => {
+    const listener = () => cb()
+    ipcRenderer.on('update:not-available', listener)
+    return () => ipcRenderer.removeListener('update:not-available', listener)
+  },
+  onUpdateProgress: (cb: (progress: { percent: number; bytesPerSecond: number; transferred: number; total: number }) => void) => {
+    const listener = (_e: Electron.IpcRendererEvent, progress: { percent: number; bytesPerSecond: number; transferred: number; total: number }) => cb(progress)
+    ipcRenderer.on('update:progress', listener)
+    return () => ipcRenderer.removeListener('update:progress', listener)
+  },
+  onUpdateDownloaded: (cb: (info: { version: string }) => void) => {
+    const listener = (_e: Electron.IpcRendererEvent, info: { version: string }) => cb(info)
+    ipcRenderer.on('update:downloaded', listener)
+    return () => ipcRenderer.removeListener('update:downloaded', listener)
+  },
+  onUpdateError: (cb: (err: { message: string }) => void) => {
+    const listener = (_e: Electron.IpcRendererEvent, err: { message: string }) => cb(err)
+    ipcRenderer.on('update:error', listener)
+    return () => ipcRenderer.removeListener('update:error', listener)
+  },
+  installUpdate: () => ipcRenderer.send('update:install-now'),
+  dismissUpdate: () => ipcRenderer.send('update:dismiss'),
+
   // Debug / Reporting
   sendLogs: (logs: object[]) => {
     ipcRenderer.send('debug:renderer-logs', logs)

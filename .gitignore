@@ -6,7 +6,11 @@ release/
 .env
 *.local
 
-# Development journal � specs, prompts, logs
+# API keys / secrets — never commit
+apiconfig.txt
+updaterprompt.txt
+
+# Development journal� specs, prompts, logs
 dev-journal/
 
 # User credentials (stored in OS user data, not project)

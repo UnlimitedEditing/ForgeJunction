@@ -3,12 +3,13 @@ import { join } from 'path'
 import { writeFileSync, readFileSync, existsSync, mkdirSync, readdirSync } from 'fs'
 import { isApiKeyStored, storeApiKey, retrieveApiKey, deleteApiKey } from './services/keystore'
 import { patchMainConsole, registerIpcHandlers } from './debugReporter'
+import { autoUpdater } from 'electron-updater'
 
 const isDev = !app.isPackaged
 
 let currentTheme = 'default'
 
-function createWindow(): void {
+function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
     width: 1440,
     height: 900,
@@ -36,6 +37,8 @@ function createWindow(): void {
   } else {
     win.loadFile(join(__dirname, '../../dist/index.html'))
   }
+
+  return win
 }
 
 // ── Application Menu ──────────────────────────────────────────────────────────
@@ -255,8 +258,67 @@ function setupIpc(): void {
     }
   })
 
+  // Auto-update controls
+  ipcMain.on('update:install-now', () => {
+    try { autoUpdater.quitAndInstall(false, true) } catch (e) { console.error('[AutoUpdater]', e) }
+  })
+
+  ipcMain.on('update:dismiss', () => { /* acknowledged */ })
+
   // Suppress unused import warning — isApiKeyStored used for future extensibility
   void isApiKeyStored
+}
+
+// ── Auto Updater ──────────────────────────────────────────────────────────────
+
+function setupAutoUpdater(win: BrowserWindow): void {
+  // Don't run the updater in dev — app isn't signed and autoUpdater will throw
+  if (isDev) return
+
+  try {
+    autoUpdater.autoDownload = true
+    autoUpdater.autoInstallOnAppQuit = true
+
+    autoUpdater.on('checking-for-update', () => {
+      win.webContents.send('update:checking')
+    })
+
+    autoUpdater.on('update-available', (info) => {
+      win.webContents.send('update:available', {
+        version: info.version,
+        releaseNotes: info.releaseNotes ?? null,
+      })
+    })
+
+    autoUpdater.on('update-not-available', () => {
+      win.webContents.send('update:not-available')
+    })
+
+    autoUpdater.on('download-progress', (progress) => {
+      win.webContents.send('update:progress', progress)
+    })
+
+    autoUpdater.on('update-downloaded', (info) => {
+      win.webContents.send('update:downloaded', { version: info.version })
+    })
+
+    autoUpdater.on('error', (err) => {
+      console.error('[AutoUpdater] error:', err)
+      win.webContents.send('update:error', { message: err.message })
+    })
+
+    // Initial check after 10 s to avoid slowing startup
+    setTimeout(() => {
+      try { autoUpdater.checkForUpdates() } catch (e) { console.error('[AutoUpdater]', e) }
+    }, 10_000)
+
+    // Repeat every 20 minutes
+    setInterval(() => {
+      try { autoUpdater.checkForUpdates() } catch (e) { console.error('[AutoUpdater]', e) }
+    }, 1_200_000)
+  } catch (e) {
+    console.error('[AutoUpdater] setup failed:', e)
+  }
 }
 
 // ── App Lifecycle ─────────────────────────────────────────────────────────────
@@ -266,7 +328,8 @@ app.whenReady().then(() => {
   registerIpcHandlers()
   buildMenu()
   setupIpc()
-  createWindow()
+  const mainWindow = createWindow()
+  setupAutoUpdater(mainWindow)
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

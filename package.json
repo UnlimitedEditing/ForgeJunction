@@ -8,9 +8,11 @@
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "package": "npm run build && electron-packager . \"Forge Junction\" --platform=win32 --arch=x64 --out=release --overwrite --asar --ignore=\"^/(src|electron|dev-journal|\\.env|\\.gitignore|tsconfig|tailwind|postcss|electron\\.vite\\.config|launch\\.bat|README|claude-code)\"",
-    "package:installer": "cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder"
+    "package:installer": "cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder",
+    "publish": "electron-builder --publish always"
   },
   "dependencies": {
+    "electron-updater": "^6.8.3",
     "zustand": "^4.5.2"
   },
   "devDependencies": {
@@ -32,8 +34,14 @@
     "vite": "^5.2.12"
   },
   "build": {
-    "appId": "ai.graydient.forgejunction",
+    "appId": "com.forgejunction.app",
     "productName": "Forge Junction",
+    "publish": {
+      "provider": "github",
+      "owner": "UnlimitedEditing",
+      "repo": "ForgeJunction",
+      "releaseType": "release"
+    },
     "directories": {
       "output": "release"
     },
@@ -43,13 +51,26 @@
       "!dist/assets/*.map"
     ],
     "win": {
-      "target": "nsis"
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ]
+    },
+    "nsis": {
+      "differentialPackage": true
     },
     "mac": {
-      "target": "dmg"
+      "target": [
+        { "target": "dmg", "arch": ["x64", "arm64"] },
+        { "target": "zip", "arch": ["x64", "arm64"] }
+      ]
     },
     "linux": {
-      "target": "AppImage"
+      "target": [
+        { "target": "AppImage", "arch": ["x64"] }
+      ]
     }
   }
 }

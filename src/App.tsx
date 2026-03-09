@@ -5,6 +5,7 @@ import RenderViewer from '@/components/RenderViewer'
 import StatusBar from '@/components/StatusBar'
 import DebugProtocol from '@/components/DebugProtocol'
 import DebugReportDialog from '@/components/DebugReportDialog'
+import UpdateManager from '@/components/UpdateManager'
 import Onboarding from '@/components/Onboarding'
 import Settings from '@/components/Settings'
 import { useDebugProtocolStore } from '@/stores/debugProtocol'
@@ -89,6 +90,7 @@ function MainLayout(): React.ReactElement {
       <StatusBar />
       <DebugProtocol />
       <DebugReportDialog open={showDebugReport} onClose={() => setShowDebugReport(false)} />
+      <UpdateManager />
     </div>
   )
 }
