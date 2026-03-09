@@ -1,0 +1,1374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Forge Junction — AI Media Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet" />
+<style>
+  /* ── Reset & Base ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #080a0c;
+    --bg2:      #0d1014;
+    --bg3:      #111518;
+    --panel:    #141a1f;
+    --border:   rgba(255,255,255,0.07);
+    --ember:    #ff6b2b;
+    --ember2:   #ff9554;
+    --arc:      #4ae3ff;
+    --arc2:     #1ab8d8;
+    --text:     #e8eaed;
+    --muted:    #7a8590;
+    --dim:      #3a434d;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    overflow-x: hidden;
+    cursor: none;
+  }
+
+  /* ── Custom Cursor ── */
+  .cursor {
+    position: fixed;
+    width: 10px; height: 10px;
+    background: var(--ember);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 9999;
+    transform: translate(-50%,-50%);
+    transition: width .2s, height .2s, opacity .2s;
+    mix-blend-mode: screen;
+  }
+  .cursor-ring {
+    position: fixed;
+    width: 36px; height: 36px;
+    border: 1px solid rgba(255,107,43,0.4);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 9998;
+    transform: translate(-50%,-50%);
+    transition: transform .08s ease, width .2s, height .2s;
+  }
+
+  /* ── Noise Overlay ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+    opacity: 0.022;
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  /* ── Nav ── */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 48px;
+    background: linear-gradient(to bottom, rgba(8,10,12,0.95), transparent);
+    backdrop-filter: blur(12px);
+  }
+
+  .nav-logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 26px;
+    letter-spacing: 0.08em;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .nav-logo span { color: var(--ember); }
+
+  .nav-logo-icon {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg, var(--ember), #b83500);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+  }
+
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 36px;
+    list-style: none;
+  }
+  .nav-links a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    transition: color .2s;
+  }
+  .nav-links a:hover { color: var(--text); }
+
+  .nav-cta {
+    background: var(--ember);
+    color: #000 !important;
+    padding: 9px 22px;
+    border-radius: 4px;
+    font-weight: 700 !important;
+    letter-spacing: 0.08em;
+    transition: background .2s, transform .15s !important;
+  }
+  .nav-cta:hover {
+    background: var(--ember2) !important;
+    transform: translateY(-1px);
+  }
+
+  /* ── Hero ── */
+  .hero {
+    position: relative;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 120px 48px 80px;
+    overflow: hidden;
+  }
+
+  /* Forge glow background */
+  .hero::after {
+    content: '';
+    position: absolute;
+    bottom: -120px; left: -10%;
+    width: 60%;
+    height: 500px;
+    background: radial-gradient(ellipse at center, rgba(255,107,43,0.12) 0%, transparent 70%);
+    pointer-events: none;
+    animation: emberPulse 6s ease-in-out infinite;
+  }
+  .hero-arc {
+    position: absolute;
+    top: 10%; right: -5%;
+    width: 50%;
+    height: 600px;
+    background: radial-gradient(ellipse at center, rgba(74,227,255,0.07) 0%, transparent 65%);
+    pointer-events: none;
+    animation: arcPulse 8s ease-in-out infinite;
+  }
+
+  @keyframes emberPulse {
+    0%,100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(1.08); }
+  }
+  @keyframes arcPulse {
+    0%,100% { opacity: 0.7; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.05); }
+  }
+
+  /* Grid lines */
+  .hero-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.022) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.022) 1px, transparent 1px);
+    background-size: 60px 60px;
+    mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 30%, transparent 100%);
+  }
+
+  .hero-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ember);
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    opacity: 0;
+    animation: fadeUp .8s .2s forwards;
+  }
+  .hero-label::before {
+    content: '';
+    width: 32px; height: 1px;
+    background: var(--ember);
+  }
+
+  h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(72px, 11vw, 148px);
+    line-height: 0.92;
+    letter-spacing: 0.01em;
+    color: var(--text);
+    max-width: 900px;
+    opacity: 0;
+    animation: fadeUp .9s .35s forwards;
+  }
+  h1 .accent { color: var(--ember); }
+  h1 .accent2 { color: var(--arc); }
+
+  .hero-sub {
+    margin-top: 32px;
+    font-size: 18px;
+    color: var(--muted);
+    max-width: 540px;
+    line-height: 1.7;
+    font-weight: 400;
+    opacity: 0;
+    animation: fadeUp .9s .5s forwards;
+  }
+  .hero-sub strong { color: var(--text); font-weight: 600; }
+
+  .hero-actions {
+    margin-top: 44px;
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    opacity: 0;
+    animation: fadeUp .9s .65s forwards;
+  }
+
+  .btn-primary {
+    background: var(--ember);
+    color: #000;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 14px 32px;
+    border: none;
+    border-radius: 4px;
+    cursor: none;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: background .2s, transform .15s, box-shadow .2s;
+    box-shadow: 0 0 0 0 rgba(255,107,43,0);
+  }
+  .btn-primary:hover {
+    background: var(--ember2);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 40px rgba(255,107,43,0.3);
+  }
+
+  .btn-secondary {
+    background: transparent;
+    color: var(--muted);
+    font-family: 'Syne', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 14px 28px;
+    border: 1px solid var(--dim);
+    border-radius: 4px;
+    cursor: none;
+    text-decoration: none;
+    transition: color .2s, border-color .2s, transform .15s;
+  }
+  .btn-secondary:hover {
+    color: var(--text);
+    border-color: var(--muted);
+    transform: translateY(-2px);
+  }
+
+  /* ── App Preview ── */
+  .app-preview {
+    margin-top: 80px;
+    position: relative;
+    opacity: 0;
+    animation: fadeUp 1s .8s forwards;
+  }
+
+  .app-window {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow:
+      0 0 0 1px rgba(255,107,43,0.08),
+      0 40px 80px rgba(0,0,0,0.6),
+      0 0 120px rgba(255,107,43,0.06);
+    max-width: 960px;
+  }
+
+  .window-chrome {
+    background: #0c1014;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+  }
+  .dot-r { background: #ff5f56; }
+  .dot-y { background: #ffbd2e; }
+  .dot-g { background: #27c93f; }
+  .window-title {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    margin-left: 12px;
+  }
+
+  .window-body {
+    display: grid;
+    grid-template-columns: 220px 1fr 220px;
+    height: 340px;
+  }
+
+  .win-col {
+    border-right: 1px solid var(--border);
+    padding: 16px;
+    overflow: hidden;
+  }
+  .win-col:last-child { border-right: none; }
+
+  .col-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--dim);
+    margin-bottom: 14px;
+  }
+
+  .workflow-item {
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 4px;
+    cursor: none;
+    transition: background .15s;
+  }
+  .workflow-item.active {
+    background: rgba(255,107,43,0.12);
+    color: var(--ember2);
+    border-left: 2px solid var(--ember);
+  }
+  .workflow-item:not(.active):hover { background: rgba(255,255,255,0.04); }
+
+  .workflow-tag {
+    display: inline-block;
+    font-size: 9px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    margin-bottom: 10px;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 0.1em;
+  }
+  .tag-img { background: rgba(74,227,255,0.1); color: var(--arc); }
+  .tag-vid { background: rgba(255,107,43,0.1); color: var(--ember); }
+  .tag-aud { background: rgba(160,100,255,0.1); color: #c084fc; }
+
+  .prompt-area {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text);
+    height: 90px;
+    line-height: 1.6;
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+  .typing-cursor {
+    display: inline-block;
+    width: 2px; height: 12px;
+    background: var(--ember);
+    animation: blink 1s step-end infinite;
+    vertical-align: middle;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+  .param-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .param-chip {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 4px 10px;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+  }
+  .param-chip span { color: var(--arc); }
+
+  .submit-btn-mock {
+    background: var(--ember);
+    color: #000;
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 8px 0;
+    border-radius: 4px;
+    text-align: center;
+    margin-top: 8px;
+  }
+
+  .output-placeholder {
+    background: linear-gradient(135deg, #1a2228, #0d1519);
+    border-radius: 8px;
+    height: 160px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 12px;
+  }
+  .output-placeholder::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 60% at 40% 50%, rgba(255,107,43,0.18), transparent),
+      radial-gradient(ellipse 40% 40% at 70% 30%, rgba(74,227,255,0.1), transparent);
+  }
+  .output-icon { font-size: 28px; position: relative; z-index: 1; }
+  .progress-bar {
+    height: 3px;
+    background: var(--bg3);
+    border-radius: 999px;
+    overflow: hidden;
+    margin-bottom: 8px;
+  }
+  .progress-fill {
+    height: 100%;
+    width: 68%;
+    background: linear-gradient(90deg, var(--ember), var(--ember2));
+    border-radius: 999px;
+    animation: progressGlow 2s ease-in-out infinite;
+  }
+  @keyframes progressGlow {
+    0%,100% { box-shadow: 0 0 8px rgba(255,107,43,0.4); }
+    50% { box-shadow: 0 0 16px rgba(255,107,43,0.8); }
+  }
+  .queue-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    padding: 5px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .status-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .s-done { background: #27c93f; }
+  .s-render { background: var(--ember); animation: blink 1s infinite; }
+  .s-queue { background: var(--dim); }
+
+  /* ── Section shared ── */
+  section { padding: 100px 48px; }
+
+  .section-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ember);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .section-label::before {
+    content: '';
+    width: 20px; height: 1px;
+    background: var(--ember);
+  }
+
+  h2 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(48px, 6vw, 80px);
+    line-height: 1;
+    letter-spacing: 0.02em;
+    margin-bottom: 20px;
+  }
+  .h2-dim { color: var(--dim); }
+
+  .section-intro {
+    font-size: 17px;
+    color: var(--muted);
+    max-width: 500px;
+    line-height: 1.7;
+  }
+
+  /* ── Features ── */
+  .features { background: var(--bg2); }
+
+  .features-header {
+    max-width: 1200px;
+    margin: 0 auto 64px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+    align-items: end;
+  }
+
+  .feature-grid {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .feature-card {
+    background: var(--panel);
+    padding: 36px;
+    transition: background .2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .feature-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: transparent;
+    transition: background .3s;
+  }
+  .feature-card:hover { background: #181f26; }
+  .feature-card:hover::before { background: var(--ember); }
+
+  .feature-icon {
+    width: 48px; height: 48px;
+    border-radius: 10px;
+    background: rgba(255,107,43,0.1);
+    border: 1px solid rgba(255,107,43,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    margin-bottom: 20px;
+  }
+  .feature-icon.arc {
+    background: rgba(74,227,255,0.08);
+    border-color: rgba(74,227,255,0.2);
+  }
+  .feature-icon.purple {
+    background: rgba(192,132,252,0.08);
+    border-color: rgba(192,132,252,0.2);
+  }
+
+  .feature-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 16px;
+    margin-bottom: 10px;
+    color: var(--text);
+  }
+  .feature-desc {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+
+  /* ── Media types ── */
+  .media-section {
+    background: var(--bg);
+    position: relative;
+    overflow: hidden;
+  }
+  .media-section::before {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    width: 800px; height: 800px;
+    background: radial-gradient(ellipse, rgba(255,107,43,0.04) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  .media-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .media-types {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    margin-top: 56px;
+  }
+
+  .media-card {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 40px 32px;
+    background: var(--panel);
+    position: relative;
+    overflow: hidden;
+    transition: border-color .25s, transform .2s;
+  }
+  .media-card:hover {
+    border-color: var(--dim);
+    transform: translateY(-4px);
+  }
+
+  .media-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 100px;
+    background: linear-gradient(to top, rgba(255,107,43,0.04), transparent);
+    transition: opacity .3s;
+    opacity: 0;
+  }
+  .media-card:hover::after { opacity: 1; }
+  .media-card.vid::after { background: linear-gradient(to top, rgba(74,227,255,0.05), transparent); }
+  .media-card.aud::after { background: linear-gradient(to top, rgba(192,132,252,0.05), transparent); }
+
+  .media-big-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 80px;
+    line-height: 1;
+    color: rgba(255,255,255,0.04);
+    position: absolute;
+    top: 20px; right: 24px;
+    letter-spacing: -0.02em;
+  }
+
+  .media-type-icon { font-size: 36px; margin-bottom: 20px; }
+
+  .media-type-name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 36px;
+    letter-spacing: 0.04em;
+    color: var(--text);
+    margin-bottom: 12px;
+  }
+  .media-card.vid .media-type-name { color: var(--arc); }
+  .media-card.aud .media-type-name { color: #c084fc; }
+
+  .media-type-desc {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+
+  .media-tags {
+    margin-top: 24px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .mtag {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    color: var(--dim);
+    letter-spacing: 0.08em;
+  }
+
+  /* ── Install ── */
+  .install-section {
+    background: var(--bg2);
+    position: relative;
+    overflow: hidden;
+  }
+  .install-section::before {
+    content: '';
+    position: absolute;
+    bottom: -200px; right: -200px;
+    width: 600px; height: 600px;
+    background: radial-gradient(ellipse, rgba(74,227,255,0.05), transparent 60%);
+    pointer-events: none;
+  }
+
+  .install-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 80px;
+    align-items: start;
+  }
+
+  .steps {
+    margin-top: 44px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .step {
+    display: grid;
+    grid-template-columns: 48px 1fr;
+    gap: 20px;
+    position: relative;
+  }
+  .step:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    left: 23px; top: 44px;
+    width: 1px;
+    bottom: 0;
+    background: var(--border);
+  }
+  .step-num {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    color: var(--ember);
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
+  }
+  .step-content {
+    padding-bottom: 36px;
+  }
+  .step-title {
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--text);
+    margin-bottom: 6px;
+    padding-top: 12px;
+  }
+  .step-desc {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+  .step-desc a {
+    color: var(--arc);
+    text-decoration: none;
+  }
+  .step-desc a:hover { text-decoration: underline; }
+
+  .install-options {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 44px;
+  }
+
+  .install-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px 28px;
+    transition: border-color .2s;
+  }
+  .install-card:hover { border-color: var(--dim); }
+  .install-card.recommended { border-color: rgba(255,107,43,0.3); }
+  .install-card.recommended:hover { border-color: var(--ember); }
+
+  .install-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .install-card-title {
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--text);
+  }
+  .badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: rgba(255,107,43,0.12);
+    color: var(--ember);
+    border: 1px solid rgba(255,107,43,0.25);
+  }
+
+  .install-card-desc {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .code-block {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-top: 16px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--text);
+    line-height: 1.8;
+    overflow-x: auto;
+  }
+  .code-block .c-cmd { color: var(--arc); }
+  .code-block .c-comment { color: var(--dim); font-style: italic; }
+
+  /* ── Security note ── */
+  .security-note {
+    margin-top: 20px;
+    background: rgba(74,227,255,0.05);
+    border: 1px solid rgba(74,227,255,0.12);
+    border-radius: 8px;
+    padding: 16px 20px;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+  .security-note-icon { font-size: 18px; flex-shrink: 0; margin-top: 2px; }
+  .security-note-text {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+  .security-note-text strong { color: var(--arc); }
+
+  /* ── Shortcuts ── */
+  .shortcuts-section {
+    background: var(--bg);
+    padding: 80px 48px;
+  }
+  .shortcuts-inner {
+    max-width: 800px;
+    margin: 0 auto;
+    text-align: center;
+  }
+  .shortcuts-inner h2 { margin-bottom: 48px; }
+
+  .shortcuts-grid {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .shortcut {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px 32px;
+    min-width: 200px;
+    text-align: center;
+    transition: border-color .2s, transform .2s;
+  }
+  .shortcut:hover {
+    border-color: var(--dim);
+    transform: translateY(-3px);
+  }
+  .kbd-combo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+  kbd {
+    background: var(--bg3);
+    border: 1px solid var(--dim);
+    border-bottom-width: 2px;
+    border-radius: 5px;
+    padding: 4px 10px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--text);
+  }
+  .shortcut-desc {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  /* ── CTA ── */
+  .cta-section {
+    background: var(--bg2);
+    text-align: center;
+    padding: 120px 48px;
+    position: relative;
+    overflow: hidden;
+  }
+  .cta-section::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 60% at 50% 50%, rgba(255,107,43,0.07), transparent);
+    pointer-events: none;
+  }
+  .cta-section h2 { font-size: clamp(56px, 8vw, 100px); }
+  .cta-section .section-label { justify-content: center; }
+  .cta-section .section-label::before { display: none; }
+  .cta-actions {
+    margin-top: 48px;
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+  }
+
+  /* ── Footer ── */
+  footer {
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    padding: 40px 48px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .footer-logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+  }
+  .footer-logo span { color: var(--ember); }
+  .footer-links {
+    display: flex;
+    gap: 28px;
+    list-style: none;
+  }
+  .footer-links a {
+    font-size: 12px;
+    color: var(--muted);
+    text-decoration: none;
+    letter-spacing: 0.05em;
+    transition: color .2s;
+  }
+  .footer-links a:hover { color: var(--text); }
+  .footer-copy {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--dim);
+  }
+
+  /* ── Animations ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .reveal {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity .7s ease, transform .7s ease;
+  }
+  .reveal.in-view {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+</style>
+</head>
+<body>
+
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursorRing"></div>
+
+<!-- ── NAV ── -->
+<nav>
+  <div class="nav-logo">
+    <div class="nav-logo-icon">⚒</div>
+    FORGE <span>JUNCTION</span>
+  </div>
+  <ul class="nav-links">
+    <li><a href="#features">Features</a></li>
+    <li><a href="#media">Media Types</a></li>
+    <li><a href="#install">Install</a></li>
+    <li><a href="https://graydient.ai" target="_blank">Graydient.ai</a></li>
+    <li><a href="https://t.me/UnlimitedEditing" target="_blank" class="nav-cta">Get Started →</a></li>
+  </ul>
+</nav>
+
+<!-- ── HERO ── -->
+<section class="hero" id="home">
+  <div class="hero-grid"></div>
+  <div class="hero-arc"></div>
+
+  <p class="hero-label">AI Media Studio · Powered by Graydient.ai</p>
+
+  <h1>FORGE YOUR<br><span class="accent">VISION</span><br><span class="h2-dim">INTO</span> <span class="accent2">MEDIA</span></h1>
+
+  <p class="hero-sub">
+    Generate <strong>images, video, and audio</strong> from a single desktop app.
+    Forge Junction connects to Graydient's workflow engine — giving you pro-grade
+    AI generation without the browser.
+  </p>
+
+  <div class="hero-actions">
+    <a href="#install" class="btn-primary">⬇ Download for Free</a>
+    <a href="#features" class="btn-secondary">Explore Features</a>
+  </div>
+
+  <div class="app-preview">
+    <div class="app-window">
+      <div class="window-chrome">
+        <div class="dot dot-r"></div>
+        <div class="dot dot-y"></div>
+        <div class="dot dot-g"></div>
+        <div class="window-title">Forge Junction — v1.0.0</div>
+      </div>
+      <div class="window-body">
+        <!-- Col 1: Workflow Selector -->
+        <div class="win-col">
+          <div class="col-label">Workflows</div>
+          <div class="workflow-tag tag-img">Image</div>
+          <div class="workflow-item active">Flux 1.1 Pro Ultra</div>
+          <div class="workflow-item">Stable Diffusion XL</div>
+          <div class="workflow-item">SDXL Turbo</div>
+          <div class="workflow-tag tag-vid" style="margin-top:10px">Video</div>
+          <div class="workflow-item">Kling 1.6 Standard</div>
+          <div class="workflow-item">Wan 2.1 Text2Video</div>
+          <div class="workflow-tag tag-aud" style="margin-top:10px">Audio</div>
+          <div class="workflow-item">Suno Music Gen</div>
+        </div>
+        <!-- Col 2: Prompt Editor -->
+        <div class="win-col">
+          <div class="col-label">Prompt Editor</div>
+          <div class="prompt-area">
+            cinematic portrait of an astronaut, neon-lit underground lab, volumetric fog, shot on IMAX, hyper-realistic<span class="typing-cursor"></span>
+          </div>
+          <div class="param-row">
+            <div class="param-chip">Steps <span>28</span></div>
+            <div class="param-chip">CFG <span>7.5</span></div>
+            <div class="param-chip">1024×1024</div>
+          </div>
+          <div class="param-row">
+            <div class="param-chip">Sampler <span>DPM++</span></div>
+            <div class="param-chip">Seed <span>auto</span></div>
+          </div>
+          <div class="submit-btn-mock">⚡ Submit Render</div>
+        </div>
+        <!-- Col 3: Output -->
+        <div class="win-col">
+          <div class="col-label">Output</div>
+          <div class="output-placeholder">
+            <div class="output-icon">🖼</div>
+          </div>
+          <div class="progress-bar"><div class="progress-fill"></div></div>
+          <div class="queue-item"><div class="status-dot s-done"></div>flux_1234.png</div>
+          <div class="queue-item"><div class="status-dot s-render"></div>flux_1235.png</div>
+          <div class="queue-item"><div class="status-dot s-queue"></div>flux_1236.png</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── FEATURES ── -->
+<section class="features" id="features">
+  <div class="features-header">
+    <div>
+      <p class="section-label reveal">Built for creators</p>
+      <h2 class="reveal">EVERY TOOL <span class="h2-dim">YOU NEED</span></h2>
+    </div>
+    <p class="section-intro reveal">
+      A focused interface that gets out of your way. Configure workflows, refine prompts,
+      manage queues — all in one window.
+    </p>
+  </div>
+
+  <div class="feature-grid" style="max-width:1200px;margin:0 auto;">
+    <div class="feature-card reveal">
+      <div class="feature-icon">⚡</div>
+      <div class="feature-title">Workflow Engine</div>
+      <div class="feature-desc">Browse all your Graydient workflows filtered by type. Filter by loaded media, search by name, and switch instantly.</div>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon arc">✍</div>
+      <div class="feature-title">Smart Prompt Editor</div>
+      <div class="feature-desc">Context-aware placeholders guide your prompt structure. Paste Telegram /wf commands and all params auto-populate instantly.</div>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon purple">🖼</div>
+      <div class="feature-title">Input Media</div>
+      <div class="feature-desc">Drag-and-drop, paste from clipboard, or paste a URL. img2img, img2vid, face-swap — just drop and go.</div>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon">🎛</div>
+      <div class="feature-title">Per-Workflow Params</div>
+      <div class="feature-desc">Steps, CFG guidance, resolution, sampler, scheduler — only the controls relevant to your workflow are shown.</div>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon arc">📥</div>
+      <div class="feature-title">Live Output Queue</div>
+      <div class="feature-desc">Render multiple jobs in parallel. Real-time progress bars stream results as they arrive. Full-screen zoom viewer for images.</div>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon purple">🔐</div>
+      <div class="feature-title">Keychain Security</div>
+      <div class="feature-desc">Your API key is stored encrypted in your OS keychain — Windows Credential Manager or macOS Keychain. Never in plaintext.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── MEDIA TYPES ── -->
+<section class="media-section" id="media">
+  <div class="media-inner">
+    <p class="section-label reveal">What you can make</p>
+    <h2 class="reveal">IMAGE <span class="h2-dim">·</span> VIDEO <span class="h2-dim">·</span> AUDIO</h2>
+    <p class="section-intro reveal">One app. Three frontiers of AI-generated media.</p>
+
+    <div class="media-types">
+      <div class="media-card reveal">
+        <div class="media-big-num">01</div>
+        <div class="media-type-icon">🖼</div>
+        <div class="media-type-name">IMAGE</div>
+        <div class="media-type-desc">Text-to-image, img2img, inpainting. Use state-of-the-art diffusion models like Flux 1.1 Pro and SDXL via Graydient's pipeline.</div>
+        <div class="media-tags">
+          <div class="mtag">txt2img</div>
+          <div class="mtag">img2img</div>
+          <div class="mtag">inpaint</div>
+          <div class="mtag">upscale</div>
+        </div>
+      </div>
+      <div class="media-card vid reveal">
+        <div class="media-big-num">02</div>
+        <div class="media-type-icon">🎬</div>
+        <div class="media-type-name">VIDEO</div>
+        <div class="media-type-desc">Generate smooth video clips from text or images. Describe camera motion, subjects, and style to bring scenes to life.</div>
+        <div class="media-tags">
+          <div class="mtag">txt2vid</div>
+          <div class="mtag">img2vid</div>
+          <div class="mtag">Kling</div>
+          <div class="mtag">Wan 2.1</div>
+        </div>
+      </div>
+      <div class="media-card aud reveal">
+        <div class="media-big-num">03</div>
+        <div class="media-type-icon">🎵</div>
+        <div class="media-type-name">AUDIO</div>
+        <div class="media-type-desc">Generate music and sound with lyric-aware prompting. Structure verses, choruses, and bridges in the prompt editor.</div>
+        <div class="media-tags">
+          <div class="mtag">music</div>
+          <div class="mtag">vocals</div>
+          <div class="mtag">Suno</div>
+          <div class="mtag">structured</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── INSTALL ── -->
+<section class="install-section" id="install">
+  <div class="install-inner">
+    <div>
+      <p class="section-label reveal">Get running fast</p>
+      <h2 class="reveal">SET UP IN <span class="accent">MINUTES</span></h2>
+      <p class="section-intro reveal" style="margin-bottom:0">
+        Two ways to get Forge Junction. Pick the one that fits your workflow.
+      </p>
+
+      <div class="steps reveal">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <div class="step-title">Get your API key</div>
+            <div class="step-desc">Message <a href="https://t.me/PirateDiffusion_bot" target="_blank">@PirateDiffusion_bot</a> on Telegram and send <code>/api</code>. The bot replies with your key.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <div class="step-title">Download &amp; install</div>
+            <div class="step-desc">Run the installer or launch from source. The welcome screen walks you through the rest.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <div class="step-title">Connect &amp; create</div>
+            <div class="step-desc">Paste your key, hit Connect, and start generating. Your first render is seconds away.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="security-note reveal">
+        <div class="security-note-icon">🔒</div>
+        <div class="security-note-text">
+          <strong>Your key stays on your machine.</strong> Forge Junction encrypts your API key using your OS keychain. It cannot be read if someone copies the app to another computer.
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <p class="section-label reveal" style="margin-top:0">Choose your method</p>
+      <div class="install-options reveal">
+        <div class="install-card recommended">
+          <div class="install-card-header">
+            <div class="install-card-title">⬇ Installer (Windows)</div>
+            <div class="badge">Recommended</div>
+          </div>
+          <div class="install-card-desc">Download the latest <code>.exe</code> from the Releases page, run it, and launch. No Node.js required.</div>
+        </div>
+
+        <div class="install-card">
+          <div class="install-card-header">
+            <div class="install-card-title">⚙ Run from Source</div>
+          </div>
+          <div class="install-card-desc">Requires Node.js 18+. Clone the repo and double-click <code>launch.bat</code> — it handles everything automatically.</div>
+          <div class="code-block">
+            <span class="c-comment"># Windows — just double-click launch.bat</span><br>
+            <span class="c-cmd">git clone</span> https://github.com/your-repo<br>
+            <span class="c-cmd">cd</span> forge-junction<br>
+            <span class="c-comment"># Or manually:</span><br>
+            <span class="c-cmd">npm install</span><br>
+            <span class="c-cmd">npm run dev</span>
+          </div>
+        </div>
+
+        <div class="install-card">
+          <div class="install-card-header">
+            <div class="install-card-title">🔧 Production Build</div>
+          </div>
+          <div class="install-card-desc">Package the app yourself. Outputs an NSIS <code>.exe</code> installer to <code>release/</code>.</div>
+          <div class="code-block">
+            <span class="c-cmd">npm run build</span><br>
+            <span class="c-cmd">npm run package</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── SHORTCUTS ── -->
+<section class="shortcuts-section">
+  <div class="shortcuts-inner">
+    <p class="section-label reveal" style="justify-content:center;"><span style="width:20px;height:1px;background:var(--ember);display:inline-block;"></span>&nbsp;Keyboard shortcuts</p>
+    <h2 class="reveal">WORK AT THE <span class="accent">SPEED</span> <span class="h2-dim">OF THOUGHT</span></h2>
+    <div class="shortcuts-grid reveal">
+      <div class="shortcut">
+        <div class="kbd-combo"><kbd>Enter</kbd></div>
+        <div class="shortcut-desc">Submit render<br>from prompt field</div>
+      </div>
+      <div class="shortcut">
+        <div class="kbd-combo"><kbd>Shift</kbd><span style="color:var(--dim);font-size:12px">+</span><kbd>Enter</kbd></div>
+        <div class="shortcut-desc">New line<br>in prompt</div>
+      </div>
+      <div class="shortcut">
+        <div class="kbd-combo"><kbd>Ctrl</kbd><span style="color:var(--dim);font-size:12px">+</span><kbd>Shift</kbd><span style="color:var(--dim);font-size:12px">+</span><kbd>D</kbd></div>
+        <div class="shortcut-desc">Workflow Debug<br>Protocol</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── CTA ── -->
+<section class="cta-section">
+  <p class="section-label">Ready to forge</p>
+  <h2>START<br><span class="accent">CREATING</span></h2>
+  <p class="section-intro" style="margin:20px auto 0;text-align:center;max-width:420px;">
+    Free to use. Powered by Graydient. Available on Windows, macOS, and Linux.
+  </p>
+  <div class="cta-actions">
+    <a href="#install" class="btn-primary">⬇ Download Now</a>
+    <a href="https://t.me/UnlimitedEditing" target="_blank" class="btn-secondary">💬 Get Help</a>
+  </div>
+</section>
+
+<!-- ── FOOTER ── -->
+<footer>
+  <div class="footer-logo">FORGE <span>JUNCTION</span></div>
+  <ul class="footer-links">
+    <li><a href="https://graydient.ai" target="_blank">Graydient.ai</a></li>
+    <li><a href="https://t.me/PirateDiffusion_bot" target="_blank">Telegram Bot</a></li>
+    <li><a href="https://t.me/UnlimitedEditing" target="_blank">Support</a></li>
+  </ul>
+  <div class="footer-copy">Built with Electron · React · ❤</div>
+</footer>
+
+<script>
+  // Custom cursor
+  const cursor = document.getElementById('cursor');
+  const ring = document.getElementById('cursorRing');
+  let mx = 0, my = 0, rx = 0, ry = 0;
+
+  document.addEventListener('mousemove', e => {
+    mx = e.clientX; my = e.clientY;
+    cursor.style.left = mx + 'px';
+    cursor.style.top  = my + 'px';
+  });
+
+  function animRing() {
+    rx += (mx - rx) * 0.12;
+    ry += (my - ry) * 0.12;
+    ring.style.left = rx + 'px';
+    ring.style.top  = ry + 'px';
+    requestAnimationFrame(animRing);
+  }
+  animRing();
+
+  document.querySelectorAll('a, button, .feature-card, .media-card, .shortcut').forEach(el => {
+    el.addEventListener('mouseenter', () => {
+      cursor.style.width  = '18px';
+      cursor.style.height = '18px';
+      ring.style.width  = '56px';
+      ring.style.height = '56px';
+    });
+    el.addEventListener('mouseleave', () => {
+      cursor.style.width  = '10px';
+      cursor.style.height = '10px';
+      ring.style.width  = '36px';
+      ring.style.height = '36px';
+    });
+  });
+
+  // Scroll reveal
+  const reveals = document.querySelectorAll('.reveal');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((e, i) => {
+      if (e.isIntersecting) {
+        // Stagger siblings
+        const siblings = [...e.target.parentElement.querySelectorAll('.reveal')];
+        const idx = siblings.indexOf(e.target);
+        setTimeout(() => {
+          e.target.classList.add('in-view');
+        }, idx * 80);
+        observer.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.1 });
+
+  reveals.forEach(el => observer.observe(el));
+</script>
+</body>
+</html>
