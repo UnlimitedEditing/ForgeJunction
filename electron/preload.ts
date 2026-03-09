@@ -30,6 +30,25 @@ contextBridge.exposeInMainWorld('electron', {
   getLogPath: (): Promise<string> =>
     ipcRenderer.invoke('debug:getLogPath'),
 
+  // Debug / Reporting
+  sendLogs: (logs: object[]) => {
+    ipcRenderer.send('debug:renderer-logs', logs)
+  },
+  exportReport: (rendererMeta: object): Promise<{ success: boolean; filePath?: string; reportId?: string; error?: string }> => {
+    return ipcRenderer.invoke('debug:export-report', rendererMeta)
+  },
+  getSystemInfo: (): Promise<object> => {
+    return ipcRenderer.invoke('debug:system-info')
+  },
+  sendCrashReport: (rendererMeta: object, auto = false): Promise<{ localPath: string; backend: object; reportId: string }> => {
+    return ipcRenderer.invoke('debug:send-crash-report', { rendererMeta, auto })
+  },
+  onOpenDebugReport: (callback: () => void) => {
+    const listener = () => callback()
+    ipcRenderer.on('debug:open-dialog', listener)
+    return () => ipcRenderer.removeListener('debug:open-dialog', listener)
+  },
+
   // Auth / key management
   auth: {
     hasKey: (): Promise<boolean> => ipcRenderer.invoke('auth:hasKey'),

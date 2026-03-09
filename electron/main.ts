@@ -2,6 +2,7 @@ import { app, BrowserWindow, shell, Menu, ipcMain } from 'electron'
 import { join } from 'path'
 import { writeFileSync, readFileSync, existsSync, mkdirSync, readdirSync } from 'fs'
 import { isApiKeyStored, storeApiKey, retrieveApiKey, deleteApiKey } from './services/keystore'
+import { patchMainConsole, registerIpcHandlers } from './debugReporter'
 
 const isDev = !app.isPackaged
 
@@ -150,6 +151,14 @@ function buildMenu(): void {
           click: () => {
             BrowserWindow.getFocusedWindow()?.webContents.send('open-about')
           }
+        },
+        { type: 'separator' },
+        {
+          label: 'Export Debug Report',
+          accelerator: 'CmdOrCtrl+Shift+E',
+          click: () => {
+            BrowserWindow.getFocusedWindow()?.webContents.send('debug:open-dialog')
+          }
         }
       ]
     }
@@ -253,6 +262,8 @@ function setupIpc(): void {
 // ── App Lifecycle ─────────────────────────────────────────────────────────────
 
 app.whenReady().then(() => {
+  patchMainConsole()
+  registerIpcHandlers()
   buildMenu()
   setupIpc()
   createWindow()

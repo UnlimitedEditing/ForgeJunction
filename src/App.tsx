@@ -4,6 +4,7 @@ import PromptEditor from '@/components/PromptEditor'
 import RenderViewer from '@/components/RenderViewer'
 import StatusBar from '@/components/StatusBar'
 import DebugProtocol from '@/components/DebugProtocol'
+import DebugReportDialog from '@/components/DebugReportDialog'
 import Onboarding from '@/components/Onboarding'
 import Settings from '@/components/Settings'
 import { useDebugProtocolStore } from '@/stores/debugProtocol'
@@ -26,16 +27,19 @@ function MainLayout(): React.ReactElement {
   const { open: openDebug } = useDebugProtocolStore()
   const { setTheme } = useThemeStore()
   const [showSettings, setShowSettings] = useState(false)
+  const [showDebugReport, setShowDebugReport] = useState(false)
 
   useEffect(() => {
     if (!window.electron) return
     const cleanupDebug = window.electron.onOpenDebugProtocol(() => openDebug())
     const cleanupLog = window.electron.onOpenDebugLog(() => openDebug())
     const cleanupTheme = window.electron.onThemeChange((t) => setTheme(t as ThemeName))
+    const cleanupReport = window.electron.onOpenDebugReport(() => setShowDebugReport(true))
     return () => {
       cleanupDebug()
       cleanupLog()
       cleanupTheme()
+      cleanupReport()
     }
   }, [openDebug, setTheme])
 
@@ -84,6 +88,7 @@ function MainLayout(): React.ReactElement {
 
       <StatusBar />
       <DebugProtocol />
+      <DebugReportDialog open={showDebugReport} onClose={() => setShowDebugReport(false)} />
     </div>
   )
 }

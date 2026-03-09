@@ -11,6 +11,13 @@ declare global {
       getLogPath: () => Promise<string>
       onThemeChange: (callback: (theme: string) => void) => () => void
       reportTheme: (theme: string) => Promise<void>
+      // Debug / Reporting
+      sendLogs: (logs: object[]) => void
+      exportReport: (rendererMeta: object) => Promise<{ success: boolean; filePath?: string; reportId?: string; error?: string }>
+      getSystemInfo: () => Promise<import('../electron/debugReporter').SystemInfo>
+      sendCrashReport: (rendererMeta: object, auto?: boolean) => Promise<{ localPath: string; backend: { success: boolean; error?: string; serverId?: string }; reportId: string }>
+      onOpenDebugReport: (callback: () => void) => () => void
+
       auth: {
         hasKey: () => Promise<boolean>
         getKey: () => Promise<string | null>
