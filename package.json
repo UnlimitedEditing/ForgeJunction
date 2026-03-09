@@ -1,0 +1,55 @@
+{
+  "name": "forge-junction",
+  "version": "0.1.0",
+  "description": "Forge Junction — AI media studio powered by Graydient.ai",
+  "main": "dist-electron/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "package": "npm run build && electron-packager . \"Forge Junction\" --platform=win32 --arch=x64 --out=release --overwrite --asar --ignore=\"^/(src|electron|dev-journal|\\.env|\\.gitignore|tsconfig|tailwind|postcss|electron\\.vite\\.config|launch\\.bat|README|claude-code)\"",
+    "package:installer": "cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder"
+  },
+  "dependencies": {
+    "zustand": "^4.5.2"
+  },
+  "devDependencies": {
+    "@electron/packager": "^19.0.5",
+    "@types/node": "^20.12.12",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "autoprefixer": "^10.4.19",
+    "cross-env": "^10.1.0",
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3",
+    "electron-vite": "^2.3.0",
+    "postcss": "^8.4.38",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwindcss": "^3.4.4",
+    "typescript": "^5.4.5",
+    "vite": "^5.2.12"
+  },
+  "build": {
+    "appId": "ai.graydient.forgejunction",
+    "productName": "Forge Junction",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist-electron/**",
+      "dist/**",
+      "!dist/assets/*.map"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "mac": {
+      "target": "dmg"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  }
+}

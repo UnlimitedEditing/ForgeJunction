@@ -1,0 +1,614 @@
+{
+  "_meta": {
+    "source": "Pirate Diffusion / Graydient.ai Telegram community chat (5,194 filtered messages, May 2023 – Feb 2025)",
+    "extracted_by": "Forge Junction build agent",
+    "priority": "error_prevention",
+    "notes": "Trusted sources: Captain (API author), tlack (core dev), Hampsteri (power user / workflow creator), SquibDuck (power user), Eggs Benadryl (power user). All parameter observations are empirical unless marked [official]."
+  },
+
+  "global_parameter_constraints": {
+    "images": {
+      "safe_default": 3,
+      "max_safe_with_loras": 3,
+      "absolute_max": 9,
+      "notes": "Captain confirmed /images:3 is the safe default when stacking LoRAs. Combinations of LoRAs can cause failures at higher counts. The system itself may auto-reduce. For Flux Schnell and many ComfyUI workflows the standard maximum is 9.",
+      "source": "Captain: 'it seems doing /images:3 is the safe default'"
+    },
+    "guidance": {
+      "sd15_typical_range": [5, 11],
+      "sdxl_typical_range": [1.5, 7.5],
+      "flux_recommended_range": [1.0, 3.5],
+      "flux_schnell_fixed": 1.0,
+      "video_ltx_recommended": 5.0,
+      "absolute_min_observed": 1.0,
+      "absolute_max_observed": 16.0,
+      "notes": "Flux models behave very differently from SD models — guidance above 3.5 on Flux often degrades quality. For Flux Schnell the guidance is fixed at 1 and ignored. Captain suggested /guidance:11 for photo realism on older models. Eggs Benadryl: 'Guidance is likely far too high' (on /guidance:15 for a Flux workflow).",
+      "override_priority": "Placing #recipes before /guidance:7 lets you override recipe defaults"
+    },
+    "steps": {
+      "flux_schnell_fixed": 4,
+      "flux_dev_recommended": [20, 40],
+      "sdxl_typical": [20, 40],
+      "sd15_typical": [25, 50],
+      "ltx_video_recommended_low_frames": 120,
+      "lcm_dmd_fast": [4, 8],
+      "notes": "Flux Schnell steps are fixed to 4; the model ignores higher values. LTX video at low frame counts benefits from /steps:120. LCM+DMD workflows use 4–8 steps by design."
+    },
+    "size": {
+      "sd15_native": "512x512",
+      "sdxl_native": "1024x1024",
+      "flux_recommended": "1024x1024",
+      "video_typical": "512x512",
+      "video_max_reliable": "768x768",
+      "video_ltx_max": "1280x720",
+      "facelift_safe_max": "1700x1700",
+      "facelift_max_confirmed_fail": "1800x1800",
+      "output_delivery_limit_pixels": 3000,
+      "notes": "Images above 3000px on any side cause delivery issues (Telegram API timeouts, S3 size limits). For video: /run:video (LTX+Flux) often fails above 768x768; video-medium (pure LTX) is more reliable. Hampsteri: 'The model says the limit is 1280x720, but the workflow often fails before reaching that.' For video-nsfw-q8 only 512x512 is reliable. /facelift /photo /size:1700x1700 is reliable; 1800x1800 is not always."
+    },
+    "strength": {
+      "remix_typical": [0.35, 0.65],
+      "more_upscale_typical": [0.5, 0.5],
+      "inpaint_light": 0.1,
+      "notes": "strength is only valid for /remix, /more, and img2img workflows. Do NOT include /strength in pure /render (txt2img) calls — it will leave the image 50% unfinished."
+    },
+    "seed": {
+      "batch_behavior_comfyui": "All images in a ComfyUI workflow batch share one seed. Only /render (Diffusers) gives each image its own seed (incrementing by 1).",
+      "notes": "Hampsteri: 'Workflows have only one seed per batch, because they use ComfyUI instead of Diffusers.'"
+    }
+  },
+
+  "workflow_specific_knowledge": {
+    "flux": {
+      "slug": "flux",
+      "type": "txt2img",
+      "model_family": "flux-dev",
+      "description": "Main Flux Dev workflow with smoothing applied. Better for illustrations than flux-nofix.",
+      "recommended_params": {
+        "size": "1024x1024",
+        "guidance": "1.0–3.5",
+        "steps": "20–40",
+        "images": "1–5"
+      },
+      "slot_params": {
+        "slot8": "Upscale factor (float). Bug: /slot8 must NOT be the last parameter before the prompt text — place it earlier in the parameter list to avoid 'Failed to convert an input value to a FLOAT value: factor' error."
+      },
+      "known_issues": [
+        "slot8 position bug: placing /slot8:1.25 as last param before prompt causes 'Failed to convert FLOAT' error. Workaround: move /slot8 earlier in param order.",
+        "Hugging Face file renames can break the workflow transiently (Captain: 'Huggingface renamed Flux files, restoring asap').",
+        "Does not accept <sdxl> concept tags or /nofix — those are SDXL-specific.",
+        "Do not use /strength for txt2img renders."
+      ],
+      "incompatible_params": ["nofix", "clipskip", "strength (txt2img)"],
+      "concept_compatibility": "Flux-family LoRAs only (slug suffix -flux). SDXL LoRAs are incompatible."
+    },
+    "flux-nofix": {
+      "slug": "flux-nofix",
+      "type": "txt2img",
+      "model_family": "flux-dev",
+      "description": "Same model as flux but without smoothing. Intended for rough/raw photographic output, not illustrations.",
+      "recommended_params": {
+        "size": "768x1024 or 1024x1024",
+        "guidance": "1.0–3.0",
+        "steps": "20–30",
+        "vae": "GraydientPlatformAPI__bright-vae-xl (optional)"
+      },
+      "known_issues": [
+        "safetensors file can become corrupted, causing persistent failures. Hampsteri: 'log said safetensors file was corrupted, forced redownload, works now.'",
+        "Clip model misconfiguration can cause batch unhandled errors (fixed server-side by Hampsteri Sep 2024).",
+        "Not suitable for illustrations — use plain 'flux' instead."
+      ],
+      "notes": "Hampsteri: 'Flux-nofix isn't great for illustrations, it is intended mainly for rough photograph with less smoothing.'"
+    },
+    "video": {
+      "slug": "video",
+      "type": "txt2vid",
+      "model_family": "ltx+flux",
+      "description": "Primary video workflow — LTX Video with Flux enhancement. Higher VRAM than video-medium. Intended as placeholder for best available video model.",
+      "recommended_params": {
+        "size": "512x512 (safe), up to 768x768",
+        "guidance": "5.0",
+        "steps": "120 (at low frame counts)",
+        "slot1": "Frame count — increase for longer video (e.g. /slot1:200)"
+      },
+      "known_issues": [
+        "High fail rate on first attempt — retry often succeeds.",
+        "Higher resolutions (above 768x768) frequently fail.",
+        "More VRAM-intensive than video-medium.",
+        "Prompt engineering critical: use present-tense verbs, camera movement descriptors, restate the subject instead of 'it/her', detailed but not overly long prompts."
+      ],
+      "prompt_tips": [
+        "Use present-tense action verbs.",
+        "Specify camera movement explicitly (e.g. 'camera pans left', 'slow dolly forward').",
+        "Re-state subject name instead of pronouns to avoid subject drift.",
+        "Use 'slow motion' or 'very slow movements' to control pace.",
+        "Underlying model is LightTricks LTX — long detailed prompts improve output.",
+        "Captain: '/guidance:5 and /steps:120 is recommended at low frame counts'"
+      ],
+      "slot_params": {
+        "slot1": "Video length/frame count. Default is short; /slot1:200 for longer video."
+      }
+    },
+    "video-medium": {
+      "slug": "video-medium",
+      "type": "txt2vid",
+      "model_family": "ltx",
+      "description": "Pure LTX Video without Flux overlay. Lower VRAM, more reliable than 'video' workflow.",
+      "notes": "Preferred when 'video' workflow is failing. Captain: 'the pure model is video-medium'."
+    },
+    "video-turbo": {
+      "slug": "video-turbo",
+      "type": "txt2vid",
+      "model_family": "ltx-turbo",
+      "description": "Faster video generation. Example working prompt: /workflow /run:video-turbo /size:512x512 a duck swimming with a bird"
+    },
+    "video-wan22": {
+      "slug": "video-wan22",
+      "type": "txt2vid",
+      "model_family": "wan2.2",
+      "description": "Wan 2.2 text-to-video workflow.",
+      "recommended_params": {
+        "size": "512x512 (safe). For 1024x1024, still use /size:512x512 — providing size helps stop failures.",
+        "guidance": "4.0",
+        "steps": "10"
+      },
+      "known_issues": [
+        "Providing /size helps reduce animation failures and OOM errors.",
+        "User tip: 'for an image like 1024x1024, I would still put /size:512x512 because providing size helps a lot to stop the animations from failing or hitting error.'"
+      ]
+    },
+    "animate-wan22": {
+      "slug": "animate-wan22",
+      "type": "img2vid",
+      "model_family": "wan2.2",
+      "description": "Wan 2.2 image-to-video. img2vid so you must supply the first frame.",
+      "recommended_params": {
+        "size": "up to near 1280x720 max"
+      },
+      "known_issues": [
+        "Can run closer to 1280x720 max resolution than txt2vid workflows.",
+        "Higher resolutions can cause 'smoky glitch' artifact.",
+        "/run:animate was previously described as 'pretty much useless' — results can be very on/off depending on server state."
+      ]
+    },
+    "animate-skyreels": {
+      "slug": "animate-skyreels",
+      "type": "img2vid",
+      "model_family": "skyreels",
+      "description": "Skyreels image-to-video animation workflow."
+    },
+    "hunylora": {
+      "slug": "hunylora",
+      "type": "img2vid",
+      "model_family": "hunyuan",
+      "description": "Hunyuan LoRA animation workflow.",
+      "known_issues": [
+        "/slot3:false does not reliably turn off the 'ping pong' (reversing loop) effect."
+      ],
+      "slot_params": {
+        "slot3": "Ping-pong toggle (boolean). Note: false value may not work reliably."
+      }
+    },
+    "extend-wan22": {
+      "slug": "extend-wan22",
+      "type": "vid2vid",
+      "model_family": "wan2.2",
+      "description": "Extend an existing video using Wan 2.2."
+    },
+    "ovi-wip": {
+      "slug": "ovi-wip",
+      "type": "txt2vid+audio",
+      "model_family": "ovi",
+      "description": "Synchronized audio and video generation (WIP). Similar to animate workflows but with audio tags.",
+      "special_syntax": {
+        "speech_tag": "\\<S\\>Your speech content here\\<E\\>",
+        "audio_description_tag": "\\<AUDCAP\\>Audio description here\\<ENDAUDCAP\\>",
+        "escape_requirement": "Must use backslash before < and > for the audio tags due to compatibility quirks."
+      },
+      "example_prompt": "/wf /run:ovi-wip Close up video of 30yo pirate woman with green hair sitting at park bench. She is reading a newspaper. The woman asks curiously: \\<S\\>I wonder how much lasagna a cat could eat in a day?\\<E\\>. She puts down the newspaper and looks into distance. \\<AUDCAP\\>Curious female voice.\\<ENDAUDCAP\\>",
+      "notes": "Backslash escape before angle brackets is required. This is a WIP workflow."
+    },
+    "music-ace": {
+      "slug": "music-ace",
+      "type": "txt2wav",
+      "model_family": "ace",
+      "description": "Music generation workflow version 1."
+    },
+    "music-ace15": {
+      "slug": "music-ace15",
+      "type": "txt2wav",
+      "model_family": "ace-1.5",
+      "description": "Music generation workflow version 1.5."
+    },
+    "mmaudio": {
+      "slug": "mmaudio",
+      "type": "vid2wav",
+      "model_family": "mmaudio",
+      "description": "Adds audio to video."
+    },
+    "chatterbox": {
+      "slug": "chatterbox",
+      "type": "txt2wav",
+      "model_family": "chatterbox",
+      "description": "Text-to-speech workflow."
+    },
+    "chatterbox2": {
+      "slug": "chatterbox2",
+      "type": "txt2wav",
+      "model_family": "chatterbox-v2",
+      "description": "Text-to-speech workflow v2."
+    },
+    "upscale": {
+      "slug": "upscale",
+      "type": "utility",
+      "description": "General upscaler."
+    },
+    "upscale-supir": {
+      "slug": "upscale-supir",
+      "type": "utility",
+      "description": "SUPIR upscaler — high quality but slow."
+    },
+    "upscale-remacri": {
+      "slug": "upscale-remacri",
+      "type": "utility",
+      "description": "Remacri upscaler.",
+      "slot_params": {
+        "slot8": "Upscale multiplier (integer, e.g. /slot8:4 for 4x). Example for print quality: /workflow /run:upscale-remacri /slot8:4"
+      }
+    },
+    "facelift": {
+      "slug": "facelift",
+      "type": "utility-upscale",
+      "description": "Upscaling with face correction. Three modes via sub-flags.",
+      "modes": {
+        "default": "/facelift — upscales, smoothing applied, adjusts eyes and face.",
+        "photo": "/facelift /photo — upscales, smoothing applied, does NOT alter eyes. Best for preserving high-frequency photo detail.",
+        "anime": "/facelift /anime — upscales, smoothing applied, does NOT alter eyes. For anime style."
+      },
+      "recommended_params": {
+        "safe_size_max": "1700x1700",
+        "reliable_size": "1600x1600",
+        "face_prep_before_inpaint": "768x768"
+      },
+      "known_issues": [
+        "/facelift /photo /size:1700x1700 is reliable; 1800x1800 sometimes fails.",
+        "Face correction algorithm works poorly on faces rotated 15–45 degrees. Forward-facing or well-lit faces work best.",
+        "Captain: 'first try /facelift /size:768x768 to smooth face textures and accentuate eyes' before inpainting."
+      ]
+    },
+    "rembg": {
+      "slug": "rembg",
+      "type": "utility",
+      "description": "Background removal."
+    },
+    "describe": {
+      "slug": "describe",
+      "type": "utility",
+      "description": "Image captioning / reverse prompt."
+    },
+    "edit-flux": {
+      "slug": "edit-flux",
+      "type": "img2img",
+      "model_family": "flux",
+      "description": "Flux-based image editing."
+    },
+    "edit-klein-flux": {
+      "slug": "edit-klein-flux",
+      "type": "img2img",
+      "model_family": "flux",
+      "description": "Klein-edited Flux image editing. Supports targeted removal/replacement. Example: /alias /add:removePeople \"/wf /run:edit-klein-flux Remove people in the background from the photo\""
+    },
+    "blend2-flux": {
+      "slug": "blend2-flux",
+      "type": "img2img",
+      "model_family": "flux",
+      "description": "Blend two images with Flux.",
+      "known_issues": [
+        "Reported throwing unhandled errors intermittently (Jan 2025). Retry usually works."
+      ]
+    },
+    "dino-inpaint": {
+      "slug": "dino-inpaint",
+      "type": "img2img",
+      "description": "DINO-guided inpainting. Uses /slot1 for the inpaint subject.",
+      "slot_params": {
+        "slot1": "Text description of what to inpaint into the detected region."
+      },
+      "example_prompt": "/workflow /run:dino-inpaint /size:768x768 /strength:10 beach volley <sdxl> /slot1:man in the sea"
+    },
+    "compose": {
+      "slug": "compose",
+      "type": "txt2img-triptych",
+      "description": "Three-panel composition workflow. Uses /left, /center, /right for each panel prompt.",
+      "slot_params": {
+        "left": "Left panel prompt text",
+        "center": "Center panel prompt text",
+        "right": "Right panel prompt text"
+      },
+      "example_prompt": "/compose /size:1984x640 /strength:1.0 /sampler:dpm2m /guidance:2.0 <deliberate2> /nofix /images:1 /steps:10 /center: underwater darkness /left: scary cave entrance /right: yellow submarine with lights",
+      "recommended_params": {
+        "size": "Wide aspect ratio (e.g. 1984x640, 2000x700)",
+        "guidance": "2.0",
+        "steps": "10",
+        "strength": "1.0"
+      }
+    },
+    "outpaint": {
+      "slug": "outpaint",
+      "description": "Expand image canvas (zoom out / outpainting).",
+      "slot_params": {
+        "slot1": "Feathering value (default 50).",
+        "slot2": "Top padding (pixels).",
+        "slot3": "Right padding (pixels).",
+        "slot4": "Bottom padding (pixels).",
+        "slot5": "Left padding (pixels)."
+      },
+      "notes": "Captain: 'slot1 is feathering. slot2/3/4/5 are padding numbered clockwise. Default feather=50. To zoom out only top and bottom: /slot2:200 /slot4:200'"
+    },
+    "zimage": {
+      "slug": "zimage",
+      "type": "txt2img",
+      "description": "Fast image generation. Primary test workflow per build spec.",
+      "example_prompt": "/run:zimage /guidance:7 /seed:42 /images:1 a red circle on white background"
+    }
+  },
+
+  "prompt_syntax": {
+    "format": "/wf /run:workflow-slug /param1:value1 /param2:value2 positive prompt text [negative prompt in brackets]",
+    "telegram_prefix": "/wf prefix is stripped (Telegram bot command prefix, not an API param)",
+    "negative_prompt": "Text inside [square brackets] at end of prompt. Gets appended to prompt field as '... [negative text]'",
+    "concept_reference": "<concept-name> or <concept-name:weight> — extracted to options_text field",
+    "concept_in_negative": "[<concept-name:-2.0>] — negative concept weighting, inside square brackets",
+    "double_angle_bracket_warning": "<<concept>> uses double brackets — these are single concept references, not two. Captain: 'ten cuidado con los doble << porque se usa un par. como: <revani>'",
+    "emphasis_syntax": {
+      "parentheses": "((word)) = stronger emphasis (multiply weight). More parens = more weight.",
+      "square_brackets": "[[word]] = reduce emphasis / suppress",
+      "combined": "((word:1.2)) = explicit weight multiplier"
+    },
+    "tips": [
+      "Recipes (#recipe-name) set defaults. Placing #recipes first, then /guidance:7, lets you override recipe defaults.",
+      "Concept tokens and LoRA weight syntax: <concept-name:weight> where weight 0.5-1.2 is typical.",
+      "For Flux models: omit /nofix and /clipskip — those are SDXL-specific flags.",
+      "For SDXL img2img/remix: /strength:0.5 is the typical safe value. /strength is NOT for txt2img.",
+      "For video prompts: use present tense, active verbs, explicit camera direction, restate subject instead of pronouns.",
+      "LPW (Long Prompt Weighting) flag: /lpw — enables processing of very long prompts. Does NOT work with LoRAs.",
+      "/nofix flag suppresses the automatic quality-fixing post-process step (SDXL-specific).",
+      "/parser:new enables the newer prompt parser (for newer SDXL recipes).",
+      "/karras enables Karras noise schedule for sampling.",
+      "/clipskip:2 skips the last CLIP layer (better for anime/pony models).",
+      "/adetailer enables the ADetailer face/hand refinement pass.",
+      "Quality boosters for pony models: score_9, score_8_up, score_7_up in positive prompt.",
+      "For realistic SDXL: /vae:GraydientPlatformAPI__bright-vae-xl or /vae:madebyollin__sdxl-vae-fp16-fix improves quality."
+    ]
+  },
+
+  "workflow_chains": {
+    "standard_upscale_pipeline": {
+      "description": "Progressive upscaling from base render to print quality",
+      "steps": [
+        "1. /render /size:1024x1024 ... (base generation)",
+        "2. /more /size:1536x1536 /strength:0.5 /steps:12 /sampler:dpm2m /nofix /images:3 (first upscale)",
+        "3. /more /size:1850x1850 /strength:0.5 /steps:10 /sampler:dpm2m /nofix /images:3 (second upscale)",
+        "4. /facelift /photo /size:2000x2000 (optional face refinement)"
+      ],
+      "notes": "Eggs Benadryl's proven pipeline. /adetailer can be added at step 2 for face/hand fixing."
+    },
+    "print_quality_pipeline": {
+      "description": "Getting images ready for shirt printing or print media",
+      "steps": [
+        "1. Generate at reasonable resolution (1024x1024 or 768x1024)",
+        "2. /workflow /run:upscale-remacri /slot8:4  (4x pixel upscale)",
+        "3. /highdef (AI upscaling post-process)",
+        "4. /facelift /photo (final face/detail pass)"
+      ]
+    },
+    "face_inpaint_pipeline": {
+      "description": "Fix face issues in generated images",
+      "steps": [
+        "1. /facelift /photo /size:768x768  (prepare: smooth and normalize face)",
+        "2. /inpaint  (then paint over problem areas)"
+      ],
+      "notes": "Captain: 'prepping the image going in can fix issues. Do /facelift /photo /size:768x768 then /inpaint'"
+    },
+    "img2vid_pipeline": {
+      "description": "Image to animated video",
+      "steps": [
+        "1. Generate still image with /workflow /run:flux or /render",
+        "2. Reply to image: /workflow /run:animate-wan22 /size:512x512 [describe the motion]"
+      ],
+      "notes": "animate-wan22 is img2vid so you must render the first frame manually."
+    },
+    "video_with_audio": {
+      "description": "Generate video with synchronized speech/audio",
+      "steps": [
+        "1. /wf /run:ovi-wip [scene description] \\<S\\>speech text\\<E\\> \\<AUDCAP\\>audio description\\<ENDAUDCAP\\>",
+        "OR",
+        "1a. /workflow /run:video [txt2vid prompt]",
+        "2. Reply to video: /workflow /run:mmaudio [audio description]"
+      ]
+    },
+    "highres_from_widescreen": {
+      "description": "Generate ultrawide/wallpaper images",
+      "steps": [
+        "1. /render /size:2560x720 ... (generate at target aspect ratio)",
+        "2. /facelift /size:5000x1000 (upscale to near-monitor resolution)",
+        "3. Crop to final monitor dimensions if needed"
+      ],
+      "notes": "Captain: 'start by rendering at /size:2560x720 then facelift to get near monitor size'"
+    }
+  },
+
+  "error_patterns": {
+    "unhandled_error": {
+      "description": "Generic server-side render failure",
+      "triggers": [
+        "Corrupted safetensors/model file on server",
+        "CLIP model misconfiguration (server-side)",
+        "New server being provisioned (transient)",
+        "LoRA incompatibility combinations",
+        "VRAM exhaustion from high /images count or resolution",
+        "Wrong model family parameters (e.g. SDXL params on Flux workflow)",
+        "Specific workflow slug becoming broken/renamed"
+      ],
+      "remedies": [
+        "Simply retry — many unhandled errors are transient and self-resolve.",
+        "Reduce /images count (try /images:2 or /images:1).",
+        "Reduce /size (try 512x512 or 768x768).",
+        "Remove LoRAs one at a time to isolate incompatible combination.",
+        "Switch to a different but similar workflow (e.g. video-medium instead of video).",
+        "Wait and check /ping — if numbers stay the same, system is stuck and requires admin fix."
+      ],
+      "known_stack_trace": "utils_clip_embeddings_sdxl.text_embeddings() — indicates SDXL CLIP embedding failure, usually a server-side issue",
+      "retry_philosophy": "Captain confirmed renders that appeared to fail often completed successfully. Always check /history before assuming total failure."
+    },
+    "memory_exceeded": {
+      "description": "Server ran out of VRAM",
+      "triggers": [
+        "Image size too large",
+        "Too many /images in batch",
+        "Heavy LoRA stack at high resolution"
+      ],
+      "remedies": [
+        "Decrease /size",
+        "Decrease /images count",
+        "Remove some LoRAs",
+        "Try again after delay (other renders may have freed memory)"
+      ]
+    },
+    "corrupted_model": {
+      "description": "Model file on server is corrupted",
+      "example": "Error: 'corrupted model' with <raventt-xl>",
+      "remedy": "Report to Captain/admin. Hampsteri can force redownload. User cannot fix this."
+    },
+    "rendering_now_infinite": {
+      "description": "Render shows 'rendering now' but never completes, no error",
+      "triggers": [
+        "Server being provisioned (new workflow servers)",
+        "Broken workflow configuration (wrong clip model, missing file)",
+        "Wrong model family parameters causing silent failure (e.g. using SDXL params on Flux)"
+      ],
+      "remedies": [
+        "Wait and retry — provisioning is transient.",
+        "Check Workflow Watcher at cloud.graydient.ai/monitor/workflow/...",
+        "Remove incompatible parameters for the workflow's model family."
+      ]
+    },
+    "failed_to_convert_float": {
+      "description": "Parameter parsing failure: 'Failed to convert an input value to a FLOAT value: factor, X.XX'",
+      "trigger": "Specific to flux /slot8 when placed as the last parameter before prompt text",
+      "fix": "Move /slot8 earlier in the parameter sequence, not immediately before the prompt.",
+      "example_bad": "/workflow /run:flux /size:768x1024 /guidance:3.0 /steps:20 /images:2 /slot8:1.25 prompt",
+      "example_good": "/workflow /run:flux /size:768x1024 /guidance:3.0 /steps:20 /slot8:1.25 /images:2 prompt"
+    },
+    "lora_not_applied": {
+      "description": "Render completes but LoRA style not visible in output",
+      "triggers": [
+        "LoRA file silently not loaded (server-side, transient)",
+        "LPW (/lpw) flag — LPW does NOT work with LoRAs"
+      ],
+      "remedy": "Remove /lpw if using LoRAs. Retry if transient."
+    },
+    "concept_syntax_error": {
+      "description": "Concept/LoRA not applied due to syntax mistake",
+      "common_mistake": "Using <<concept>> double brackets instead of <concept> single brackets",
+      "fix": "Use single angle brackets: <concept-name> or <concept-name:weight>"
+    },
+    "video_smoky_glitch": {
+      "description": "Video output has smoky/ghostly visual artifact",
+      "trigger": "Resolution too high for video workflow",
+      "fix": "Reduce /size to 512x512 or 768x768"
+    },
+    "faceswap_15_broken": {
+      "description": "faceswap / facepush fails with SD 1.5 models",
+      "note": "LA Dave confirmed Oct 2024: 'faceswap/facepush broken for 1.5 models. XL works.' Use XL-based models for faceswap workflows."
+    }
+  },
+
+  "concept_compatibility": {
+    "model_family_rules": {
+      "sd15": {
+        "token": "<sdv15>",
+        "compatible_concepts": "SD 1.5 LoRAs and checkpoints only",
+        "incompatible_with": ["SDXL LoRAs", "Flux LoRAs"],
+        "typical_size": "512x512"
+      },
+      "sdxl": {
+        "token": "<sdxl>",
+        "compatible_concepts": "SDXL LoRAs and checkpoints. Token suffix -xl indicates SDXL.",
+        "incompatible_with": ["SD 1.5 LoRAs", "Flux LoRAs"],
+        "typical_size": "1024x1024",
+        "flags": ["/nofix", "/clipskip:2", "/parser:new", "/karras", "/adetailer"]
+      },
+      "flux": {
+        "compatible_concepts": "Flux LoRAs only. Token suffix -flux indicates Flux.",
+        "incompatible_with": ["SDXL LoRAs", "SD 1.5 LoRAs", "<sdxl> token", "/nofix", "/clipskip"],
+        "typical_size": "1024x1024",
+        "guidance_range": "1.0–3.5"
+      }
+    },
+    "negative_concept_syntax": {
+      "format": "[<concept-name:-2.0>]",
+      "example": "[[<fastnegative-xl:-2.0>]]",
+      "notes": "Negative weights for concepts use double brackets. Weight of -1 to -2 is typical."
+    },
+    "known_concepts": {
+      "sdxl_checkpoints": ["sdxl", "realvis4light-xl", "realvis5-xl", "ponyrealism21-xl", "pony-diffusion6-xl", "prefect3-xl", "blackmagic145-xl", "amakuni-ultrareal-xl"],
+      "sdxl_loras": ["fastnegative-xl", "dmd", "gossamer-xl", "dynavision557-xl", "pdscore-xl", "hands-flux", "shirtvectors-flux"],
+      "flux_loras": ["asianutopian4-flux", "realfascination-flux", "copaxtimeless-flux", "unchained-q8-fluxdev", "unchained-q6-flux", "hands-flux", "shirtvectors-flux"],
+      "sd15_concepts": ["sdv15", "cyberrealistic42", "cyberreal33"],
+      "samplers_xl": ["dpm2m", "k_euler", "k_euler_a", "ddim", "heun", "upms", "lcm_base"],
+      "vaes": ["GraydientPlatformAPI__bright-vae-xl", "madebyollin__sdxl-vae-fp16-fix"],
+      "utility_concepts": ["easynegative", "verybad-negative", "bad-hands-v5", "fast-negative-xl", "pony-score-xl"]
+    },
+    "stacking_rules": [
+      "Multiple LoRAs can be stacked but increases failure risk at high /images counts.",
+      "Captain: 'an almost endless combination of LoRAs' can cause failures. /images:3 is the safe default.",
+      "/lpw (Long Prompt Weighting) is incompatible with LoRAs — choose one or the other.",
+      "Concept weights: default is 1.0. Range typically 0.4–1.5. Negative embeddings typically -1.0 to -2.0.",
+      "SDXL and Flux LoRAs cannot be mixed in the same render."
+    ]
+  },
+
+  "sampler_guidance": {
+    "dpm2m": "General-purpose, reliable. Works well with /karras.",
+    "k_euler": "Good default for SD models. Smooth results.",
+    "k_euler_a": "Ancestral variant — more variation between seeds.",
+    "ddim": "Deterministic, consistent. Used for high-step artistic renders.",
+    "heun": "Good for artistic/detailed renders.",
+    "upms": "Recommended for SDXL img2img/upscaling workflows.",
+    "lcm_base": "For LCM fast generation. Use with /guidance:1.0 and /steps:4-8.",
+    "dpm2m_karras": "Add /karras flag with /sampler:dpm2m for Karras schedule."
+  },
+
+  "api_integration_notes": {
+    "content_type_rules": {
+      "GET_endpoints": "application/vnd.api+json for ALL GET endpoints (/workflows/, /concepts/, /render/{hash}/, /community/). Using application/json returns 406.",
+      "POST_render": "application/json for POST /render/. Using vnd.api+json returns 500 with no useful message.",
+      "Accept_for_SSE": "text/event-stream for POST /render/ Accept header."
+    },
+    "render_body_required_fields": {
+      "stream": "Must be true in body AND Accept: text/event-stream in header. Omitting returns 400.",
+      "options_text": "Must be present (empty string OK). Python SDK deletes it but TypeScript client must keep it.",
+      "progressive_return": true,
+      "task": "workflow"
+    },
+    "slug_preservation": "Workflow slugs use hyphens. NEVER convert hyphens to underscores. zimage-turbo is correct, zimage_turbo will 404.",
+    "media_url_source": "Rendered media is served from piratediffusion1.s3.amazonaws.com. Must be in CSP img-src and media-src.",
+    "seed_behavior": "ComfyUI workflows: one seed per batch. Diffusers /render: each image gets seed+N.",
+    "sse_events": {
+      "progress": "data: {\"rendering_progress\": {\"percent\": 25}}",
+      "done": "data: {\"rendering_done\": {\"render_hash\": \"XXXXX\"}}",
+      "fetch_after_done": "GET /render/{render_hash}/ to retrieve media URLs"
+    }
+  },
+
+  "operational_tips": {
+    "system_health_check": "/ping — if numbers stay constant, system queue is stuck. Requires admin (yanmam or tlack305) to resolve.",
+    "history_check": "/history — check if render completed even when no bot response received (Telegram API can time out after render completes).",
+    "workflow_watcher": "cloud.graydient.ai/monitor/workflow/{workflowID}/{runID} — provides ComfyUI node-level error details not shown in bot messages.",
+    "render_retry_philosophy": "Many transient errors self-resolve on retry. Renders that appear to fail often completed successfully. Always check /history.",
+    "model_renaming": "Workflows and LoRA slugs can be renamed by admin. Example: copaxtimeless-flux was renamed from a longer slug (Sep 2024). If a known workflow throws 'not found', check current slug list.",
+    "video_failure_rate": "Video workflows have notably higher failure rates than image workflows (~60% on bad days). Retry is expected behavior.",
+    "lora_unavailability": "Individual LoRAs can become temporarily corrupted or unavailable. If <specific-lora> fails, substitute a similar one and report to community."
+  }
+}

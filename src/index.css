@@ -1,0 +1,226 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;1,300&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── CSS CUSTOM PROPERTIES ──────────────────────────────────────────────────── */
+
+/* Industrial (new default) -------------------------------------------------- */
+:root {
+  --foreground:      232 234 237;   /* #e8eaed */
+  --n950:              8  10  12;   /* #080a0c  primary bg */
+  --n900:             13  16  20;   /* #0d1014  secondary bg / cards */
+  --n800:             17  21  24;   /* #111518  inputs / code blocks */
+  --n700:             20  26  31;   /* #141a1f  general use */
+  --surface:           8  10  12;   /* #080a0c */
+  --surface-raised:   13  16  20;   /* #0d1014 */
+  --surface-overlay:  20  26  31;   /* #141a1f */
+  --panel:            20  26  31;   /* #141a1f  panels, sidebar */
+  --brand:           255 107  43;   /* #ff6b2b  ember — primary accent */
+  --ember2:          255 149  84;   /* #ff9554  ember hover/lighter */
+  --arc:              74 227 255;   /* #4ae3ff  secondary accent */
+  --arc2:             26 184 216;   /* #1ab8d8 */
+  --muted:           122 133 144;   /* #7a8590 */
+  --dim:              58  67  77;   /* #3a434d */
+}
+
+/* Discord (old default — dark purple SaaS) ---------------------------------- */
+[data-theme="discord"] {
+  --foreground:      255 255 255;
+  --n950:             10  10  10;   /* #0a0a0a */
+  --n900:             23  23  23;   /* #171717 */
+  --n800:             38  38  38;   /* #262626 */
+  --n700:             64  64  64;   /* #404040 */
+  --surface:          15  15  15;   /* #0f0f0f */
+  --surface-raised:   26  26  26;   /* #1a1a1a */
+  --surface-overlay:  36  36  36;   /* #242424 */
+  --panel:            23  23  23;   /* #171717 */
+  --brand:           108  71 255;   /* #6c47ff */
+  --ember2:          108  71 255;   /* same as brand — no separate hover tint */
+  --arc:              74 227 255;   /* keep arc for any shared elements */
+  --arc2:             26 184 216;
+  --muted:           115 115 115;   /* neutral-500 */
+  --dim:              64  64  64;   /* neutral-700 */
+}
+
+/* Pirate / Aetherpunk ------------------------------------------------------- */
+[data-theme="pirate"] {
+  --foreground:      230 213 184;   /* #E6D5B8 parchment */
+  --n950:             10   7   5;   /* #0A0705 void */
+  --n900:             22  14  10;   /* #160E0A oiled ebony */
+  --n800:             10   7   5;   /* #0A0705 (same as void for inputs) */
+  --n700:             26  17  13;   /* #1A110D charred */
+  --surface:          10   7   5;   /* #0A0705 */
+  --surface-raised:   26  17  13;   /* #1A110D */
+  --surface-overlay:  36  24  18;   /* #241812 */
+  --panel:            22  14  10;   /* #160E0A */
+  --brand:           212 175  55;   /* #D4AF37 polished brass */
+  --ember2:          212 175  55;   /* same as brand */
+  --arc:             212 175  55;   /* use brass for arc too */
+  --arc2:            180 140  40;
+  --muted:           160 140 110;
+  --dim:              80  60  40;
+}
+
+/* ── BASE LAYER ─────────────────────────────────────────────────────────────── */
+
+@layer base {
+  html,
+  body,
+  #root {
+    @apply h-full bg-surface text-white antialiased;
+    font-family: 'Syne', system-ui, sans-serif;
+  }
+
+  * {
+    @apply box-border;
+  }
+
+  /* Noise texture overlay — industrial default only */
+  #root::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.022;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+  }
+
+  /* Disable noise in other themes */
+  [data-theme="discord"] #root::before,
+  [data-theme="pirate"]  #root::before {
+    display: none;
+  }
+
+  /* Scrollbar — industrial */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: rgb(var(--n950)); }
+  ::-webkit-scrollbar-thumb { background: rgb(var(--dim)); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgb(var(--muted)); }
+}
+
+/* ── THEMED HEADING (section labels, column headers) ────────────────────────── */
+
+/* Industrial: Bebas Neue */
+.themed-heading {
+  font-family: 'Bebas Neue', sans-serif;
+  letter-spacing: 0.15em;
+}
+
+/* Discord: plain (no special heading font) */
+[data-theme="discord"] .themed-heading {
+  font-family: 'Syne', system-ui, sans-serif;
+  letter-spacing: 0.1em;
+  font-weight: 600;
+}
+
+/* Pirate: Playfair Display serif */
+[data-theme="pirate"] .themed-heading {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-weight: 600;
+}
+
+/* ── PIRATE — BRASS TRACK SCROLLBAR ─────────────────────────────────────────── */
+
+[data-theme="pirate"] ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+[data-theme="pirate"] ::-webkit-scrollbar-track {
+  background: #0A0705;
+  border-left: 1px solid #3A2818;
+  box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.9);
+}
+[data-theme="pirate"] ::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, #8B6508, #5C4033);
+  border: 1px solid #D4AF37;
+  border-radius: 4px;
+  box-shadow: inset 0 0 4px rgba(212, 175, 55, 0.4);
+}
+[data-theme="pirate"] ::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to bottom, #D4AF37, #8B6508);
+  border-color: #FFF2CD;
+}
+
+/* ── PROGRESS BAR FILL ───────────────────────────────────────────────────────── */
+
+/* Industrial: ember gradient + glow */
+.fill-progress {
+  background: linear-gradient(90deg, rgb(var(--brand)), rgb(var(--ember2)));
+  box-shadow: 0 0 8px rgba(255, 107, 43, 0.5);
+  transition: width 300ms ease;
+}
+
+/* Discord: solid purple (no gradient needed) */
+[data-theme="discord"] .fill-progress {
+  background: rgb(var(--brand));
+  box-shadow: 0 0 8px rgba(108, 71, 255, 0.4);
+}
+
+/* Pirate: amber gradient */
+[data-theme="pirate"] .fill-progress {
+  background: linear-gradient(to right, #b45309, #d97706, #eab308);
+  box-shadow: 0 0 10px rgba(217, 119, 6, 0.6);
+}
+
+/* ── SUBMIT BUTTON ───────────────────────────────────────────────────────────── */
+
+/* Industrial */
+.btn-primary-submit:not(.is-queued) {
+  background: rgb(var(--brand));
+  color: #000;
+  font-family: 'Syne', system-ui, sans-serif;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  transition: background 200ms ease, box-shadow 200ms ease, transform 150ms ease;
+}
+.btn-primary-submit:not(.is-queued):hover:not(:disabled) {
+  background: rgb(var(--ember2));
+  box-shadow: 0 8px 40px rgba(255, 107, 43, 0.25);
+  transform: translateY(-2px);
+}
+.btn-primary-submit:not(.is-queued):active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* Discord */
+[data-theme="discord"] .btn-primary-submit:not(.is-queued) {
+  background: rgb(var(--brand));
+  color: white;
+  box-shadow: none;
+}
+[data-theme="discord"] .btn-primary-submit:not(.is-queued):hover:not(:disabled) {
+  background: rgba(108, 71, 255, 0.85);
+  box-shadow: 0 4px 20px rgba(108, 71, 255, 0.3);
+  transform: none;
+}
+
+/* Pirate */
+[data-theme="pirate"] .btn-primary-submit:not(.is-queued) {
+  background: linear-gradient(to bottom, #8B6508, #5C4033);
+  border: 1px solid #D4AF37;
+  color: #E6D5B8;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  box-shadow: 0 0 15px rgba(139, 101, 8, 0.2);
+  transform: none;
+}
+[data-theme="pirate"] .btn-primary-submit:not(.is-queued):hover:not(:disabled) {
+  background: linear-gradient(to bottom, #B8860B, #8B6508);
+  box-shadow: 0 0 20px rgba(212, 175, 55, 0.4);
+  transform: none;
+}
+[data-theme="pirate"] .btn-primary-submit:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* ── PIRATE — SELECTION COLOUR ───────────────────────────────────────────────── */
+
+[data-theme="pirate"] ::selection {
+  background-color: #D4AF37;
+  color: #0A0705;
+}

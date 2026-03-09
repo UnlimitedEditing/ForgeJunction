@@ -1,0 +1,19 @@
+node_modules/
+dist/
+dist-electron/
+out/
+release/
+.env
+*.local
+
+# Development journal � specs, prompts, logs
+dev-journal/
+
+# User credentials (stored in OS user data, not project)
+config/credentials.enc
+
+# Claude Code local settings
+.claude/
+
+# Runtime logs
+console_logs/
