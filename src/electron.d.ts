@@ -28,6 +28,12 @@ declare global {
       sendCrashReport: (rendererMeta: object, auto?: boolean) => Promise<{ localPath: string; backend: { success: boolean; error?: string; serverId?: string }; reportId: string }>
       onOpenDebugReport: (callback: () => void) => () => void
 
+      // Launcher
+      sendLaunch:    () => void
+      sendQuit:      () => void
+      fetchFeed:     () => Promise<{ ok: true; data: unknown } | { ok: false; error: string }>
+      getAppVersion: () => Promise<string>
+
       auth: {
         hasKey: () => Promise<boolean>
         getKey: () => Promise<string | null>

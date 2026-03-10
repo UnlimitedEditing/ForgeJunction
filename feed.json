@@ -1,0 +1,43 @@
+{
+  "_meta": {
+    "version": 1,
+    "updatedAt": "2026-03-10T00:00:00.000Z",
+    "updatedBy": "admin"
+  },
+  "blocks": [
+    {
+      "id": "welcome-001",
+      "type": "announcement",
+      "pinned": true,
+      "title": "Welcome to Forge Junction",
+      "body": "You're running the first public build. Updates will arrive automatically in the background — you'll see a notification in the bottom-right corner when one is ready to install.",
+      "cta": null,
+      "publishedAt": "2026-03-10T00:00:00.000Z"
+    },
+    {
+      "id": "changelog-010",
+      "type": "changelog",
+      "pinned": false,
+      "version": "0.1.0",
+      "title": "Initial Release",
+      "body": "First public build of Forge Junction. Includes full Pirate Diffusion workflow catalogue access, structured prompt editor, render queue, debug reporting, and auto-update system.",
+      "items": [
+        "Full workflow catalogue via Pirate Diffusion API",
+        "Structured prompt & parameter editor with workflow-aware slots",
+        "Live render queue with status feedback",
+        "Debug report export (Help → Export Debug Report)",
+        "Auto-update system — future releases install in the background"
+      ],
+      "publishedAt": "2026-03-10T00:00:00.000Z"
+    },
+    {
+      "id": "tip-001",
+      "type": "tutorial",
+      "pinned": false,
+      "title": "Quick Tip: Safe LoRA Stacking",
+      "body": "When stacking multiple LoRAs, set /images:3 as your default batch size. This is the confirmed safe limit before you start hitting slot conflicts. Going higher is possible but increases the chance of generation errors.",
+      "cta": null,
+      "publishedAt": "2026-03-10T00:00:00.000Z"
+    }
+  ]
+}

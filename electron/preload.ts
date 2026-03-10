@@ -83,6 +83,13 @@ contextBridge.exposeInMainWorld('electron', {
     return () => ipcRenderer.removeListener('debug:open-dialog', listener)
   },
 
+  // Launcher
+  sendLaunch:      () => ipcRenderer.send('launcher:launch'),
+  sendQuit:        () => ipcRenderer.send('launcher:quit'),
+  fetchFeed:       (): Promise<{ ok: true; data: unknown } | { ok: false; error: string }> =>
+    ipcRenderer.invoke('launcher:fetch-feed'),
+  getAppVersion:   (): Promise<string> => ipcRenderer.invoke('app:get-version'),
+
   // Auth / key management
   auth: {
     hasKey: (): Promise<boolean> => ipcRenderer.invoke('auth:hasKey'),

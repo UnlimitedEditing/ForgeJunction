@@ -1,13 +1,13 @@
-const { app } = require('electron')
-const { randomUUID } = require('crypto')
-const { join } = require('path')
-const { readFileSync, writeFileSync, existsSync } = require('fs')
+import { app } from 'electron'
+import { randomUUID } from 'crypto'
+import { join } from 'path'
+import { readFileSync, writeFileSync, existsSync } from 'fs'
 
 const TRACKER_ENDPOINT = process.env.FJ_TRACKER_URL || 'https://fj-tracker.jacobcombrink.workers.dev/ping'
 
-let _instanceId = null
+let _instanceId: string | null = null
 
-async function initInstanceTracker() {
+export async function initInstanceTracker(): Promise<void> {
   const idFile = join(app.getPath('userData'), 'instance-id')
   if (existsSync(idFile)) {
     _instanceId = readFileSync(idFile, 'utf-8').trim()
@@ -17,7 +17,7 @@ async function initInstanceTracker() {
   }
 }
 
-async function pingTracker(event, version) {
+export async function pingTracker(event: string, version?: string): Promise<void> {
   if (!_instanceId) return
   if (!app.isPackaged) return
   try {
@@ -29,12 +29,10 @@ async function pingTracker(event, version) {
         event,
         version: version ?? app.getVersion(),
         platform: process.platform,
-        arch: process.arch
-      })
+        arch: process.arch,
+      }),
     })
-  } catch (_) {
+  } catch {
     // silently ignore network errors
   }
 }
-
-module.exports = { initInstanceTracker, pingTracker }

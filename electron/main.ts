@@ -4,14 +4,15 @@ import { writeFileSync, readFileSync, existsSync, mkdirSync, readdirSync } from 
 import { isApiKeyStored, storeApiKey, retrieveApiKey, deleteApiKey } from './services/keystore'
 import { patchMainConsole, registerIpcHandlers } from './debugReporter'
 import { autoUpdater } from 'electron-updater'
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { initInstanceTracker, pingTracker } = require('./instanceTracker')
+import { createLauncherWindow } from './launcher'
+import { initInstanceTracker, pingTracker } from './instanceTracker'
 
 const isDev = !app.isPackaged
 
 let currentTheme = 'default'
+let launcherWin: BrowserWindow | null = null
 
-function createWindow(): BrowserWindow {
+function createMainWindow(): BrowserWindow {
   const win = new BrowserWindow({
     width: 1440,
     height: 900,
@@ -267,6 +268,33 @@ function setupIpc(): void {
 
   ipcMain.on('update:dismiss', () => { /* acknowledged */ })
 
+  // Launcher IPC
+  ipcMain.on('launcher:launch', () => {
+    const mainWindow = createMainWindow()
+    setupAutoUpdater(mainWindow)
+    launcherWin?.close()
+    launcherWin = null
+  })
+
+  ipcMain.on('launcher:quit', () => {
+    app.quit()
+  })
+
+  ipcMain.handle('launcher:fetch-feed', async () => {
+    try {
+      const res = await fetch(
+        'https://raw.githubusercontent.com/UnlimitedEditing/ForgeJunction/main/feed.json',
+        { signal: AbortSignal.timeout(8000) }
+      )
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      return { ok: true, data: await res.json() }
+    } catch (err: unknown) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  })
+
+  ipcMain.handle('app:get-version', () => app.getVersion())
+
   // Suppress unused import warning — isApiKeyStored used for future extensibility
   void isApiKeyStored
 }
@@ -333,11 +361,22 @@ app.whenReady().then(async () => {
   registerIpcHandlers()
   buildMenu()
   setupIpc()
-  const mainWindow = createWindow()
-  setupAutoUpdater(mainWindow)
+
+  const showLauncher = app.isPackaged || process.env.FJ_SHOW_LAUNCHER === 'true'
+
+  if (showLauncher) {
+    launcherWin = createLauncherWindow()
+    launcherWin.on('closed', () => {
+      // If the launcher is closed without launching, quit
+      if (BrowserWindow.getAllWindows().length === 0) app.quit()
+    })
+  } else {
+    const mainWindow = createMainWindow()
+    setupAutoUpdater(mainWindow)
+  }
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    if (BrowserWindow.getAllWindows().length === 0) createMainWindow()
   })
 })
 
