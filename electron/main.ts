@@ -4,6 +4,8 @@ import { writeFileSync, readFileSync, existsSync, mkdirSync, readdirSync } from 
 import { isApiKeyStored, storeApiKey, retrieveApiKey, deleteApiKey } from './services/keystore'
 import { patchMainConsole, registerIpcHandlers } from './debugReporter'
 import { autoUpdater } from 'electron-updater'
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { initInstanceTracker, pingTracker } = require('./instanceTracker')
 
 const isDev = !app.isPackaged
 
@@ -300,6 +302,7 @@ function setupAutoUpdater(win: BrowserWindow): void {
 
     autoUpdater.on('update-downloaded', (info) => {
       win.webContents.send('update:downloaded', { version: info.version })
+      pingTracker('update-downloaded', info.version)
     })
 
     autoUpdater.on('error', (err) => {
@@ -323,7 +326,9 @@ function setupAutoUpdater(win: BrowserWindow): void {
 
 // ── App Lifecycle ─────────────────────────────────────────────────────────────
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  await initInstanceTracker()
+  pingTracker('launch')
   patchMainConsole()
   registerIpcHandlers()
   buildMenu()
