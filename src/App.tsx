@@ -13,6 +13,7 @@ import ChainGraphEditor from '@/components/ChainGraphEditor'
 import ChainTemplatePane from '@/components/ChainTemplatePane'
 import VideoEditor from '@/components/VideoEditor'
 import StorageManager from '@/components/StorageManager'
+import SagePane from '@/components/SagePane'
 import { useDebugProtocolStore } from '@/stores/debugProtocol'
 import { useThemeStore } from '@/stores/theme'
 import { useAuthStore } from '@/stores/auth'
@@ -193,6 +194,7 @@ function MainLayout(): React.ReactElement {
       </div>
 
       <StatusBar />
+      <SagePane />
       <DebugProtocol />
       <DebugReportDialog open={showDebugReport} onClose={() => setShowDebugReport(false)} />
       <UpdateManager />

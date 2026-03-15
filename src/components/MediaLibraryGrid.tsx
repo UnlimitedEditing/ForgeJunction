@@ -10,7 +10,6 @@ function VideoTile({ src, className }: { src: string; className?: string }): Rea
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [ready, setReady] = useState(false)
 
-  // Draw a frame from the video onto the canvas
   function drawFrame() {
     const video = videoRef.current
     const canvas = canvasRef.current
@@ -49,12 +48,7 @@ function VideoTile({ src, className }: { src: string; className?: string }): Rea
   }, [src])
 
   return (
-    <div
-      className={className}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-    >
-      {/* Off-screen video used only for seeking */}
+    <div className={className} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
       <video
         ref={videoRef}
         src={src}
@@ -63,7 +57,6 @@ function VideoTile({ src, className }: { src: string; className?: string }): Rea
         playsInline
         className="absolute invisible w-0 h-0"
       />
-      {/* Canvas shows the current frame */}
       <canvas
         ref={canvasRef}
         className={`w-full h-full object-cover ${ready ? '' : 'opacity-0'}`}
@@ -81,25 +74,30 @@ function VideoTile({ src, className }: { src: string; className?: string }): Rea
 
 function MediaTile({
   render,
-  selected,
-  onSelect,
+  sourceSelected,
+  batchSelected,
+  batchIndex,
+  onClick,
 }: {
   render: QueuedRender
-  selected: boolean
-  onSelect: () => void
+  sourceSelected: boolean
+  batchSelected: boolean
+  batchIndex: number   // 0 = not in batch; >0 = order within batch
+  onClick: (e: React.MouseEvent) => void
 }): React.ReactElement {
   const isVideo = render.mediaType === 'video'
   const thumb = render.thumbnailUrl ?? render.resultUrl ?? null
-  const addClip = useVideoEditorStore((s) => s.addClip)
+
+  const ringClass = batchSelected
+    ? 'ring-2 ring-orange-400 ring-offset-2 ring-offset-neutral-900'
+    : sourceSelected
+      ? 'ring-2 ring-brand ring-offset-2 ring-offset-neutral-900'
+      : 'ring-1 ring-white/10 hover:ring-white/30'
 
   return (
     <div
-      className={`relative aspect-square rounded-lg overflow-hidden cursor-pointer group
-        ${selected
-          ? 'ring-2 ring-brand ring-offset-2 ring-offset-neutral-900'
-          : 'ring-1 ring-white/10 hover:ring-white/30'
-        }`}
-      onClick={onSelect}
+      className={`relative aspect-square rounded-lg overflow-hidden cursor-pointer group ${ringClass}`}
+      onClick={onClick}
     >
       {/* Media */}
       {isVideo && render.resultUrl ? (
@@ -113,9 +111,7 @@ function MediaTile({
         />
       ) : (
         <div className="absolute inset-0 flex items-center justify-center bg-neutral-800">
-          <span className="text-white/20 text-3xl">
-            {isVideo ? '▶' : '🖼'}
-          </span>
+          <span className="text-white/20 text-3xl">{isVideo ? '▶' : '🖼'}</span>
         </div>
       )}
 
@@ -123,22 +119,17 @@ function MediaTile({
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-2 py-1.5
         translate-y-full group-hover:translate-y-0 transition-transform duration-150">
         <p className="text-white/80 text-xs font-mono truncate">{render.workflowSlug}</p>
-        {isVideo && render.resultUrl && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              addClip(render.resultUrl!, render.prompt ?? '', render.workflowSlug)
-            }}
-            className="text-xs text-brand hover:text-white transition-colors mt-0.5"
-            title="Send to Video Editor"
-          >
-            ▶ Editor
-          </button>
-        )}
       </div>
 
-      {/* Selected badge */}
-      {selected && (
+      {/* Batch selection badge (top-left) */}
+      {batchSelected && (
+        <div className="absolute top-1.5 left-1.5 rounded bg-orange-500 px-1.5 py-0.5 text-xs text-white font-bold leading-none">
+          {batchIndex}
+        </div>
+      )}
+
+      {/* Source badge (top-right) */}
+      {sourceSelected && !batchSelected && (
         <div className="absolute top-1.5 right-1.5 rounded bg-brand px-1.5 py-0.5 text-xs text-white font-medium leading-none">
           ✓ Source
         </div>
@@ -153,7 +144,6 @@ function EmptyState(): React.ReactElement {
   return (
     <div className="flex-1 flex items-center justify-center">
       <div className="text-center select-none">
-        {/* Faint grid pattern via inline SVG */}
         <svg
           className="mx-auto mb-4 opacity-10"
           width="80" height="80" viewBox="0 0 80 80"
@@ -175,22 +165,65 @@ function EmptyState(): React.ReactElement {
 export default function MediaLibraryGrid(): React.ReactElement {
   const { queue } = useRenderQueueStore()
   const { setFromRender } = useSourceMediaStore()
+  const { addClip } = useVideoEditorStore()
+
+  // Single source selection (for prompt/workflow input)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+
+  // Ordered batch selection for video editor (preserves send order)
+  const [batchIds, setBatchIds] = useState<string[]>([])
+  const lastClickedIdxRef = useRef<number | null>(null)
 
   const completed = [...queue]
     .filter((r) => r.status === 'done' && (r.resultUrl || r.thumbnailUrl))
     .reverse()
 
-  // Deselect on Escape
+  // Clear batch on Escape; clear source selection too
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setSelectedId(null)
+      if (e.key === 'Escape') {
+        setBatchIds([])
+        setSelectedId(null)
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  function handleSelect(render: QueuedRender) {
+  function handleTileClick(render: QueuedRender, idx: number, e: React.MouseEvent) {
+    // ── Ctrl / Cmd click: toggle item in batch ───────────────────────────────
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault()
+      setBatchIds(prev =>
+        prev.includes(render.id)
+          ? prev.filter(id => id !== render.id)
+          : [...prev, render.id]
+      )
+      lastClickedIdxRef.current = idx
+      return
+    }
+
+    // ── Shift click: range select from last click into batch ─────────────────
+    if (e.shiftKey && lastClickedIdxRef.current !== null) {
+      e.preventDefault()
+      const from = Math.min(lastClickedIdxRef.current, idx)
+      const to   = Math.max(lastClickedIdxRef.current, idx)
+      const rangeIds = completed.slice(from, to + 1).map(r => r.id)
+      setBatchIds(prev => {
+        const merged = [...prev]
+        for (const id of rangeIds) {
+          if (!merged.includes(id)) merged.push(id)
+        }
+        return merged
+      })
+      lastClickedIdxRef.current = idx
+      return
+    }
+
+    // ── Regular click: single source selection, clear batch ─────────────────
+    setBatchIds([])
+    lastClickedIdxRef.current = idx
+
     if (selectedId === render.id) {
       setSelectedId(null)
       return
@@ -201,6 +234,21 @@ export default function MediaLibraryGrid(): React.ReactElement {
     }
   }
 
+  function sendBatchToEditor() {
+    const videos = batchIds
+      .map(id => completed.find(r => r.id === id))
+      .filter((r): r is QueuedRender => !!r && r.mediaType === 'video' && !!r.resultUrl)
+    for (const r of videos) {
+      addClip(r.resultUrl!, r.prompt ?? '', r.workflowSlug)
+    }
+    setBatchIds([])
+  }
+
+  const batchVideoCount = batchIds
+    .map(id => completed.find(r => r.id === id))
+    .filter((r): r is QueuedRender => !!r && r.mediaType === 'video' && !!r.resultUrl)
+    .length
+
   if (completed.length === 0) {
     return (
       <div className="flex flex-col h-full">
@@ -210,16 +258,60 @@ export default function MediaLibraryGrid(): React.ReactElement {
   }
 
   return (
-    <div className="h-full overflow-y-auto p-3">
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
-        {completed.map((render) => (
-          <MediaTile
-            key={render.id}
-            render={render}
-            selected={render.id === selectedId}
-            onSelect={() => handleSelect(render)}
-          />
-        ))}
+    <div className="flex flex-col h-full">
+      {/* ── Batch action bar ── */}
+      {batchIds.length > 0 && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-orange-950/60 border-b border-orange-500/20 flex-shrink-0">
+          <span className="text-xs text-orange-300/80">
+            {batchIds.length} selected
+            {batchVideoCount > 0 && batchVideoCount < batchIds.length
+              ? ` · ${batchVideoCount} video${batchVideoCount !== 1 ? 's' : ''}`
+              : ''}
+          </span>
+          <div className="flex-1" />
+          {batchVideoCount > 0 && (
+            <button
+              onClick={sendBatchToEditor}
+              className="rounded px-2.5 py-1 text-xs bg-orange-500/20 border border-orange-500/40 text-orange-300 hover:bg-orange-500/30 hover:text-orange-200 transition-colors"
+            >
+              ▶ Send {batchVideoCount} clip{batchVideoCount !== 1 ? 's' : ''} to Video Editor
+            </button>
+          )}
+          {batchVideoCount === 0 && (
+            <span className="text-xs text-orange-300/40 italic">No videos in selection</span>
+          )}
+          <button
+            onClick={() => setBatchIds([])}
+            className="text-orange-300/40 hover:text-orange-300/70 text-xs transition-colors"
+            title="Clear selection"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* ── Grid ── */}
+      <div className="flex-1 overflow-y-auto p-3">
+        {batchIds.length === 0 && (
+          <p className="text-white/15 text-xs mb-2 select-none">
+            Ctrl+click or Shift+click to select multiple for batch export
+          </p>
+        )}
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
+          {completed.map((render, idx) => {
+            const batchIdx = batchIds.indexOf(render.id)
+            return (
+              <MediaTile
+                key={render.id}
+                render={render}
+                sourceSelected={render.id === selectedId}
+                batchSelected={batchIdx !== -1}
+                batchIndex={batchIdx + 1}
+                onClick={(e) => handleTileClick(render, idx, e)}
+              />
+            )
+          })}
+        </div>
       </div>
     </div>
   )

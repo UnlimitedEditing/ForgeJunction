@@ -4,6 +4,31 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── SAGE DESIGN TOKENS ─────────────────────────────────────────────────────── */
+/* Used by SagePane / Sage assistant chat UI */
+:root {
+  --sage:        #6affc8;
+  --sage2:       #3dd9a0;
+  --sage-bg:     rgba(106, 255, 200, 0.05);
+  --sage-border: rgba(106, 255, 200, 0.12);
+  --sage-glow:   rgba(106, 255, 200, 0.06);
+}
+
+@keyframes sage-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+.sage-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 11px;
+  background: var(--sage);
+  margin-left: 3px;
+  vertical-align: middle;
+  border-radius: 1px;
+  animation: sage-blink 1s step-end infinite;
+}
+
 /* ── CSS CUSTOM PROPERTIES ──────────────────────────────────────────────────── */
 
 /* Industrial (new default) -------------------------------------------------- */
