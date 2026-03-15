@@ -57,15 +57,12 @@
     "win": {
       "target": [
         {
-          "target": "nsis",
+          "target": "portable",
           "arch": [
             "x64"
           ]
         }
       ]
-    },
-    "nsis": {
-      "differentialPackage": true
     },
     "mac": {
       "target": [
