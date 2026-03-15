@@ -340,11 +340,11 @@ export default function PromptEditor(): React.ReactElement {
 
         <WorkflowChip />
 
-        {/* 📎 Media attach — opens drawer to media section */}
+        {/* 📎 Media attach — toggles drawer */}
         <button
-          onClick={() => setDrawerOpen(true)}
-          className="flex-shrink-0 rounded-md p-1.5 text-white/40 hover:text-white/70 hover:bg-white/10 transition-colors"
-          title="Attach media"
+          onClick={() => setDrawerOpen(v => !v)}
+          className={`flex-shrink-0 rounded-md p-1.5 transition-colors ${drawerOpen && inputSlots.length > 0 ? 'text-brand bg-brand/10' : 'text-white/40 hover:text-white/70 hover:bg-white/10'}`}
+          title={drawerOpen ? 'Close media drawer' : inputSlots.length > 0 ? 'Attach input media' : 'Attach media (select a workflow that accepts input first)'}
         >
           📎
         </button>

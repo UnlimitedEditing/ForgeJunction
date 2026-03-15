@@ -121,6 +121,7 @@ export default function WorkflowGalleryPopup({
   const [activeWorkflow, setActiveWorkflow] = useState<Workflow | null>(null)
   const [concepts, setConcepts] = useState<Concept[]>([])
   const [conceptsLoading, setConceptsLoading] = useState(false)
+  const [familyFilter, setFamilyFilter] = useState<string>('all')
 
   // Reset to workflow view when popup closes
   useEffect(() => {
@@ -139,6 +140,7 @@ export default function WorkflowGalleryPopup({
     setActiveWorkflow(wf)
     setView('loras')
     setConcepts([])
+    setFamilyFilter('all')
     setConceptsLoading(true)
     fetchConcepts().then((result) => {
       setConcepts(result)
@@ -178,7 +180,7 @@ export default function WorkflowGalleryPopup({
           )}
 
           {view === 'loras' && activeWorkflow && (
-            <span className="text-xs font-semibold text-white/70 truncate mx-4">
+            <span className="text-xs font-semibold text-white/70 truncate mx-2">
               {activeWorkflow.name} — LoRAs
             </span>
           )}
@@ -217,15 +219,41 @@ export default function WorkflowGalleryPopup({
                   <p className="text-xs text-white/40">No concepts found</p>
                   <p className="text-xs text-white/20">Check back later as more are added</p>
                 </div>
-              ) : (
-                concepts.map((concept) => (
-                  <ConceptCard
-                    key={concept.concept_hash}
-                    concept={concept}
-                    onClick={() => handleSelectConcept(concept)}
-                  />
-                ))
-              )
+              ) : (() => {
+                const families = Array.from(new Set(concepts.map(c => c.model_family).filter(Boolean) as string[])).sort()
+                const filtered = familyFilter === 'all' ? concepts : concepts.filter(c => c.model_family === familyFilter)
+                return (
+                  <>
+                    {families.length > 0 && (
+                      <div className="flex items-center gap-1 flex-shrink-0 self-center">
+                        {['all', ...families].map(f => (
+                          <button
+                            key={f}
+                            onClick={() => setFamilyFilter(f)}
+                            className={`rounded px-2 py-0.5 text-[10px] transition-colors whitespace-nowrap ${
+                              familyFilter === f
+                                ? 'bg-brand/30 text-brand border border-brand/40'
+                                : 'bg-white/5 text-white/40 border border-white/10 hover:bg-white/10 hover:text-white/70'
+                            }`}
+                          >
+                            {f === 'all' ? 'All' : f}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {filtered.map(concept => (
+                      <ConceptCard
+                        key={concept.concept_hash}
+                        concept={concept}
+                        onClick={() => handleSelectConcept(concept)}
+                      />
+                    ))}
+                    {filtered.length === 0 && (
+                      <div className="self-center text-xs text-white/30">No LoRAs for this family</div>
+                    )}
+                  </>
+                )
+              })()
             )}
 
           </div>

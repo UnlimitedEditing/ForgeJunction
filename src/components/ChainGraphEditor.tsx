@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect } from 'react'
 import { useChainGraphStore, findComponents, getChainRoot, type ChainNode, type ChainEdge } from '@/stores/chainGraph'
 import { useWorkflowStore } from '@/stores/workflows'
 import { getInputPorts, inputPortY } from '@/utils/workflowPorts'
-import type { Workflow } from '@/api/graydient'
+import { parseTelegramPrompt, type Workflow } from '@/api/graydient'
 
 const NODE_W = 230
 const NODE_H = 114   // header (40) + prompt (74)
@@ -266,6 +266,40 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
     })
   }
 
+  async function handleCanvasDoubleClick(e: React.MouseEvent) {
+    const target = e.target as HTMLElement
+    if (target.closest('[data-node]') || target.closest('[data-port]') || target.closest('[data-edge-label]')) return
+
+    const pos = toCanvas(e.clientX, e.clientY)
+
+    let clipText = ''
+    try { clipText = (await navigator.clipboard.readText()).trim() } catch { /* no permission or empty */ }
+
+    let prompt = ''
+    let workflowSlug = ''
+    let workflowName = ''
+
+    if (clipText) {
+      const hasTelegramNotation = /\/run:|^\/wf\b/i.test(clipText)
+      if (hasTelegramNotation) {
+        const parsed = parseTelegramPrompt(clipText)
+        // Reconstruct prompt with any remaining /key:value options so chain render handles them
+        const optionStr = Object.entries(parsed.optionsDict).map(([k, v]) => `/${k}:${v}`).join(' ')
+        prompt = [optionStr, parsed.prompt].filter(Boolean).join(' ').trim()
+        if (parsed.workflowSlug) {
+          workflowSlug = parsed.workflowSlug
+          const wf = workflows.find(w => w.slug === workflowSlug)
+          workflowName = wf?.name ?? workflowSlug
+        }
+      } else {
+        prompt = clipText
+      }
+    }
+
+    const nodeId = addNode(workflowSlug, workflowName, { x: pos.x - NODE_W / 2, y: pos.y - NODE_H / 2 })
+    if (prompt) updateNode(nodeId, { prompt })
+  }
+
   function openPickerForNode(nodeId: string) {
     setPickerTargetNodeId(nodeId)
     setPickerSearch('')
@@ -371,6 +405,7 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
         className="flex-1 relative overflow-hidden cursor-default select-none"
         style={{ background: '#0d0d14' }}
         onMouseDown={handleCanvasMouseDown}
+        onDoubleClick={handleCanvasDoubleClick}
         onWheel={handleWheel}
       >
         {/* Dot grid */}
@@ -761,6 +796,8 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
 
         {/* Controls hint */}
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-4 text-white/15 text-xs pointer-events-none">
+          <span>Double-click to add node</span>
+          <span>·</span>
           <span>Drag canvas to pan</span>
           <span>·</span>
           <span>Scroll to zoom</span>
@@ -768,8 +805,6 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
           <span>Drag ● to connect</span>
           <span>·</span>
           <span>Click edge to delete</span>
-          <span>·</span>
-          <span>Click ⊕ on edge to set controlnet slug</span>
         </div>
       </div>
 

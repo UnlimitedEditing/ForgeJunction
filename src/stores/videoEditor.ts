@@ -1,15 +1,23 @@
 import { create } from 'zustand'
 
+export type ClipAnimation = 'none' | 'zoom_in' | 'zoom_out' | 'pan_left' | 'pan_right' | 'pan_up' | 'pan_down'
+
 export interface VideoClip {
   id: string
   url: string
   prompt: string
   label: string
-  duration: number      // seconds, 0 until probed
+  mediaType: 'video' | 'image'
+  duration: number          // for video: probed seconds; for image: equals imageDuration
+  imageDuration: number     // user-set hold duration for image clips (seconds)
+  animation: ClipAnimation
+  animationAmount: number   // 5–50 (percent scale/shift)
   trimIn: number
   trimOut: number
   transition: 'cut' | 'crossfade' | 'fade_black'
   transitionDuration: number
+  width?: number            // source resolution (populated after probe/load)
+  height?: number
 }
 
 export interface AudioTrack {
@@ -23,12 +31,16 @@ interface VideoEditorState {
   clips: VideoClip[]
   audioTracks: AudioTrack[]
   exportName: string
+  exportResolution: string
+  exportFps: number
+  exportCrf: number
+  exportFormat: 'mp4' | 'webm'
   isExporting: boolean
   exportProgress: number
   exportLog: string[]
   previewClipId: string | null
 
-  addClip: (url: string, prompt: string, label: string) => string
+  addClip: (url: string, prompt: string, label: string, mediaType?: 'video' | 'image') => string
   removeClip: (id: string) => void
   moveClip: (id: string, direction: 'left' | 'right') => void
   updateClip: (id: string, patch: Partial<VideoClip>) => void
@@ -37,6 +49,10 @@ interface VideoEditorState {
   removeAudioTrack: (id: string) => void
   updateAudioTrack: (id: string, patch: Partial<AudioTrack>) => void
   setExportName: (name: string) => void
+  setExportResolution: (r: string) => void
+  setExportFps: (fps: number) => void
+  setExportCrf: (crf: number) => void
+  setExportFormat: (fmt: 'mp4' | 'webm') => void
   setPreviewClip: (id: string | null) => void
   appendLog: (msg: string) => void
   setExporting: (isExporting: boolean, progress?: number) => void
@@ -51,19 +67,27 @@ export const useVideoEditorStore = create<VideoEditorState>((set, get) => ({
   clips: [],
   audioTracks: [],
   exportName: 'composite',
+  exportResolution: '1920x1080',
+  exportFps: 30,
+  exportCrf: 23,
+  exportFormat: 'mp4',
   isExporting: false,
   exportProgress: 0,
   exportLog: [],
   previewClipId: null,
 
-  addClip: (url, prompt, label) => {
+  addClip: (url, prompt, label, mediaType = 'video') => {
     const id = makeId()
     const clip: VideoClip = {
       id,
       url,
       prompt,
       label,
-      duration: 0,
+      mediaType,
+      duration: mediaType === 'image' ? 3 : 0,
+      imageDuration: 3,
+      animation: 'none',
+      animationAmount: 20,
       trimIn: 0,
       trimOut: 0,
       transition: 'cut',
@@ -98,7 +122,15 @@ export const useVideoEditorStore = create<VideoEditorState>((set, get) => ({
 
   updateClip: (id, patch) => {
     set((s) => ({
-      clips: s.clips.map((c) => (c.id === id ? { ...c, ...patch } : c)),
+      clips: s.clips.map((c) => {
+        if (c.id !== id) return c
+        const updated = { ...c, ...patch }
+        // Keep duration synced with imageDuration for image clips
+        if (updated.mediaType === 'image' && patch.imageDuration !== undefined) {
+          updated.duration = patch.imageDuration
+        }
+        return updated
+      }),
     }))
   },
 
@@ -128,6 +160,10 @@ export const useVideoEditorStore = create<VideoEditorState>((set, get) => ({
   },
 
   setExportName: (name) => set({ exportName: name }),
+  setExportResolution: (exportResolution) => set({ exportResolution }),
+  setExportFps: (exportFps) => set({ exportFps }),
+  setExportCrf: (exportCrf) => set({ exportCrf }),
+  setExportFormat: (exportFormat) => set({ exportFormat }),
 
   setPreviewClip: (id) => set({ previewClipId: id }),
 
@@ -153,7 +189,4 @@ export const useVideoEditorStore = create<VideoEditorState>((set, get) => ({
       previewClipId: null,
     })
   },
-
-  // Expose get for internal use
-  ...({} as { _get: typeof get }),
 }))

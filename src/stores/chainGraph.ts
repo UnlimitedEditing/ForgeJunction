@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { submitRender, fetchRenderInfo, resolveMediaUrl, type SSEEvent } from '@/api/graydient'
+import { useProjectsStore } from './projects'
 
 export interface ChainNode {
   id: string
@@ -69,7 +70,7 @@ interface ChainGraphState {
   isPaused: boolean
   runStartTime: number | null
 
-  addNode: (workflowSlug: string, workflowName: string, position: { x: number; y: number }) => void
+  addNode: (workflowSlug: string, workflowName: string, position: { x: number; y: number }) => string
   removeNode: (id: string) => void
   updateNode: (id: string, patch: Partial<Pick<ChainNode, 'prompt' | 'position' | 'workflowSlug' | 'workflowName'>>) => void
   addEdge: (fromNodeId: string, toNodeId: string, toPortField: string, controlnetSlug?: string) => void
@@ -108,6 +109,14 @@ export const useChainGraphStore = create<ChainGraphState>((set, get) => {
 
     async function executeNode(node: ChainNode): Promise<void> {
       setNodeStatus(node.id, 'active')
+
+      // Inject project size constraint if set and not already in prompt
+      const activeProject = useProjectsStore.getState().getActiveProject()
+      const dim = activeProject?.dimensions
+      const nodePrompt = dim && !/\/size:/i.test(node.prompt)
+        ? `/size:${dim.width}x${dim.height} ${node.prompt}`
+        : node.prompt
+
       const deps = incomingEdges.get(node.id) ?? []
 
       // Build sourceMedia from all incoming edges
@@ -135,7 +144,7 @@ export const useChainGraphStore = create<ChainGraphState>((set, get) => {
       try {
         let resolvedHash: string | null = null
         await submitRender(
-          node.prompt,
+          nodePrompt,
           node.workflowSlug,
           (event: SSEEvent) => {
             if ('rendering_done' in event) resolvedHash = event.rendering_done.render_hash
@@ -148,6 +157,18 @@ export const useChainGraphStore = create<ChainGraphState>((set, get) => {
           const url = resolved?.url ?? null
           results.set(node.id, url)
           setNodeStatus(node.id, 'done', { resultUrl: url })
+          if (url) {
+            useProjectsStore.getState().notifyRenderComplete({
+              id: `chain-${node.id}-${Date.now()}`,
+              workflowSlug: node.workflowSlug,
+              prompt: node.prompt,
+              resultUrl: url,
+              thumbnailUrl: resolved?.thumbnailUrl ?? null,
+              mediaType: resolved?.mediaType ?? 'image',
+              completedAt: Date.now(),
+              nodeId: node.id,
+            })
+          }
         } else {
           results.set(node.id, null)
           setNodeStatus(node.id, 'done')
@@ -237,6 +258,7 @@ export const useChainGraphStore = create<ChainGraphState>((set, get) => {
         position, status: 'idle', resultUrl: null, error: null,
       }
       set(s => ({ nodes: [...s.nodes, node] }))
+      return node.id
     },
 
     removeNode: (id) => {

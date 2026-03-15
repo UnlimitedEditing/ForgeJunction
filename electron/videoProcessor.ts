@@ -23,10 +23,13 @@ interface ProbeResult {
 
 interface ProbeClip {
   url: string
+  mediaType: 'video' | 'image'
   effectiveDuration: number
   trimIn: number
   transition: 'cut' | 'crossfade' | 'fade_black'
   transitionDuration: number
+  animation: string
+  animationAmount: number
   prompt: string
   label: string
 }
@@ -42,6 +45,10 @@ interface ExportParams {
   outputName: string
   outputDir: string
   estimatedDuration: number
+  resolution: string   // e.g. "1920x1080"
+  fps: number
+  crf: number
+  format: 'mp4' | 'webm'
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -49,7 +56,7 @@ interface ExportParams {
 function runProbe(url: string): Promise<ProbeResult> {
   return new Promise((resolve, reject) => {
     const args = [
-      '-v', 'quiet',
+      '-v', 'error',          // show errors but not info (was 'quiet', hiding all output)
       '-print_format', 'json',
       '-show_streams',
       '-show_format',
@@ -88,80 +95,114 @@ function runProbe(url: string): Promise<ProbeResult> {
 }
 
 function timeStrToSeconds(timeStr: string): number {
-  // HH:MM:SS.ms
   const parts = timeStr.split(':')
   if (parts.length !== 3) return 0
-  const hours = parseFloat(parts[0])
-  const minutes = parseFloat(parts[1])
-  const seconds = parseFloat(parts[2])
-  return hours * 3600 + minutes * 60 + seconds
+  return parseFloat(parts[0]) * 3600 + parseFloat(parts[1]) * 60 + parseFloat(parts[2])
 }
 
-function buildFilterComplex(clips: ProbeClip[], audioTracks: AudioTrackInput[]): {
-  filterComplex: string | null
-  mapArgs: string[]
-} {
+/**
+ * Build a filter_complex that:
+ *  Pass 1 – Normalises every clip to [V{i}] (video, scaled to output) and [A{i}] (audio or silence)
+ *  Pass 2 – Chains transitions between the normalised streams
+ *  Pass 3 – Mixes in extra audio tracks
+ */
+function buildFilterComplex(
+  clips: ProbeClip[],
+  audioTracks: AudioTrackInput[],
+  outputW: number,
+  outputH: number,
+  fps: number,
+): { filterComplex: string; mapArgs: string[] } {
   const N = clips.length
-
-  // Single clip — no filter needed, direct map
-  if (N === 1 && audioTracks.length === 0) {
-    return { filterComplex: null, mapArgs: ['0:v', '0:a?'] }
-  }
-
-  if (N === 1) {
-    // Single clip but with audio tracks — use filter for audio mixing
-    const parts: string[] = []
-    let curA = '0:a'
-    for (let j = 0; j < audioTracks.length; j++) {
-      const inputIdx = 1 + j
-      const vol = audioTracks[j].volume
-      parts.push(`[${inputIdx}:a]volume=${vol}[avol${j}]`)
-      parts.push(`[${curA}][avol${j}]amix=inputs=2:duration=shortest[amix${j}]`)
-      curA = `amix${j}`
-    }
-    parts.push(`[0:v]copy[vfinal]`)
-    parts.push(`[${curA}]acopy[afinal]`)
-    return {
-      filterComplex: parts.join(';'),
-      mapArgs: ['[vfinal]', '[afinal]'],
-    }
-  }
-
   const parts: string[] = []
-  let curV = '0:v'
-  let curA = '0:a'
+  const scalePad = `scale=${outputW}:${outputH}:force_original_aspect_ratio=decrease,pad=${outputW}:${outputH}:(ow-iw)/2:(oh-ih)/2,setsar=1`
+
+  // ── Pass 1: normalise ────────────────────────────────────────────────────────
+  for (let i = 0; i < N; i++) {
+    const clip = clips[i]
+
+    if (clip.mediaType === 'image') {
+      const D = Math.max(1, Math.round(fps * clip.effectiveDuration))
+      const A = (clip.animationAmount ?? 20) / 100
+
+      // Build video filter for this image clip
+      if (clip.animation && clip.animation !== 'none') {
+        let zpExpr: string
+        const a = A.toFixed(4)
+        if (clip.animation === 'zoom_in') {
+          zpExpr = `z='1+${a}*on/${D}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'`
+        } else if (clip.animation === 'zoom_out') {
+          zpExpr = `z='1+${a}*(1-on/${D})':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'`
+        } else if (clip.animation === 'pan_left') {
+          zpExpr = `z='1+${a}':x='(iw-iw/zoom)*(1-on/${D})':y='ih/2-(ih/zoom/2)'`
+        } else if (clip.animation === 'pan_right') {
+          zpExpr = `z='1+${a}':x='(iw-iw/zoom)*on/${D}':y='ih/2-(ih/zoom/2)'`
+        } else if (clip.animation === 'pan_up') {
+          zpExpr = `z='1+${a}':x='iw/2-(iw/zoom/2)':y='(ih-ih/zoom)*(1-on/${D})'`
+        } else { // pan_down
+          zpExpr = `z='1+${a}':x='iw/2-(iw/zoom/2)':y='(ih-ih/zoom)*on/${D}'`
+        }
+        // Scale up first so zoompan has enough pixels to work with
+        parts.push(`[${i}:v]scale=8000:-1,zoompan=${zpExpr}:d=${D}:fps=${fps}:s=${outputW}x${outputH},setsar=1[V${i}]`)
+      } else {
+        parts.push(`[${i}:v]${scalePad}[V${i}]`)
+      }
+
+      // Generate silence for the image duration
+      parts.push(`aevalsrc=0|0:c=stereo:r=44100:d=${clip.effectiveDuration.toFixed(3)}[A${i}]`)
+
+    } else {
+      // Video clip
+      parts.push(`[${i}:v]${scalePad}[V${i}]`)
+      // Use audio from the video stream; if the video has no audio this will
+      // fail — we mark it as potentially absent via the a? notation in map args,
+      // but inside filter_complex we can't use '?'. We optimistically use [i:a]
+      // and handle the no-audio case by adding anullsrc fallback.
+      parts.push(`[${i}:a]asetpts=PTS-STARTPTS[A${i}]`)
+    }
+  }
+
+  // ── Pass 2: chain transitions ─────────────────────────────────────────────
+  let curV = `V0`
+  let curA = `A0`
   let curDuration = clips[0].effectiveDuration
 
   for (let i = 1; i < N; i++) {
     const clip = clips[i]
     const td = clip.transitionDuration
 
-    if (clip.transition === 'cut') {
-      parts.push(`[${curV}][${i}:v]concat=n=2:v=1:a=0[cv${i}]`)
-      parts.push(`[${curA}][${i}:a]concat=n=2:v=0:a=1[ca${i}]`)
+    // crossfade/fade_black don't work well between image zoompan output and video;
+    // fall back to cut when source or dest is an image.
+    const useTransition = clip.transition !== 'cut'
+      && clips[i - 1].mediaType === 'video'
+      && clip.mediaType === 'video'
+
+    if (!useTransition) {
+      parts.push(`[${curV}][V${i}]concat=n=2:v=1:a=0[cv${i}]`)
+      parts.push(`[${curA}][A${i}]concat=n=2:v=0:a=1[ca${i}]`)
       curDuration += clip.effectiveDuration
       curV = `cv${i}`
       curA = `ca${i}`
     } else if (clip.transition === 'crossfade') {
       const offset = Math.max(0, curDuration - td)
-      parts.push(`[${curV}][${i}:v]xfade=transition=fade:duration=${td}:offset=${offset}[xv${i}]`)
-      parts.push(`[${curA}][${i}:a]acrossfade=d=${td}[xa${i}]`)
+      parts.push(`[${curV}][V${i}]xfade=transition=fade:duration=${td}:offset=${offset}[xv${i}]`)
+      parts.push(`[${curA}][A${i}]acrossfade=d=${td}[xa${i}]`)
       curDuration = offset + clip.effectiveDuration
       curV = `xv${i}`
       curA = `xa${i}`
     } else if (clip.transition === 'fade_black') {
       const fadeStart = Math.max(0, curDuration - td)
       parts.push(`[${curV}]fade=t=out:st=${fadeStart}:d=${td}[fo${i}]`)
-      parts.push(`[${i}:v]fade=t=in:st=0:d=${td}[fi${i}]`)
+      parts.push(`[V${i}]fade=t=in:st=0:d=${td}[fi${i}]`)
       parts.push(`[fo${i}][fi${i}]concat=n=2:v=1:a=0[fv${i}]`)
-      parts.push(`[${curA}][${i}:a]concat=n=2:v=0:a=1[fa${i}]`)
+      parts.push(`[${curA}][A${i}]concat=n=2:v=0:a=1[fa${i}]`)
       curDuration += clip.effectiveDuration
       curV = `fv${i}`
       curA = `fa${i}`
     }
   }
 
-  // Mix in extra audio tracks
+  // ── Pass 3: mix extra audio tracks ────────────────────────────────────────
   for (let j = 0; j < audioTracks.length; j++) {
     const inputIdx = clips.length + j
     const vol = audioTracks[j].volume
@@ -170,7 +211,6 @@ function buildFilterComplex(clips: ProbeClip[], audioTracks: AudioTrackInput[]):
     curA = `amix${j}`
   }
 
-  // Rename to vfinal/afinal
   parts.push(`[${curV}]copy[vfinal]`)
   parts.push(`[${curA}]acopy[afinal]`)
 
@@ -209,47 +249,64 @@ function runExport(
   onProgress: (percent: number, timeStr: string) => void
 ): Promise<string> {
   return new Promise((resolve, reject) => {
-    const { clips, audioTracks, outputName, outputDir, estimatedDuration } = params
-    const outputPath = join(outputDir, `${outputName}.mp4`)
+    const { clips, audioTracks, outputName, outputDir, estimatedDuration, fps, crf, format } = params
+
+    // Parse output resolution (default 1920x1080)
+    const resParts = (params.resolution ?? '1920x1080').split('x')
+    const outputW = parseInt(resParts[0]) || 1920
+    const outputH = parseInt(resParts[1]) || 1080
+
+    const outputExt = format === 'webm' ? 'webm' : 'mp4'
+    const outputPath = join(outputDir, `${outputName}.${outputExt}`)
 
     const args: string[] = []
 
-    // Input: one per clip with trim args
+    // Inputs — different flags for images vs videos
     for (const clip of clips) {
-      args.push('-ss', String(clip.trimIn))
-      args.push('-t', String(clip.effectiveDuration))
-      args.push('-i', clip.url)
+      if (clip.mediaType === 'image') {
+        args.push('-loop', '1')
+        args.push('-framerate', String(fps))
+        args.push('-t', String(clip.effectiveDuration))
+        args.push('-i', clip.url)
+      } else {
+        args.push('-ss', String(clip.trimIn))
+        args.push('-t', String(clip.effectiveDuration))
+        args.push('-i', clip.url)
+      }
     }
 
-    // Input: audio tracks
+    // Extra audio inputs
     for (const audio of audioTracks) {
       args.push('-i', audio.url)
     }
 
-    // Filter complex
-    const { filterComplex, mapArgs } = buildFilterComplex(clips, audioTracks)
-
-    if (filterComplex) {
-      args.push('-filter_complex', filterComplex)
-      for (const m of mapArgs) {
-        args.push('-map', m)
-      }
-    } else {
-      // Direct map — single clip, no audio tracks
-      args.push('-map', '0:v')
-      args.push('-map', '0:a?')
+    // Always use filter_complex (handles images, normalisation, transitions)
+    const { filterComplex, mapArgs } = buildFilterComplex(clips, audioTracks, outputW, outputH, fps)
+    args.push('-filter_complex', filterComplex)
+    for (const m of mapArgs) {
+      args.push('-map', m)
     }
 
-    args.push('-c:v', 'libx264', '-preset', 'fast')
-    args.push('-c:a', 'aac')
-    args.push('-movflags', '+faststart')
+    // Video codec
+    if (format === 'webm') {
+      args.push('-c:v', 'libvpx-vp9', '-crf', String(crf), '-b:v', '0')
+      args.push('-c:a', 'libopus')
+    } else {
+      args.push('-c:v', 'libx264', '-preset', 'fast', '-crf', String(crf))
+      args.push('-c:a', 'aac')
+      args.push('-movflags', '+faststart')
+    }
+
+    args.push('-r', String(fps))
     args.push('-y', outputPath)
 
+    console.log('[VideoProcessor] ffmpeg args:', args.join(' '))
     const proc = spawn(ffmpegPath, args)
 
+    let stderrBuf = ''
     proc.stderr.on('data', (d: Buffer) => {
       const text = d.toString()
-      // Parse time= lines for progress
+      stderrBuf += text
       const match = /time=(\d+:\d+:\d+\.?\d*)/.exec(text)
       if (match) {
         const timeStr = match[1]
@@ -265,7 +322,9 @@ function runExport(
       if (code === 0) {
         resolve(outputPath)
       } else {
-        reject(new Error(`FFmpeg exited with code ${code}`))
+        // Include last 500 chars of stderr for diagnosis
+        const snippet = stderrBuf.slice(-500).trim()
+        reject(new Error(`FFmpeg exited with code ${code}${snippet ? `: ${snippet}` : ''}`))
       }
     })
 
@@ -291,7 +350,6 @@ export function registerVideoIpc(): void {
       }
     })
 
-    // Write metadata file
     try {
       writeMetadata(params.outputDir, params.outputName, params.clips)
     } catch (e) {

@@ -13,6 +13,8 @@ import ChainGraphEditor from '@/components/ChainGraphEditor'
 import ChainTemplatePane from '@/components/ChainTemplatePane'
 import VideoEditor from '@/components/VideoEditor'
 import StorageManager from '@/components/StorageManager'
+import ProjectManager from '@/components/ProjectManager'
+import { useProjectsStore } from '@/stores/projects'
 import SagePane from '@/components/SagePane'
 import { useDebugProtocolStore } from '@/stores/debugProtocol'
 import { useThemeStore } from '@/stores/theme'
@@ -41,7 +43,10 @@ function MainLayout(): React.ReactElement {
   const [showChain, setShowChain] = useState(false)
   const [showVideoEditor, setShowVideoEditor] = useState(false)
   const [showStorage, setShowStorage] = useState(false)
+  const [showProjects, setShowProjects] = useState(false)
   const [chainPaneView, setChainPaneView] = useState<'workflows' | 'chain'>('workflows')
+  const { activeProjectId, getActiveProject, setActiveProject } = useProjectsStore()
+  const activeProject = getActiveProject()
 
   // Chain ↔ PromptEditor bidirectional sync
   const { selectedNodeId, nodes, updateNode: updateChainNode } = useChainGraphStore()
@@ -103,94 +108,124 @@ function MainLayout(): React.ReactElement {
   return (
     <div className="flex h-full flex-col bg-neutral-950 text-white">
       <div className="flex flex-1 min-h-0 pb-7">
-        {/* Left — Workflow Selector */}
-        <aside className="flex w-[220px] flex-shrink-0 flex-col border-r border-white/10 bg-panel">
-          <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-            <span className="themed-heading text-xs font-semibold uppercase tracking-widest text-white/40">
-              {showChain && chainPaneView === 'chain' ? 'Templates' : 'Workflows'}
-            </span>
-            <div className="flex items-center gap-1">
-              {showChain && (
+        {/* Left — workflow selector (hidden when video editor is open) */}
+        {!showVideoEditor && (
+          <aside className="flex w-[220px] flex-shrink-0 flex-col border-r border-white/10 bg-panel">
+            <div className="flex items-center justify-end border-b border-white/10 px-4 py-3">
+              <div className="flex items-center gap-1">
+                {showChain && (
+                  <button
+                    onClick={() => setChainPaneView(v => v === 'chain' ? 'workflows' : 'chain')}
+                    className={`text-xs rounded px-1.5 py-0.5 transition-colors ${
+                      chainPaneView === 'chain'
+                        ? 'text-brand bg-brand/10'
+                        : 'text-neutral-500 hover:text-white'
+                    }`}
+                    title={chainPaneView === 'chain' ? 'Switch to Workflows' : 'Switch to Chain Templates'}
+                  >
+                    {chainPaneView === 'chain' ? '◫' : '⛓'}
+                  </button>
+                )}
                 <button
-                  onClick={() => setChainPaneView(v => v === 'chain' ? 'workflows' : 'chain')}
-                  className={`text-xs rounded px-1.5 py-0.5 transition-colors ${
-                    chainPaneView === 'chain'
-                      ? 'text-brand bg-brand/10'
-                      : 'text-neutral-500 hover:text-white'
-                  }`}
-                  title={chainPaneView === 'chain' ? 'Switch to Workflows' : 'Switch to Chain Templates'}
+                  onClick={() => setShowStorage(v => !v)}
+                  className={`text-neutral-500 hover:text-white transition-colors ${showStorage ? 'text-brand' : ''}`}
+                  title={showStorage ? 'Close Storage' : 'Storage Manager'}
                 >
-                  {chainPaneView === 'chain' ? '◫' : '⛓'}
+                  📁
                 </button>
+                <button
+                  onClick={() => setShowVideoEditor(v => !v)}
+                  className="text-neutral-500 hover:text-white transition-colors"
+                  title="Video Editor"
+                >
+                  ✂
+                </button>
+                <button
+                  onClick={() => setShowChain(v => !v)}
+                  className={`text-neutral-500 hover:text-white transition-colors ${showChain ? 'text-brand' : ''}`}
+                  title={showChain ? 'Close Chain Builder' : 'Chain Builder'}
+                >
+                  ⛓
+                </button>
+                <button
+                  onClick={() => setShowProjects(v => !v)}
+                  className={`text-neutral-500 hover:text-white transition-colors ${showProjects ? 'text-emerald-400' : ''}`}
+                  title={showProjects ? 'Close Projects' : 'Projects'}
+                >
+                  ◫
+                </button>
+                <button
+                  onClick={() => setShowSettings((v) => !v)}
+                  className="text-neutral-500 hover:text-white"
+                  title="Settings"
+                >
+                  ⚙
+                </button>
+              </div>
+            </div>
+            {activeProject && (
+              <div className="flex items-center gap-2 px-3 py-1.5 border-b border-white/8 bg-emerald-950/20 shrink-0">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                <span className="text-[10px] text-emerald-400/70 truncate flex-1" title={activeProject.name}>
+                  {activeProject.name}
+                </span>
+                <button
+                  onClick={() => setActiveProject(null)}
+                  className="text-[9px] text-emerald-400/30 hover:text-emerald-400/70 transition-colors shrink-0"
+                  title="Deactivate project (new renders won't be added)"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+            <div className="flex-1 overflow-hidden min-h-0">
+              {showSettings
+                ? <div className="p-3"><Settings onClose={() => setShowSettings(false)} /></div>
+                : showChain && chainPaneView === 'chain'
+                  ? <ChainTemplatePane />
+                  : <WorkflowSelector />
+              }
+            </div>
+          </aside>
+        )}
+
+        {/* Video editor — full width when open, passing home callback */}
+        {showVideoEditor ? (
+          <div className="flex flex-1 min-w-0 min-h-0">
+            <VideoEditor onClose={() => setShowVideoEditor(false)} />
+          </div>
+        ) : (
+          <>
+            {/* Center — Media Library / Chain Builder / Storage Manager + floating Prompt Editor */}
+            <main className="flex flex-1 flex-col border-r border-white/10 bg-neutral-900 min-h-0 overflow-hidden relative">
+              {showStorage
+                ? <StorageManager onClose={() => setShowStorage(false)} />
+                : showProjects
+                  ? <ProjectManager onClose={() => setShowProjects(false)} />
+                  : showChain
+                    ? <ChainGraphEditor onClose={() => setShowChain(false)} />
+                    : <MediaLibraryGrid />
+              }
+              {!showStorage && (
+                <div className="absolute bottom-0 left-0 right-0 z-10">
+                  <PromptEditor />
+                </div>
               )}
-              <button
-                onClick={() => setShowStorage(v => !v)}
-                className={`text-neutral-500 hover:text-white transition-colors ${showStorage ? 'text-brand' : ''}`}
-                title={showStorage ? 'Close Storage' : 'Storage Manager'}
-              >
-                📁
-              </button>
-              <button
-                onClick={() => setShowVideoEditor(v => !v)}
-                className={`text-neutral-500 hover:text-white transition-colors ${showVideoEditor ? 'text-brand' : ''}`}
-                title={showVideoEditor ? 'Close Video Editor' : 'Video Editor'}
-              >
-                ✂
-              </button>
-              <button
-                onClick={() => setShowChain(v => !v)}
-                className={`text-neutral-500 hover:text-white transition-colors ${showChain ? 'text-brand' : ''}`}
-                title={showChain ? 'Close Chain Builder' : 'Chain Builder'}
-              >
-                ⛓
-              </button>
-              <button
-                onClick={() => setShowSettings((v) => !v)}
-                className="text-neutral-500 hover:text-white"
-                title="Settings"
-              >
-                ⚙
-              </button>
-            </div>
-          </div>
-          <div className="flex-1 overflow-hidden min-h-0">
-            {showSettings
-              ? <div className="p-3"><Settings onClose={() => setShowSettings(false)} /></div>
-              : showChain && chainPaneView === 'chain'
-                ? <ChainTemplatePane />
-                : <WorkflowSelector />
-            }
-          </div>
-        </aside>
+            </main>
 
-        {/* Center — Media Library / Chain Builder / Video Editor / Storage Manager + floating Prompt Editor */}
-        <main className="flex flex-1 flex-col border-r border-white/10 bg-neutral-900 min-h-0 overflow-hidden relative">
-          {showStorage
-            ? <StorageManager onClose={() => setShowStorage(false)} />
-            : showVideoEditor
-              ? <VideoEditor onClose={() => setShowVideoEditor(false)} />
-              : showChain
-                ? <ChainGraphEditor onClose={() => setShowChain(false)} />
-                : <MediaLibraryGrid />
-          }
-          {!showStorage && !showVideoEditor && (
-            <div className="absolute bottom-0 left-0 right-0 z-10">
-              <PromptEditor />
-            </div>
-          )}
-        </main>
-
-        {/* Right — Render Viewer */}
-        <aside className="flex w-96 flex-shrink-0 flex-col bg-neutral-900">
-          <div className="border-b border-white/10 px-4 py-3">
-            <span className="themed-heading text-xs font-semibold uppercase tracking-widest text-white/40">
-              Output
-            </span>
-          </div>
-          <div className="flex-1 overflow-y-auto p-4">
-            <RenderViewer />
-          </div>
-        </aside>
+            {/* Right — Render Viewer */}
+            <aside className="flex w-96 flex-shrink-0 flex-col bg-neutral-900">
+              <div className="border-b border-white/10 px-4 py-3">
+                <span className="themed-heading text-xs font-semibold uppercase tracking-widest text-white/40">
+                  Output
+                </span>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4">
+                <RenderViewer />
+              </div>
+            </aside>
+          </>
+        )}
       </div>
 
       <StatusBar />

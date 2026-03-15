@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { submitRender, cancelRender, fetchRenderInfo, resolveMediaUrl, connectRenderWebSocket, type SSEEvent } from '@/api/graydient'
+import { useProjectsStore } from './projects'
 
 // Per-render abort controllers keyed by render id
 const activeAbortControllers = new Map<string, AbortController>()
@@ -234,6 +235,20 @@ export const useRenderQueueStore = create<RenderQueueState>()(persist((set, get)
       }, 6000)
     }
 
+    // Notify projects store if this render completed successfully
+    const completedRender = get().queue.find(r => r.id === id)
+    if (completedRender?.status === 'done' && completedRender.resultUrl) {
+      useProjectsStore.getState().notifyRenderComplete({
+        id: completedRender.id,
+        workflowSlug: completedRender.workflowSlug,
+        prompt: completedRender.prompt,
+        resultUrl: completedRender.resultUrl,
+        thumbnailUrl: completedRender.thumbnailUrl,
+        mediaType: completedRender.mediaType ?? 'image',
+        completedAt: completedRender.completedAt ?? Date.now(),
+      })
+    }
+
     // Kick off the next queued render
     get().processNext()
   }
@@ -245,9 +260,16 @@ export const useRenderQueueStore = create<RenderQueueState>()(persist((set, get)
     selectedRenderId: null,
 
     enqueue: (prompt, workflowSlug, sourceMedia) => {
+      // Inject project size if active project has dimensions and prompt doesn't already specify /size:
+      const activeProject = useProjectsStore.getState().getActiveProject()
+      const dim = activeProject?.dimensions
+      const effectivePrompt = dim && !/\/size:/i.test(prompt)
+        ? `/size:${dim.width}x${dim.height} ${prompt}`
+        : prompt
+
       const newRender: QueuedRender = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        prompt,
+        prompt: effectivePrompt,
         workflowSlug,
         sourceMedia,
         status: 'queued',
