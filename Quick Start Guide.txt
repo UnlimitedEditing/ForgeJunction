@@ -1,1 +1,0 @@
-Open CMD at directory location and launch with NPM RUN DEV (requires node.js)
