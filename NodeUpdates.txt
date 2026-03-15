@@ -1,0 +1,47 @@
+Some workflows have unique input requirements. 
+
+InfiniteTalk, InfiniteTalk-read, chatterbox2
+requires 2 inputs
+requires input image set to controlnet with unique slug
+unique slug placed in /image1:uniqueSlug of raw prompt
+and audio recording provided
+
+-------------------------------------------------------
+
+input must be image set to controlnet with unique slug
+unique slug placed in /image1:uniqueSlug of raw prompt
+
+-------------------------------------------------------
+
+animate-first-last
+requires 2 input images
+requires one input image set to controlnet with unique slug set to /image1:uniqueSlug (last frame)
+requires one input as a raw image (first frame)
+
+--------------------------------------------------------
+
+chatterbox
+requires an audio file input
+
+--------------------------------------------------------
+
+blend2-qwen, blend2-flux2
+requires 2 input images both set as controlnet's with unique slugs
+
+--------------------------------------------------------
+
+wanimate-face, mocha-replace
+requires image saved as controlnet (source face) and video (face swapped on)
+
+--------------------------------------------------------
+
+headswap-klein, headswap-qwen, 
+requires image as controlnet (target face) and image as media input (swap destination)
+
+--------------------------------------------------------
+
+wanimate-puppet
+requires video as source and controlnet image
+
+
+

@@ -1,10 +1,11 @@
 import React, { useRef, useState, useEffect } from 'react'
 import { useChainGraphStore, findComponents, getChainRoot, type ChainNode, type ChainEdge } from '@/stores/chainGraph'
 import { useWorkflowStore } from '@/stores/workflows'
+import { getInputPorts, inputPortY } from '@/utils/workflowPorts'
 import type { Workflow } from '@/api/graydient'
 
 const NODE_W = 230
-const NODE_H = 114   // header + prompt — ports are at this midpoint
+const NODE_H = 114   // header (40) + prompt (74)
 const PORT_R = 7
 
 // ── Compatibility helpers ─────────────────────────────────────────────────────
@@ -18,19 +19,10 @@ function workflowOutputType(wf: Workflow): MediaType | null {
   return null
 }
 
-function workflowAcceptsInput(wf: Workflow, mediaType: MediaType): boolean {
-  if (mediaType === 'image')
-    return wf.supports_img2img || wf.supports_img2vid ||
-      !!wf.field_mapping?.some(f => f.local_field === 'init_image_filename')
-  if (mediaType === 'video')
-    return wf.supports_vid2vid || wf.supports_vid2img || wf.supports_vid2wav
-  if (mediaType === 'audio')
-    return wf.supports_wav2txt
-  return false
-}
+// ── Port position helpers ─────────────────────────────────────────────────────
 
-function inputPortPos(node: ChainNode) {
-  return { x: node.position.x, y: node.position.y + NODE_H / 2 }
+function inputPortPos(node: ChainNode, portIdx: number, portCount: number) {
+  return { x: node.position.x, y: node.position.y + inputPortY(portIdx, portCount) }
 }
 function outputPortPos(node: ChainNode) {
   return { x: node.position.x + NODE_W, y: node.position.y + NODE_H / 2 }
@@ -59,7 +51,7 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
   const {
     nodes, edges,
     addNode, removeNode, updateNode,
-    addEdge, removeEdge,
+    addEdge, removeEdge, updateEdge,
     setSelectedNode, toggleSelectNode, selectAllNodes, clearSelection,
     duplicateSelected, reorderChain,
     selectedNodeId, selectedNodeIds,
@@ -92,8 +84,7 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
     })
   }, [nodes, edges, chainOrder])
 
-  const nodesLeft   = nodes.filter(n => n.status !== 'done' && n.status !== 'error').length
-  const formatTime  = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+  const formatTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 
   const canvasRef = useRef<HTMLDivElement>(null)
   const panRef = useRef({ x: 80, y: 60 })
@@ -104,10 +95,16 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
   // Pending edge (dragging from output port)
   const pendingEdgeRef = useRef<{ fromNodeId: string; currentPos: { x: number; y: number } } | null>(null)
 
-  // null = picker closed; string = node id to assign workflow to
+  // Workflow picker
   const [pickerTargetNodeId, setPickerTargetNodeId] = useState<string | null>(null)
   const [pickerSearch, setPickerSearch] = useState('')
+
+  // Incompatible port flash: "nodeId:portField"
   const [incompatiblePortId, setIncompatiblePortId] = useState<string | null>(null)
+
+  // Controlnet slug editing on edges
+  const [editingEdgeId, setEditingEdgeId] = useState<string | null>(null)
+  const [edgeSlugDraft, setEdgeSlugDraft] = useState('')
 
   // Mark-as-field state
   const [nodeFieldMark, setNodeFieldMark] = useState<{ nodeId: string; start: number; end: number } | null>(null)
@@ -130,6 +127,7 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
       const inInput = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement
 
       if (e.key === 'Escape') {
+        if (editingEdgeId !== null) { setEditingEdgeId(null); return }
         if (pickerTargetNodeId !== null) { setPickerTargetNodeId(null); setPickerSearch('') }
         else onClose()
         return
@@ -151,7 +149,7 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [selectedNodeIds, pickerTargetNodeId, onClose, removeNode, selectAllNodes, duplicateSelected])
+  }, [selectedNodeIds, pickerTargetNodeId, editingEdgeId, onClose, removeNode, selectAllNodes, duplicateSelected])
 
   function toCanvas(clientX: number, clientY: number) {
     const rect = canvasRef.current!.getBoundingClientRect()
@@ -163,7 +161,8 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
 
   function handleCanvasMouseDown(e: React.MouseEvent) {
     const target = e.target as HTMLElement
-    if (!target.closest('[data-node]') && !target.closest('[data-port]')) {
+    if (!target.closest('[data-node]') && !target.closest('[data-port]') && !target.closest('[data-edge-label]')) {
+      if (editingEdgeId) { setEditingEdgeId(null); return }
       clearSelection()
       const startPan = { ...panRef.current }
       const startMouse = { x: e.clientX, y: e.clientY }
@@ -226,29 +225,29 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
     document.addEventListener('mouseup', onUp)
   }
 
-  function handleInputPortMouseUp(e: React.MouseEvent, toNodeId: string) {
+  function handleInputPortMouseUp(e: React.MouseEvent, toNodeId: string, toPortField: string) {
     e.stopPropagation()
     if (!pendingEdgeRef.current || pendingEdgeRef.current.fromNodeId === toNodeId) return
 
     const fromNode = nodes.find(n => n.id === pendingEdgeRef.current!.fromNodeId)
     const toNode   = nodes.find(n => n.id === toNodeId)
 
-    // Compatibility check — only block when both nodes have a workflow set
+    // Port-specific compatibility check
     if (fromNode?.workflowSlug && toNode?.workflowSlug) {
       const fromWf = workflows.find(w => w.slug === fromNode.workflowSlug)
-      const toWf   = workflows.find(w => w.slug === toNode.workflowSlug)
-      if (fromWf && toWf) {
+      if (fromWf) {
         const outType = workflowOutputType(fromWf)
-        if (outType && !workflowAcceptsInput(toWf, outType)) {
-          // Flash the port red briefly
-          setIncompatiblePortId(toNodeId)
+        const ports = getInputPorts(toNode.workflowSlug)
+        const port = ports.find(p => p.field === toPortField)
+        if (outType && port && port.mediaType !== 'any' && port.mediaType !== outType) {
+          setIncompatiblePortId(`${toNodeId}:${toPortField}`)
           setTimeout(() => setIncompatiblePortId(null), 600)
           return
         }
       }
     }
 
-    addEdge(pendingEdgeRef.current.fromNodeId, toNodeId)
+    addEdge(pendingEdgeRef.current.fromNodeId, toNodeId, toPortField)
   }
 
   function handleWheel(e: React.WheelEvent) {
@@ -278,6 +277,11 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
     }
     setPickerTargetNodeId(null)
     setPickerSearch('')
+  }
+
+  function commitEdgeSlug(edgeId: string) {
+    updateEdge(edgeId, { controlnetSlug: edgeSlugDraft.trim() || undefined })
+    setEditingEdgeId(null)
   }
 
   const pendingEdge = pendingEdgeRef.current
@@ -405,11 +409,17 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
               const fn = nodes.find(n => n.id === edge.fromNodeId)
               const tn = nodes.find(n => n.id === edge.toNodeId)
               if (!fn || !tn) return null
+              const toPorts = getInputPorts(tn.workflowSlug)
+              const toPortIdx = toPorts.findIndex(p => p.field === (edge.toPortField ?? 'init_image_filename'))
+              const toPort = toPorts[toPortIdx >= 0 ? toPortIdx : 0]
               const from = outputPortPos(fn)
-              const to = inputPortPos(tn)
+              const to = inputPortPos(tn, toPortIdx >= 0 ? toPortIdx : 0, toPorts.length)
+              const isControlnet = toPort?.isControlnet ?? false
+              const strokeColor = isControlnet ? 'rgba(251,146,60,0.55)' : 'rgba(108,71,255,0.5)'
               return (
                 <g key={edge.id}>
-                  <path d={bezierPath(from, to)} stroke="rgba(108,71,255,0.5)" strokeWidth={2} fill="none" />
+                  <path d={bezierPath(from, to)} stroke={strokeColor} strokeWidth={2} fill="none" />
+                  {/* Wide transparent hit area — click to delete */}
                   <path
                     d={bezierPath(from, to)}
                     stroke="transparent" strokeWidth={14} fill="none"
@@ -435,6 +445,83 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
               )
             })()}
           </svg>
+
+          {/* ── Edge labels / controlnet slug editors ── */}
+          {edges.map(edge => {
+            const fn = nodes.find(n => n.id === edge.fromNodeId)
+            const tn = nodes.find(n => n.id === edge.toNodeId)
+            if (!fn || !tn) return null
+            const toPorts = getInputPorts(tn.workflowSlug)
+            const toPortIdx = toPorts.findIndex(p => p.field === (edge.toPortField ?? 'init_image_filename'))
+            const toPort = toPorts[toPortIdx >= 0 ? toPortIdx : 0]
+            if (!toPort) return null
+            const from = outputPortPos(fn)
+            const to = inputPortPos(tn, toPortIdx >= 0 ? toPortIdx : 0, toPorts.length)
+            const midX = (from.x + to.x) / 2
+            const midY = (from.y + to.y) / 2
+            const isEditing = editingEdgeId === edge.id
+
+            return (
+              <div
+                key={`label-${edge.id}`}
+                data-edge-label
+                className="absolute flex items-center"
+                style={{ left: midX, top: midY, transform: 'translate(-50%, -50%)', zIndex: 10 }}
+                onMouseDown={e => e.stopPropagation()}
+              >
+                {toPort.isControlnet ? (
+                  isEditing ? (
+                    <div className="flex items-center gap-1 bg-neutral-800 border border-orange-500/50 rounded px-1.5 py-0.5 shadow-xl">
+                      <span className="text-[9px] text-white/40 shrink-0">slug:</span>
+                      <input
+                        autoFocus
+                        value={edgeSlugDraft}
+                        onChange={e => setEdgeSlugDraft(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') commitEdgeSlug(edge.id)
+                          if (e.key === 'Escape') setEditingEdgeId(null)
+                        }}
+                        placeholder="e.g. ctrl1"
+                        className="w-24 bg-transparent text-[10px] text-white outline-none placeholder-white/20"
+                      />
+                      <button
+                        onClick={() => commitEdgeSlug(edge.id)}
+                        className="text-orange-300 text-[10px] hover:text-orange-200"
+                        title="Confirm slug"
+                      >✓</button>
+                      <button
+                        onClick={() => setEditingEdgeId(null)}
+                        className="text-white/30 text-[10px] hover:text-white/60"
+                        title="Cancel"
+                      >✕</button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => { setEditingEdgeId(edge.id); setEdgeSlugDraft(edge.controlnetSlug ?? '') }}
+                      title={edge.controlnetSlug
+                        ? `Controlnet slug: ${edge.controlnetSlug} — click to edit`
+                        : 'Controlnet edge — click to set slug (required for render)'}
+                      className={`text-[9px] rounded px-1.5 py-0.5 border transition-colors ${
+                        edge.controlnetSlug
+                          ? 'bg-orange-900/40 border-orange-500/50 text-orange-300 hover:bg-orange-900/60'
+                          : 'bg-neutral-900/80 border-orange-500/20 text-orange-400/40 hover:border-orange-500/50 hover:text-orange-300/70'
+                      }`}
+                    >
+                      {edge.controlnetSlug ? `⊕ ${edge.controlnetSlug}` : '⊕ set slug'}
+                    </button>
+                  )
+                ) : (
+                  /* Non-controlnet: show port label as a dim read-only badge */
+                  <span
+                    className="text-[9px] text-white/20 bg-neutral-950/70 border border-white/5 px-1.5 py-0.5 rounded pointer-events-none select-none"
+                    title={toPort.tooltip}
+                  >
+                    {toPort.label}
+                  </span>
+                )}
+              </div>
+            )
+          })}
 
           {/* Chain number badges above root nodes */}
           {chains.length > 1 && chains.map((chain, idx) => {
@@ -467,6 +554,8 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
           {nodes.map(node => {
             const isSelected = selectedNodeIds.includes(node.id)
             const showResult = node.status === 'done' && node.resultUrl
+            const inputPorts = getInputPorts(node.workflowSlug)
+
             return (
               <div
                 key={node.id}
@@ -476,27 +565,52 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
                 } bg-neutral-900`}
                 style={{ left: node.position.x, top: node.position.y, width: NODE_W }}
               >
-                {/* Input port */}
-                <div
-                  data-port="in"
-                  className={`absolute rounded-full border-2 transition-colors ${
-                    incompatiblePortId === node.id
-                      ? 'border-red-500 bg-red-900/60'
-                      : 'border-white/30 bg-neutral-800 hover:border-brand hover:bg-brand/30'
-                  }`}
-                  style={{ left: -PORT_R, top: NODE_H / 2 - PORT_R, width: PORT_R * 2, height: PORT_R * 2, cursor: 'crosshair' }}
-                  onMouseUp={(e) => handleInputPortMouseUp(e, node.id)}
-                />
+                {/* ── Input ports (one per workflow input slot) ── */}
+                {inputPorts.map((port, portIdx) => {
+                  const portKey = `${node.id}:${port.field}`
+                  const isIncompat = incompatiblePortId === portKey
+                  const hasEdge = edges.some(e => e.toNodeId === node.id && (e.toPortField ?? 'init_image_filename') === port.field)
+                  const portY = inputPortY(portIdx, inputPorts.length)
+                  const mediaIcon = port.mediaType === 'audio' ? '♪' : port.mediaType === 'video' ? '▶' : ''
+                  const tooltip = `${port.label}${mediaIcon ? ` (${port.mediaType})` : ''}${port.isControlnet ? ' · Controlnet' : ''} — ${port.tooltip}`
+                  return (
+                    <div
+                      key={port.field}
+                      data-port="in"
+                      title={tooltip}
+                      className={`absolute rounded-full border-2 transition-colors ${
+                        isIncompat
+                          ? 'border-red-500 bg-red-900/60'
+                          : hasEdge
+                            ? port.isControlnet
+                              ? 'border-orange-400/80 bg-orange-900/40'
+                              : 'border-brand/80 bg-brand/30'
+                            : port.isControlnet
+                              ? 'border-orange-500/40 bg-neutral-800 hover:border-orange-400 hover:bg-orange-900/30'
+                              : 'border-white/30 bg-neutral-800 hover:border-brand hover:bg-brand/30'
+                      }`}
+                      style={{
+                        left: -PORT_R,
+                        top: portY - PORT_R,
+                        width: PORT_R * 2,
+                        height: PORT_R * 2,
+                        cursor: 'crosshair',
+                      }}
+                      onMouseUp={(e) => handleInputPortMouseUp(e, node.id, port.field)}
+                    />
+                  )
+                })}
 
-                {/* Output port */}
+                {/* ── Output port ── */}
                 <div
                   data-port="out"
+                  title="Output — drag to connect to another node's input"
                   className="absolute rounded-full border-2 border-brand/60 bg-brand/25 hover:bg-brand hover:border-brand transition-colors"
                   style={{ right: -PORT_R, top: NODE_H / 2 - PORT_R, width: PORT_R * 2, height: PORT_R * 2, cursor: 'crosshair' }}
                   onMouseDown={(e) => handleOutputPortMouseDown(e, node.id)}
                 />
 
-                {/* Header — drag handle */}
+                {/* ── Header — drag handle ── */}
                 <div
                   className="flex items-center justify-between px-3 py-2.5 border-b border-white/8 cursor-grab active:cursor-grabbing rounded-t-xl"
                   style={{ height: 40 }}
@@ -529,7 +643,7 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
                   </button>
                 </div>
 
-                {/* Prompt */}
+                {/* ── Prompt ── */}
                 <div className="px-3 py-2" style={{ height: 74 }}>
                   <textarea
                     value={node.prompt}
@@ -554,7 +668,6 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
                       }
                     }}
                     onBlur={() => {
-                      // Only clear mark if blur isn't moving to the mark UI for this node
                       setTimeout(() => {
                         setNodeFieldMark(prev => prev?.nodeId === node.id ? null : prev)
                       }, 150)
@@ -562,7 +675,7 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
                   />
                 </div>
 
-                {/* Mark-as-field UI */}
+                {/* ── Mark-as-field UI ── */}
                 {nodeFieldMark?.nodeId === node.id && (
                   <div className="px-3 pb-2 flex items-center gap-1.5" onMouseDown={e => e.stopPropagation()}>
                     {markFieldLabel === '' ? (
@@ -607,7 +720,7 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
                   </div>
                 )}
 
-                {/* Status + result */}
+                {/* ── Status + result ── */}
                 {node.status !== 'idle' && (
                   <div className="border-t border-white/8 px-3 py-2 flex flex-col gap-1.5">
                     <span className={`text-xs font-mono ${statusColor(node.status)}`}>
@@ -655,6 +768,8 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
           <span>Drag ● to connect</span>
           <span>·</span>
           <span>Click edge to delete</span>
+          <span>·</span>
+          <span>Click ⊕ on edge to set controlnet slug</span>
         </div>
       </div>
 

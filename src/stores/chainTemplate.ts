@@ -93,6 +93,8 @@ export const useChainTemplateStore = create<ChainTemplateState>()(
             id: makeId(),
             fromNodeId: idMap.get(e.fromNodeId)!,
             toNodeId: idMap.get(e.toNodeId)!,
+            toPortField: e.toPortField ?? 'init_image_filename',
+            controlnetSlug: e.controlnetSlug,
           }))
 
         const template: ChainTemplate = {

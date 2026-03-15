@@ -16,6 +16,10 @@ export interface ChainEdge {
   id: string
   fromNodeId: string
   toNodeId: string
+  /** Which input field on the destination node this edge feeds. */
+  toPortField: string
+  /** Placeholder key used when this edge feeds a controlnet port (e.g. "ctrl1"). */
+  controlnetSlug?: string
 }
 
 // ── Graph utilities (exported for component use) ──────────────────────────────
@@ -68,8 +72,9 @@ interface ChainGraphState {
   addNode: (workflowSlug: string, workflowName: string, position: { x: number; y: number }) => void
   removeNode: (id: string) => void
   updateNode: (id: string, patch: Partial<Pick<ChainNode, 'prompt' | 'position' | 'workflowSlug' | 'workflowName'>>) => void
-  addEdge: (fromNodeId: string, toNodeId: string) => void
+  addEdge: (fromNodeId: string, toNodeId: string, toPortField: string, controlnetSlug?: string) => void
   removeEdge: (id: string) => void
+  updateEdge: (id: string, patch: Partial<Pick<ChainEdge, 'controlnetSlug'>>) => void
   setSelectedNode: (id: string | null) => void
   toggleSelectNode: (id: string) => void
   selectAllNodes: () => void
@@ -90,10 +95,11 @@ export const useChainGraphStore = create<ChainGraphState>((set, get) => {
 
   /** Execute all nodes in one connected component, respecting their DAG order. */
   async function runChainNodes(nodeIds: string[], allEdges: ChainEdge[]): Promise<void> {
-    const incomingEdge = new Map<string, ChainEdge | null>()
-    for (const id of nodeIds) incomingEdge.set(id, null)
+    // Build multi-input map: nodeId → all incoming edges (one per port)
+    const incomingEdges = new Map<string, ChainEdge[]>()
+    for (const id of nodeIds) incomingEdges.set(id, [])
     for (const edge of allEdges) {
-      if (incomingEdge.has(edge.toNodeId)) incomingEdge.set(edge.toNodeId, edge)
+      if (incomingEdges.has(edge.toNodeId)) incomingEdges.get(edge.toNodeId)!.push(edge)
     }
 
     const results  = new Map<string, string | null>()
@@ -102,8 +108,30 @@ export const useChainGraphStore = create<ChainGraphState>((set, get) => {
 
     async function executeNode(node: ChainNode): Promise<void> {
       setNodeStatus(node.id, 'active')
-      const dep = incomingEdge.get(node.id)
-      const initImage: string | undefined = dep ? (results.get(dep.fromNodeId) ?? undefined) : undefined
+      const deps = incomingEdges.get(node.id) ?? []
+
+      // Build sourceMedia from all incoming edges
+      const sourceMedia: {
+        initImage?: string
+        placeholders?: Record<string, string>
+        optionPairs?: string[]
+      } = {}
+      for (const dep of deps) {
+        const upstreamUrl = results.get(dep.fromNodeId) ?? null
+        if (!upstreamUrl) continue
+        const field = dep.toPortField ?? 'init_image_filename'
+        if (field === 'init_image_filename') {
+          sourceMedia.initImage = upstreamUrl
+        } else {
+          // Secondary/controlnet input — use controlnetSlug as placeholder key
+          const key = dep.controlnetSlug?.trim() || field
+          sourceMedia.placeholders ??= {}
+          sourceMedia.placeholders[key] = upstreamUrl
+          sourceMedia.optionPairs ??= []
+          sourceMedia.optionPairs.push(`/${field}:${key}`)
+        }
+      }
+
       try {
         let resolvedHash: string | null = null
         await submitRender(
@@ -112,7 +140,7 @@ export const useChainGraphStore = create<ChainGraphState>((set, get) => {
           (event: SSEEvent) => {
             if ('rendering_done' in event) resolvedHash = event.rendering_done.render_hash
           },
-          initImage ? { initImage } : undefined
+          Object.keys(sourceMedia).length > 0 ? sourceMedia : undefined
         )
         if (resolvedHash) {
           const info = await fetchRenderInfo(resolvedHash)
@@ -135,11 +163,10 @@ export const useChainGraphStore = create<ChainGraphState>((set, get) => {
       return get().nodes.filter(n => {
         if (!nodeIds.includes(n.id)) return false
         if (completed.has(n.id) || failed.has(n.id) || n.status === 'active') return false
-        const dep = incomingEdge.get(n.id)
-        if (dep === null) return true
-        if (dep && failed.has(dep.fromNodeId)) return false
-        if (dep && completed.has(dep.fromNodeId)) return true
-        return false
+        const deps = incomingEdges.get(n.id) ?? []
+        if (deps.length === 0) return true
+        if (deps.some(d => failed.has(d.fromNodeId))) return false
+        return deps.every(d => completed.has(d.fromNodeId))
       })
     }
 
@@ -149,8 +176,8 @@ export const useChainGraphStore = create<ChainGraphState>((set, get) => {
         changed = false
         for (const id of nodeIds) {
           if (completed.has(id) || failed.has(id)) continue
-          const dep = incomingEdge.get(id)
-          if (dep && failed.has(dep.fromNodeId)) {
+          const deps = incomingEdges.get(id) ?? []
+          if (deps.some(d => failed.has(d.fromNodeId))) {
             failed.add(id)
             setNodeStatus(id, 'error', { error: 'Upstream node failed' })
             changed = true
@@ -173,8 +200,8 @@ export const useChainGraphStore = create<ChainGraphState>((set, get) => {
     set(s => ({
       nodes: s.nodes.map(n => {
         if (!nodeIds.includes(n.id)) return n
-        const dep = incomingEdge.get(n.id)
-        return dep ? { ...n, status: 'waiting' as const } : n
+        const deps = incomingEdges.get(n.id) ?? []
+        return deps.length > 0 ? { ...n, status: 'waiting' as const } : n
       })
     }))
 
@@ -226,16 +253,22 @@ export const useChainGraphStore = create<ChainGraphState>((set, get) => {
       set(s => ({ nodes: s.nodes.map(n => n.id === id ? { ...n, ...patch } : n) }))
     },
 
-    addEdge: (fromNodeId, toNodeId) => {
+    addEdge: (fromNodeId, toNodeId, toPortField, controlnetSlug) => {
       const { edges } = get()
       if (fromNodeId === toNodeId) return
-      if (edges.some(e => e.fromNodeId === fromNodeId && e.toNodeId === toNodeId)) return
-      if (edges.some(e => e.toNodeId === toNodeId)) return
-      set(s => ({ edges: [...s.edges, { id: makeId(), fromNodeId, toNodeId }] }))
+      // Prevent duplicate: same source→destination port combination
+      if (edges.some(e => e.fromNodeId === fromNodeId && e.toNodeId === toNodeId && e.toPortField === toPortField)) return
+      // One edge per destination port
+      if (edges.some(e => e.toNodeId === toNodeId && e.toPortField === toPortField)) return
+      set(s => ({ edges: [...s.edges, { id: makeId(), fromNodeId, toNodeId, toPortField, controlnetSlug }] }))
     },
 
     removeEdge: (id) => {
       set(s => ({ edges: s.edges.filter(e => e.id !== id) }))
+    },
+
+    updateEdge: (id, patch) => {
+      set(s => ({ edges: s.edges.map(e => e.id === id ? { ...e, ...patch } : e) }))
     },
 
     setSelectedNode: (id) => set({
@@ -333,6 +366,8 @@ export const useChainGraphStore = create<ChainGraphState>((set, get) => {
           id: makeId(),
           fromNodeId: idMap.get(e.fromNodeId)!,
           toNodeId: idMap.get(e.toNodeId)!,
+          toPortField: e.toPortField ?? 'init_image_filename',
+          controlnetSlug: e.controlnetSlug,
         }))
       set({
         nodes: newNodes,
