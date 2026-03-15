@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Forge Junction Alpha — AI Media Studio</title>
 
-<meta name="title" content="Forge Junction Alpha— AI Media Studio" />
+<meta name="title" content="Forge Junction Alpha — AI Media Studio" />
 <meta name="description" content="A professional creative interface for AI rendering and media generation." />
 
 <meta property="og:type" content="website" />
@@ -36,6 +36,8 @@
     --ember2:   #ff9554;
     --arc:      #4ae3ff;
     --arc2:     #1ab8d8;
+    --sage:     #6affc8;
+    --sage2:    #3dd9a0;
     --text:     #e8eaed;
     --muted:    #7a8590;
     --dim:      #3a434d;
@@ -153,6 +155,62 @@
     transform: translateY(-1px);
   }
 
+  /* ── Changelog ticker ── */
+  .ticker-bar {
+    position: relative;
+    z-index: 99;
+    margin-top: 72px;
+    background: rgba(255,107,43,0.07);
+    border-bottom: 1px solid rgba(255,107,43,0.15);
+    padding: 10px 48px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    overflow: hidden;
+  }
+  .ticker-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    background: var(--ember);
+    color: #000;
+    padding: 3px 10px;
+    border-radius: 3px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .ticker-items {
+    display: flex;
+    gap: 32px;
+    overflow: hidden;
+    mask-image: linear-gradient(90deg, transparent 0%, black 5%, black 95%, transparent 100%);
+  }
+  .ticker-scroll {
+    display: flex;
+    gap: 32px;
+    animation: tickerScroll 28s linear infinite;
+    white-space: nowrap;
+  }
+  .ticker-item {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .ticker-item::before {
+    content: '✦';
+    color: var(--ember);
+    font-size: 9px;
+  }
+  @keyframes tickerScroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+
   /* ── Hero ── */
   .hero {
     position: relative;
@@ -160,7 +218,7 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
-    padding: 120px 48px 80px;
+    padding: 60px 48px 80px;
     overflow: hidden;
   }
 
@@ -182,6 +240,15 @@
     background: radial-gradient(ellipse at center, rgba(74,227,255,0.07) 0%, transparent 65%);
     pointer-events: none;
     animation: arcPulse 8s ease-in-out infinite;
+  }
+  .hero-sage-glow {
+    position: absolute;
+    bottom: 20%; right: 10%;
+    width: 30%;
+    height: 300px;
+    background: radial-gradient(ellipse at center, rgba(106,255,200,0.04) 0%, transparent 65%);
+    pointer-events: none;
+    animation: arcPulse 10s ease-in-out 2s infinite;
   }
 
   @keyframes emberPulse {
@@ -239,7 +306,7 @@
     margin-top: 32px;
     font-size: 18px;
     color: var(--muted);
-    max-width: 540px;
+    max-width: 580px;
     line-height: 1.7;
     font-weight: 400;
     opacity: 0;
@@ -247,8 +314,32 @@
   }
   .hero-sub strong { color: var(--text); font-weight: 600; }
 
+  .hero-pills {
+    margin-top: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    opacity: 0;
+    animation: fadeUp .9s .58s forwards;
+  }
+  .hero-pill {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    padding: 4px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    color: var(--dim);
+    text-transform: uppercase;
+  }
+  .hero-pill.new {
+    border-color: rgba(255,107,43,0.3);
+    color: var(--ember);
+    background: rgba(255,107,43,0.06);
+  }
+
   .hero-actions {
-    margin-top: 44px;
+    margin-top: 40px;
     display: flex;
     gap: 16px;
     align-items: center;
@@ -304,7 +395,7 @@
 
   /* ── App Preview ── */
   .app-preview {
-    margin-top: 80px;
+    margin-top: 64px;
     position: relative;
     opacity: 0;
     animation: fadeUp 1s .8s forwards;
@@ -339,12 +430,33 @@
     font-size: 12px;
     color: var(--muted);
     margin-left: 12px;
+    flex: 1;
   }
+
+  /* Tab bar */
+  .window-tabs {
+    display: flex;
+    gap: 2px;
+    margin-left: auto;
+  }
+  .wtab {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--dim);
+    padding: 3px 10px;
+    border-radius: 3px;
+    cursor: none;
+    transition: background .15s, color .15s;
+  }
+  .wtab.active { background: rgba(255,107,43,0.12); color: var(--ember); }
+  .wtab:hover:not(.active) { background: rgba(255,255,255,0.04); color: var(--muted); }
 
   .window-body {
     display: grid;
-    grid-template-columns: 220px 1fr 220px;
-    height: 340px;
+    grid-template-columns: 200px 1fr 240px;
+    height: 360px;
   }
 
   .win-col {
@@ -361,118 +473,185 @@
     text-transform: uppercase;
     color: var(--dim);
     margin-bottom: 14px;
-  }
-
-  .workflow-item {
-    padding: 8px 12px;
-    border-radius: 6px;
-    font-size: 12px;
-    color: var(--muted);
-    margin-bottom: 4px;
-    cursor: none;
-    transition: background .15s;
-  }
-  .workflow-item.active {
-    background: rgba(255,107,43,0.12);
-    color: var(--ember2);
-    border-left: 2px solid var(--ember);
-  }
-  .workflow-item:not(.active):hover { background: rgba(255,255,255,0.04); }
-
-  .workflow-tag {
-    display: inline-block;
-    font-size: 9px;
-    padding: 2px 7px;
-    border-radius: 999px;
-    margin-bottom: 10px;
-    font-family: 'DM Mono', monospace;
-    letter-spacing: 0.1em;
-  }
-  .tag-img { background: rgba(74,227,255,0.1); color: var(--arc); }
-  .tag-vid { background: rgba(255,107,43,0.1); color: var(--ember); }
-  .tag-aud { background: rgba(160,100,255,0.1); color: #c084fc; }
-
-  .prompt-area {
-    background: rgba(255,255,255,0.02);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 12px;
-    font-family: 'DM Mono', monospace;
-    font-size: 11px;
-    color: var(--text);
-    height: 90px;
-    line-height: 1.6;
-    margin-bottom: 12px;
-    overflow: hidden;
-  }
-  .typing-cursor {
-    display: inline-block;
-    width: 2px; height: 12px;
-    background: var(--ember);
-    animation: blink 1s step-end infinite;
-    vertical-align: middle;
-  }
-  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
-
-  .param-row {
     display: flex;
-    gap: 8px;
-    margin-bottom: 8px;
+    align-items: center;
+    justify-content: space-between;
   }
-  .param-chip {
-    background: var(--bg3);
+  .col-label-action {
+    width: 18px; height: 18px;
+    background: rgba(255,255,255,0.04);
     border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 4px 10px;
-    font-family: 'DM Mono', monospace;
-    font-size: 10px;
-    color: var(--muted);
-  }
-  .param-chip span { color: var(--arc); }
-
-  .submit-btn-mock {
-    background: var(--ember);
-    color: #000;
-    font-weight: 700;
-    font-size: 11px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    padding: 8px 0;
-    border-radius: 4px;
-    text-align: center;
-    margin-top: 8px;
-  }
-
-  .output-placeholder {
-    background: linear-gradient(135deg, #1a2228, #0d1519);
-    border-radius: 8px;
-    height: 160px;
+    border-radius: 3px;
     display: flex;
     align-items: center;
     justify-content: center;
-    position: relative;
-    overflow: hidden;
-    margin-bottom: 12px;
+    font-size: 10px;
+    color: var(--dim);
   }
-  .output-placeholder::before {
+
+  .sidebar-section { margin-bottom: 16px; }
+  .sidebar-section-title {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(255,107,43,0.6);
+    margin-bottom: 6px;
+    padding-left: 4px;
+  }
+
+  .workflow-item {
+    padding: 7px 10px;
+    border-radius: 5px;
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 2px;
+    cursor: none;
+    transition: background .15s;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .workflow-item .wi-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--dim);
+    flex-shrink: 0;
+  }
+  .workflow-item.active {
+    background: rgba(255,107,43,0.1);
+    color: var(--ember2);
+  }
+  .workflow-item.active .wi-dot { background: var(--ember); }
+  .workflow-item:not(.active):hover { background: rgba(255,255,255,0.03); }
+
+  /* Node canvas mock */
+  .node-canvas {
+    position: relative;
+    background:
+      linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+    background-size: 24px 24px;
+    background-color: #0a0e12;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  /* SVG connector lines */
+  .node-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%; height: 100%;
+    overflow: visible;
+  }
+
+  .mock-node {
+    position: absolute;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    transition: border-color .2s;
+  }
+  .mock-node:hover { border-color: var(--dim); }
+  .mock-node.active-node { border-color: rgba(255,107,43,0.4); }
+  .mock-node.active-node .node-header { background: rgba(255,107,43,0.1); }
+
+  .node-header {
+    background: rgba(255,255,255,0.03);
+    border-bottom: 1px solid var(--border);
+    padding: 6px 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-size: 9px;
+  }
+  .node-header-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--ember);
+    flex-shrink: 0;
+  }
+  .node-header-dot.arc { background: var(--arc); }
+  .node-header-dot.purple { background: #c084fc; }
+  .node-header-dot.sage { background: var(--sage); }
+
+  .node-body { padding: 8px 10px; }
+  .node-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--dim);
+    font-size: 9px;
+    margin-bottom: 4px;
+    letter-spacing: 0.06em;
+  }
+  .node-row span { color: var(--text); }
+  .node-port {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    border: 1px solid var(--dim);
+    background: var(--bg);
+    flex-shrink: 0;
+  }
+  .node-port.filled { border-color: var(--ember); background: rgba(255,107,43,0.2); }
+  .node-port.arc-port { border-color: var(--arc); background: rgba(74,227,255,0.15); }
+
+  /* Right panel */
+  .r-panel { display: flex; flex-direction: column; gap: 12px; }
+
+  .r-section-title {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--dim);
+    margin-bottom: 8px;
+  }
+
+  .asset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .asset-thumb {
+    aspect-ratio: 1;
+    border-radius: 5px;
+    overflow: hidden;
+    position: relative;
+    background: #0d1519;
+    border: 1px solid var(--border);
+  }
+  .asset-thumb::before {
     content: '';
     position: absolute;
     inset: 0;
-    background:
-      radial-gradient(ellipse 60% 60% at 40% 50%, rgba(255,107,43,0.18), transparent),
-      radial-gradient(ellipse 40% 40% at 70% 30%, rgba(74,227,255,0.1), transparent);
   }
-  .output-icon { font-size: 28px; position: relative; z-index: 1; }
-  .progress-bar {
-    height: 3px;
+  .asset-thumb.t1::before { background: radial-gradient(ellipse at 40% 50%, rgba(255,107,43,0.3), transparent 70%); }
+  .asset-thumb.t2::before { background: radial-gradient(ellipse at 60% 40%, rgba(74,227,255,0.25), transparent 70%); }
+  .asset-thumb.t3::before { background: radial-gradient(ellipse at 50% 60%, rgba(192,132,252,0.3), transparent 70%); }
+  .asset-thumb.t4::before { background: radial-gradient(ellipse at 45% 55%, rgba(106,255,200,0.2), transparent 70%); }
+  .asset-thumb-label {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    background: rgba(0,0,0,0.6);
+    font-family: 'DM Mono', monospace;
+    font-size: 8px;
+    color: var(--muted);
+    padding: 3px 5px;
+    letter-spacing: 0.06em;
+  }
+
+  .progress-mini {
+    height: 2px;
     background: var(--bg3);
     border-radius: 999px;
     overflow: hidden;
-    margin-bottom: 8px;
   }
-  .progress-fill {
+  .progress-mini-fill {
     height: 100%;
-    width: 68%;
     background: linear-gradient(90deg, var(--ember), var(--ember2));
     border-radius: 999px;
     animation: progressGlow 2s ease-in-out infinite;
@@ -481,20 +660,110 @@
     0%,100% { box-shadow: 0 0 8px rgba(255,107,43,0.4); }
     50% { box-shadow: 0 0 16px rgba(255,107,43,0.8); }
   }
+
   .queue-item {
     display: flex;
     align-items: center;
     gap: 8px;
     font-family: 'DM Mono', monospace;
-    font-size: 10px;
+    font-size: 9px;
     color: var(--muted);
-    padding: 5px 0;
-    border-bottom: 1px solid rgba(255,255,255,0.04);
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
   }
-  .status-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .status-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
   .s-done { background: #27c93f; }
   .s-render { background: var(--ember); animation: blink 1s infinite; }
   .s-queue { background: var(--dim); }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+  .typing-cursor {
+    display: inline-block;
+    width: 2px; height: 11px;
+    background: var(--ember);
+    animation: blink 1s step-end infinite;
+    vertical-align: middle;
+  }
+
+  /* ── What's New section ── */
+  .whats-new { background: var(--bg2); padding: 80px 48px; }
+  .whats-new-inner { max-width: 1200px; margin: 0 auto; }
+  .changelog-grid {
+    margin-top: 52px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .changelog-card {
+    background: var(--panel);
+    padding: 32px 28px;
+    position: relative;
+    overflow: hidden;
+    transition: background .2s;
+  }
+  .changelog-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: transparent;
+    transition: background .3s;
+  }
+  .changelog-card:hover { background: #181f26; }
+  .changelog-card:hover::before { background: var(--ember); }
+  .changelog-card.arc-card::before { background: transparent; }
+  .changelog-card.arc-card:hover::before { background: var(--arc); }
+  .changelog-card.purple-card::before { background: transparent; }
+  .changelog-card.purple-card:hover::before { background: #c084fc; }
+  .changelog-card.sage-card::before { background: transparent; }
+  .changelog-card.sage-card:hover::before { background: var(--sage); }
+
+  .clog-icon {
+    width: 44px; height: 44px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    margin-bottom: 18px;
+    border: 1px solid transparent;
+  }
+  .clog-icon.ember { background: rgba(255,107,43,0.1); border-color: rgba(255,107,43,0.2); }
+  .clog-icon.arc   { background: rgba(74,227,255,0.08); border-color: rgba(74,227,255,0.2); }
+  .clog-icon.purple{ background: rgba(192,132,252,0.08); border-color: rgba(192,132,252,0.2); }
+  .clog-icon.sage  { background: rgba(106,255,200,0.08); border-color: rgba(106,255,200,0.2); }
+
+  .clog-title {
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+  .clog-desc {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+  .clog-tag {
+    display: inline-block;
+    margin-top: 14px;
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: rgba(255,107,43,0.08);
+    color: var(--ember);
+    border: 1px solid rgba(255,107,43,0.2);
+  }
+  .clog-tag.arc-tag { background: rgba(74,227,255,0.06); color: var(--arc); border-color: rgba(74,227,255,0.15); }
+  .clog-tag.purple-tag { background: rgba(192,132,252,0.06); color: #c084fc; border-color: rgba(192,132,252,0.15); }
+  .clog-tag.sage-tag { background: rgba(106,255,200,0.06); color: var(--sage); border-color: rgba(106,255,200,0.15); }
 
   /* ── Section shared ── */
   section { padding: 100px 48px; }
@@ -530,7 +799,7 @@
   }
 
   /* ── Features ── */
-  .features { background: var(--bg2); }
+  .features { background: var(--bg); }
   .features-header {
     max-width: 1200px;
     margin: 0 auto 64px;
@@ -567,6 +836,8 @@
   }
   .feature-card:hover { background: #181f26; }
   .feature-card:hover::before { background: var(--ember); }
+  .feature-card.arc-fc:hover::before { background: var(--arc); }
+  .feature-card.purple-fc:hover::before { background: #c084fc; }
   .feature-icon {
     width: 48px; height: 48px;
     border-radius: 10px;
@@ -594,7 +865,7 @@
   }
 
   /* ── Media types ── */
-  .media-section { background: var(--bg); position: relative; overflow: hidden; }
+  .media-section { background: var(--bg2); position: relative; overflow: hidden; }
   .media-section::before {
     content: '';
     position: absolute;
@@ -662,6 +933,152 @@
     border: 1px solid var(--border);
     color: var(--dim);
     letter-spacing: 0.08em;
+  }
+
+  /* ── Sage Section ── */
+  .sage-section {
+    background: var(--bg);
+    padding: 100px 48px;
+    position: relative;
+    overflow: hidden;
+  }
+  .sage-section::before {
+    content: '';
+    position: absolute;
+    top: -100px; right: -200px;
+    width: 600px; height: 600px;
+    background: radial-gradient(ellipse, rgba(106,255,200,0.06), transparent 60%);
+    pointer-events: none;
+    animation: arcPulse 9s ease-in-out infinite;
+  }
+  .sage-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 80px;
+    align-items: center;
+  }
+  .sage-section .section-label { color: var(--sage); }
+  .sage-section .section-label::before { background: var(--sage); }
+
+  .sage-card {
+    background: var(--panel);
+    border: 1px solid rgba(106,255,200,0.12);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 0 60px rgba(106,255,200,0.04);
+  }
+  .sage-card-header {
+    background: rgba(106,255,200,0.05);
+    border-bottom: 1px solid rgba(106,255,200,0.1);
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .sage-icon {
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    background: rgba(106,255,200,0.12);
+    border: 1px solid rgba(106,255,200,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+  }
+  .sage-card-title {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--sage);
+  }
+  .sage-status {
+    margin-left: auto;
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    color: var(--dim);
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    padding: 3px 9px;
+    border-radius: 999px;
+  }
+
+  .sage-chat { padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+  .sage-msg {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .sage-avatar {
+    width: 26px; height: 26px;
+    border-radius: 6px;
+    background: rgba(106,255,200,0.1);
+    border: 1px solid rgba(106,255,200,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    flex-shrink: 0;
+  }
+  .sage-bubble {
+    background: rgba(106,255,200,0.05);
+    border: 1px solid rgba(106,255,200,0.1);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: var(--text);
+    line-height: 1.65;
+    max-width: 320px;
+  }
+  .sage-bubble.user-bubble {
+    background: rgba(255,107,43,0.05);
+    border-color: rgba(255,107,43,0.1);
+    margin-left: auto;
+  }
+  .sage-bubble strong { color: var(--sage); }
+
+  .sage-feature-list { margin-top: 32px; display: flex; flex-direction: column; gap: 14px; }
+  .sage-feature {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+  .sage-feature-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--sage);
+    flex-shrink: 0;
+    margin-top: 7px;
+    box-shadow: 0 0 8px rgba(106,255,200,0.4);
+  }
+  .sage-feature-text { font-size: 14px; color: var(--muted); line-height: 1.6; }
+  .sage-feature-text strong { color: var(--text); }
+
+  .coming-soon-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 32px;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--sage);
+    background: rgba(106,255,200,0.06);
+    border: 1px solid rgba(106,255,200,0.15);
+    padding: 8px 16px;
+    border-radius: 6px;
+  }
+  .coming-soon-badge::before {
+    content: '';
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--sage);
+    animation: blink 1.5s ease-in-out infinite;
+    box-shadow: 0 0 6px rgba(106,255,200,0.6);
   }
 
   /* ── Install ── */
@@ -754,21 +1171,6 @@
   .code-block .c-cmd { color: var(--arc); }
   .code-block .c-comment { color: var(--dim); font-style: italic; }
 
-  /* ── Security note ── */
-  .security-note {
-    margin-top: 20px;
-    background: rgba(74,227,255,0.05);
-    border: 1px solid rgba(74,227,255,0.12);
-    border-radius: 8px;
-    padding: 16px 20px;
-    display: flex;
-    gap: 14px;
-    align-items: flex-start;
-  }
-  .security-note-icon { font-size: 18px; flex-shrink: 0; margin-top: 2px; }
-  .security-note-text { font-size: 12px; color: var(--muted); line-height: 1.65; }
-  .security-note-text strong { color: var(--arc); }
-
   /* ── Shortcuts ── */
   .shortcuts-section { background: var(--bg); padding: 80px 48px; }
   .shortcuts-inner { max-width: 800px; margin: 0 auto; text-align: center; }
@@ -853,98 +1255,265 @@
       FORGE <span>JUNCTION</span>
     </div>
     <ul class="nav-links">
+      <li><a href="#whats-new">What's New</a></li>
       <li><a href="#features">Features</a></li>
-      <li><a href="#media">Media</a></li>
+      <li><a href="#sage">Sage</a></li>
       <li><a href="#install">Install</a></li>
-      <li><a href="#shortcuts">Shortcuts</a></li>
     </ul>
     <a href="#install" class="btn-primary nav-cta">Download</a>
   </nav>
 
+  <!-- Ticker bar -->
+  <div class="ticker-bar">
+    <div class="ticker-badge">New</div>
+    <div class="ticker-items">
+      <div class="ticker-scroll">
+        <div class="ticker-item">Complete UI Redesign</div>
+        <div class="ticker-item">Node-Based Workflow Editor</div>
+        <div class="ticker-item">Concept &amp; LoRA Browser</div>
+        <div class="ticker-item">Built-in Video Editor</div>
+        <div class="ticker-item">Quick Form Templates</div>
+        <div class="ticker-item">Auto-update System</div>
+        <div class="ticker-item">Sage AI Assistant — Coming Soon</div>
+        <!-- duplicate for seamless loop -->
+        <div class="ticker-item">Complete UI Redesign</div>
+        <div class="ticker-item">Node-Based Workflow Editor</div>
+        <div class="ticker-item">Concept &amp; LoRA Browser</div>
+        <div class="ticker-item">Built-in Video Editor</div>
+        <div class="ticker-item">Quick Form Templates</div>
+        <div class="ticker-item">Auto-update System</div>
+        <div class="ticker-item">Sage AI Assistant — Coming Soon</div>
+      </div>
+    </div>
+  </div>
+
   <header class="hero">
     <div class="hero-grid"></div>
     <div class="hero-arc"></div>
+    <div class="hero-sage-glow"></div>
     <div class="hero-label">AI Media Studio</div>
     <h1>FORGE <br><span class="accent">JUNCTION</span><br>ALPHA </h1>
-    <p class="hero-sub">A <strike>professional</strike> creative interface for AI rendering and media generation. <strong>AN unreasonably large list of models</strong> like Flux, SDXL, Zimage, and <strong>25,000</strong> other models and LoRA's from a single unified application.</p>
+    <p class="hero-sub">
+      A <strike>simple</strike> <strong>fully unified</strong> creative studio for AI rendering and media generation.
+      Node-based workflows, a built-in video editor, live asset browsing — and an <strong>unreasonably large</strong> model library from a single app.
+    </p>
+    <div class="hero-pills">
+      <div class="hero-pill new">✦ Node Editor</div>
+      <div class="hero-pill new">✦ Video Editor</div>
+      <div class="hero-pill new">✦ LoRA Browser</div>
+      <div class="hero-pill new">✦ Unified UI</div>
+      <div class="hero-pill">Flux 1.1 Pro</div>
+      <div class="hero-pill">SDXL</div>
+      <div class="hero-pill">Kling</div>
+      <div class="hero-pill">Wan 2.1</div>
+      <div class="hero-pill">Suno</div>
+    </div>
     <div class="hero-actions">
       <a href="#install" class="btn-primary">Download Alpha</a>
       <a href="https://github.com/UnlimitedEditing/ForgeJunction" target="_blank" class="btn-secondary">GitHub Repo</a>
     </div>
 
+    <!-- Updated app window showing Node Editor -->
     <div class="app-preview">
       <div class="app-window">
         <div class="window-chrome">
           <div class="dot dot-r"></div>
           <div class="dot dot-y"></div>
           <div class="dot dot-g"></div>
-          <div class="window-title">Forge Junction — v1.0.0</div>
+          <div class="window-title">Forge Junction — v2.0.0-alpha</div>
+          <div class="window-tabs">
+            <div class="wtab">Generate</div>
+            <div class="wtab active">Node Editor</div>
+            <div class="wtab">Video</div>
+            <div class="wtab">Assets</div>
+          </div>
         </div>
         <div class="window-body">
+          <!-- Left: workflow sidebar -->
           <div class="win-col">
-            <div class="col-label">Workflows</div>
-            <div class="workflow-tag tag-img">Image</div>
-            <div class="workflow-item active">Flux 1.1 Pro Ultra</div>
-            <div class="workflow-item">Stable Diffusion XL</div>
-            <div class="workflow-item">SDXL Turbo</div>
-            <div class="workflow-tag tag-vid" style="margin-top:10px">Video</div>
-            <div class="workflow-item">Kling 1.6 Standard</div>
-            <div class="workflow-item">Wan 2.1 Text2Video</div>
-            <div class="workflow-tag tag-aud" style="margin-top:10px">Audio</div>
-            <div class="workflow-item">Suno Music Gen</div>
+            <div class="col-label">Workflows <div class="col-label-action">+</div></div>
+            <div class="sidebar-section">
+              <div class="sidebar-section-title">Image</div>
+              <div class="workflow-item active"><div class="wi-dot"></div>Flux 1.1 Pro Ultra</div>
+              <div class="workflow-item"><div class="wi-dot"></div>Stable Diffusion XL</div>
+              <div class="workflow-item"><div class="wi-dot"></div>SDXL Turbo</div>
+            </div>
+            <div class="sidebar-section">
+              <div class="sidebar-section-title">Video</div>
+              <div class="workflow-item"><div class="wi-dot"></div>Kling 1.6 Standard</div>
+              <div class="workflow-item"><div class="wi-dot"></div>Wan 2.1 Text2Video</div>
+            </div>
+            <div class="sidebar-section">
+              <div class="sidebar-section-title">Audio</div>
+              <div class="workflow-item"><div class="wi-dot"></div>Suno Music Gen</div>
+            </div>
           </div>
-          <div class="win-col">
-            <div class="col-label">Prompt Editor</div>
-            <div class="prompt-area">
-              cinematic portrait of an astronaut, neon-lit underground lab, volumetric fog, shot on IMAX, hyper-realistic<span class="typing-cursor"></span>
+
+          <!-- Center: node canvas -->
+          <div class="win-col" style="padding:0; position:relative;">
+            <div class="node-canvas">
+              <!-- SVG connector lines -->
+              <svg class="node-svg" xmlns="http://www.w3.org/2000/svg">
+                <!-- Line: Prompt → Flux node -->
+                <path d="M 202 92 C 230 92 230 130 258 130" stroke="rgba(255,107,43,0.35)" stroke-width="1.5" fill="none" stroke-dasharray="4 3"/>
+                <!-- Line: LoRA → Flux node -->
+                <path d="M 202 192 C 230 192 230 152 258 152" stroke="rgba(74,227,255,0.3)" stroke-width="1.5" fill="none" stroke-dasharray="4 3"/>
+                <!-- Line: Flux → Upscale -->
+                <path d="M 388 142 C 416 142 416 240 444 240" stroke="rgba(255,107,43,0.3)" stroke-width="1.5" fill="none"/>
+                <!-- Line: Upscale → Output -->
+                <path d="M 574 240 C 602 240 602 310 450 330" stroke="rgba(106,255,200,0.25)" stroke-width="1.5" fill="none" stroke-dasharray="4 3"/>
+              </svg>
+
+              <!-- Node 1: Prompt -->
+              <div class="mock-node" style="left:24px; top:64px; width:178px;">
+                <div class="node-header"><div class="node-header-dot"></div>Prompt</div>
+                <div class="node-body">
+                  <div class="node-row">Text <span style="font-size:9px; color:var(--muted);">cinematic portrait…</span></div>
+                  <div class="node-row">Neg <span style="font-size:9px; color:var(--dim);">blurry, low res</span></div>
+                  <div class="node-row" style="justify-content:flex-end;"><div class="node-port filled"></div></div>
+                </div>
+              </div>
+
+              <!-- Node 2: LoRA -->
+              <div class="mock-node" style="left:24px; top:164px; width:178px;">
+                <div class="node-header"><div class="node-header-dot arc"></div>LoRA</div>
+                <div class="node-body">
+                  <div class="node-row">Model <span>Cinematic_v4</span></div>
+                  <div class="node-row">Weight <span>0.75</span></div>
+                  <div class="node-row" style="justify-content:flex-end;"><div class="node-port arc-port"></div></div>
+                </div>
+              </div>
+
+              <!-- Node 3: Flux (active) -->
+              <div class="mock-node active-node" style="left:258px; top:100px; width:130px;">
+                <div class="node-header"><div class="node-header-dot"></div>Flux 1.1 Pro</div>
+                <div class="node-body">
+                  <div class="node-row"><div class="node-port filled"></div> Steps <span>28</span></div>
+                  <div class="node-row"><div class="node-port arc-port"></div> CFG <span>7.5</span></div>
+                  <div class="node-row">Size <span>1024²</span></div>
+                  <div class="node-row" style="justify-content:flex-end; margin-top:4px;"><div class="node-port filled"></div></div>
+                </div>
+              </div>
+
+              <!-- Node 4: Upscale -->
+              <div class="mock-node" style="left:444px; top:208px; width:130px;">
+                <div class="node-header"><div class="node-header-dot purple"></div>Upscale 4×</div>
+                <div class="node-body">
+                  <div class="node-row"><div class="node-port filled"></div> In</div>
+                  <div class="node-row">Scale <span>4×</span></div>
+                  <div class="node-row" style="justify-content:flex-end;"><div class="node-port filled" style="border-color:var(--sage); background:rgba(106,255,200,0.15);"></div></div>
+                </div>
+              </div>
+
             </div>
-            <div class="param-row">
-              <div class="param-chip">Steps <span>28</span></div>
-              <div class="param-chip">CFG <span>7.5</span></div>
-              <div class="param-chip">1024×1024</div>
-            </div>
-            <div class="param-row">
-              <div class="param-chip">Sampler <span>DPM++</span></div>
-              <div class="param-chip">Seed <span>auto</span></div>
-            </div>
-            <div class="submit-btn-mock">⚡ Submit Render</div>
           </div>
+
+          <!-- Right: assets + queue -->
           <div class="win-col">
-            <div class="col-label">Output</div>
-            <div class="output-placeholder">
-              <div class="output-icon">🖼</div>
+            <div class="r-panel">
+              <div>
+                <div class="r-section-title">Asset Browser</div>
+                <div class="asset-grid">
+                  <div class="asset-thumb t1"><div class="asset-thumb-label">Cinematic_v4</div></div>
+                  <div class="asset-thumb t2"><div class="asset-thumb-label">Neon_Glow</div></div>
+                  <div class="asset-thumb t3"><div class="asset-thumb-label">Skin_Detail</div></div>
+                  <div class="asset-thumb t4"><div class="asset-thumb-label">Fog_Atmos</div></div>
+                </div>
+              </div>
+              <div>
+                <div class="r-section-title">Render Queue</div>
+                <div style="margin-bottom:8px;">
+                  <div style="display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);margin-bottom:4px;">
+                    <span>flux_1238.png</span><span style="color:var(--ember);">68%</span>
+                  </div>
+                  <div class="progress-mini"><div class="progress-mini-fill" style="width:68%"></div></div>
+                </div>
+                <div class="queue-item"><div class="status-dot s-done"></div>flux_1234.png</div>
+                <div class="queue-item"><div class="status-dot s-done"></div>flux_1235.png</div>
+                <div class="queue-item"><div class="status-dot s-render"></div>flux_1238.png<span class="typing-cursor" style="margin-left:4px;height:9px;"></span></div>
+                <div class="queue-item"><div class="status-dot s-queue"></div>flux_1239.png</div>
+                <div class="queue-item"><div class="status-dot s-queue"></div>flux_1240.png</div>
+              </div>
             </div>
-            <div class="progress-bar"><div class="progress-fill"></div></div>
-            <div class="queue-item"><div class="status-dot s-done"></div>flux_1234.png</div>
-            <div class="queue-item"><div class="status-dot s-render"></div>flux_1235.png</div>
-            <div class="queue-item"><div class="status-dot s-queue"></div>flux_1236.png</div>
           </div>
         </div>
       </div>
     </div>
   </header>
 
+  <!-- What's New -->
+  <section class="whats-new" id="whats-new">
+    <div class="whats-new-inner">
+      <p class="section-label reveal">Changelog</p>
+      <h2 class="reveal">WHAT'S <span class="h2-dim">NEW</span></h2>
+      <p class="section-intro reveal">A massive leap forward in how you interact with the Graydient API — from simple prompt-and-render to complex, multi-stage generation pipelines.</p>
+
+      <div class="changelog-grid reveal">
+        <div class="changelog-card">
+          <div class="clog-icon ember">🖥</div>
+          <div class="clog-title">Unified UI</div>
+          <div class="clog-desc">The entire interface has been redesigned. Most functionality you know from Telegram PD is now fully integrated and accessible from the main application window.</div>
+          <div class="clog-tag">UI Overhaul</div>
+        </div>
+        <div class="changelog-card arc-card">
+          <div class="clog-icon arc">⬡</div>
+          <div class="clog-title">Node Editor</div>
+          <div class="clog-desc">A brand-new visual editor for planning and executing complex workflows. The output of one node seamlessly becomes the input for the next, with quick form templates for repeatable setups.</div>
+          <div class="clog-tag arc-tag">New Feature</div>
+        </div>
+        <div class="changelog-card purple-card">
+          <div class="clog-icon purple">✂</div>
+          <div class="clog-title">Video Editor</div>
+          <div class="clog-desc">A built-in lightweight NLE to trim and assemble your video generations without leaving the app. Cut, arrange, and preview clips right inside Forge Junction.</div>
+          <div class="clog-tag purple-tag">New Feature</div>
+        </div>
+        <div class="changelog-card sage-card">
+          <div class="clog-icon sage">🗂</div>
+          <div class="clog-title">Asset Browser</div>
+          <div class="clog-desc">Dedicated Concept and LoRA browsing directly in the UI. Find styles, fine-tunes, and concepts interactively and wire them straight into your node graph.</div>
+          <div class="clog-tag sage-tag">New Feature</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features -->
   <section class="features" id="features">
     <div class="features-header">
       <div>
         <p class="section-label reveal">Interface</p>
-        <h2 class="reveal">BUILT FOR <span class="h2-dim">SPEED</span></h2>
+        <h2 class="reveal">BUILT FOR <span class="h2-dim">POWER</span></h2>
       </div>
-      <p class="section-intro reveal">Say goodbye to clunky web interfaces. Forge Junction brings the power of cloud generation into a snappy, native desktop experience.</p>
+      <p class="section-intro reveal">Say goodbye to clunky web interfaces. Forge Junction brings the full power of cloud generation into a snappy, native desktop experience — now with multi-stage pipelines and a built-in editor.</p>
     </div>
 
     <div class="feature-grid reveal">
       <div class="feature-card">
-        <div class="feature-icon">⚡</div>
-        <div class="feature-title">Native Performance</div>
-        <div class="feature-desc">Built on lightweight Electron, the interface responds instantly. No browser tabs to lose, no accidental refreshes during a massive batch run.</div>
+        <div class="feature-icon">⬡</div>
+        <div class="feature-title">Node-Based Pipelines</div>
+        <div class="feature-desc">Chain generations together visually. Route the output of a Flux render straight into an upscaler node, a ControlNet, or a video model — no manual file juggling.</div>
       </div>
-      <div class="feature-card">
+      <div class="feature-card arc-fc">
         <div class="feature-icon arc">☁</div>
         <div class="feature-title">Cloud Powered</div>
-        <div class="feature-desc">Generation runs on Graydient's dedicated GPU clusters. Your computer stays quiet and cool while rendering high-res media.</div>
+        <div class="feature-desc">Generation runs on Graydient's dedicated GPU clusters. Your computer stays quiet and cool while rendering complex, multi-node pipelines.</div>
+      </div>
+      <div class="feature-card purple-fc">
+        <div class="feature-icon purple">✂</div>
+        <div class="feature-title">Built-in Video NLE</div>
+        <div class="feature-desc">Trim, arrange, and preview your AI video generations right inside the app. No need to open a separate editor for basic assembly work.</div>
       </div>
       <div class="feature-card">
+        <div class="feature-icon">🗂</div>
+        <div class="feature-title">Live Asset Browsing</div>
+        <div class="feature-desc">Browse, search, and preview thousands of LoRAs and concepts from inside the UI. Click to wire any asset directly into your current node graph.</div>
+      </div>
+      <div class="feature-card arc-fc">
+        <div class="feature-icon arc">⚡</div>
+        <div class="feature-title">Native Performance</div>
+        <div class="feature-desc">Built on lightweight Electron, the interface responds instantly. No browser tabs to lose, no accidental refreshes killing a long batch run.</div>
+      </div>
+      <div class="feature-card purple-fc">
         <div class="feature-icon purple">🔐</div>
         <div class="feature-title">Secure Credentials</div>
         <div class="feature-desc">Your API token is stored encrypted in your OS keychain — Windows Credential Manager or macOS Keychain. Never in plaintext.</div>
@@ -952,18 +1521,19 @@
     </div>
   </section>
 
+  <!-- Media types -->
   <section class="media-section" id="media">
     <div class="media-inner">
       <p class="section-label reveal">What you can make</p>
       <h2 class="reveal">IMAGE <span class="h2-dim">·</span> VIDEO <span class="h2-dim">·</span> AUDIO</h2>
-      <p class="section-intro reveal">One app. Three frontiers of AI-generated media.</p>
+      <p class="section-intro reveal">One app. Three frontiers of AI-generated media, now connected by a single node graph.</p>
 
       <div class="media-types">
         <div class="media-card reveal">
           <div class="media-big-num">01</div>
           <div class="media-type-icon">🖼</div>
           <div class="media-type-name">IMAGE</div>
-          <div class="media-type-desc">Text-to-image, img2img, inpainting. Use state-of-the-art diffusion models like Flux 1.1 Pro and SDXL via Graydient's pipeline.</div>
+          <div class="media-type-desc">Text-to-image, img2img, inpainting. Use state-of-the-art diffusion models like Flux 1.1 Pro and SDXL via Graydient's pipeline — or chain them together in the node editor.</div>
           <div class="media-tags">
             <div class="mtag">txt2img</div>
             <div class="mtag">img2img</div>
@@ -976,7 +1546,7 @@
           <div class="media-big-num">02</div>
           <div class="media-type-icon">🎬</div>
           <div class="media-type-name">VIDEO</div>
-          <div class="media-type-desc">Generate smooth video clips from text or images. Describe camera motion, subjects, and style to bring scenes to life.</div>
+          <div class="media-type-desc">Generate smooth video clips from text or images, then trim and arrange them in the built-in NLE. Describe camera motion, subjects, and style to bring scenes to life.</div>
           <div class="media-tags">
             <div class="mtag">txt2vid</div>
             <div class="mtag">img2vid</div>
@@ -989,7 +1559,7 @@
           <div class="media-big-num">03</div>
           <div class="media-type-icon">🎵</div>
           <div class="media-type-name">AUDIO</div>
-          <div class="media-type-desc">Generate music and sound with lyric-aware prompting. Structure verses, choruses, and bridges in the prompt editor.</div>
+          <div class="media-type-desc">Generate music and sound with lyric-aware prompting. Structure verses, choruses, and bridges in the prompt editor, and pipe audio output into the video editor.</div>
           <div class="media-tags">
             <div class="mtag">music</div>
             <div class="mtag">vocals</div>
@@ -1001,40 +1571,94 @@
     </div>
   </section>
 
+  <!-- Sage section -->
+  <section class="sage-section" id="sage">
+    <div class="sage-inner">
+      <div>
+        <p class="section-label reveal">What's Next</p>
+        <h2 class="reveal" style="color:var(--text);">MEET <span style="color:var(--sage);">SAGE</span></h2>
+        <p class="section-intro reveal">An LLM-powered assistant built directly into Forge Junction — trained on Graydient's API, prompting best practices, and every quirk of the workflow engine.</p>
+
+        <div class="sage-feature-list reveal">
+          <div class="sage-feature">
+            <div class="sage-feature-dot"></div>
+            <div class="sage-feature-text"><strong>Interactive tutorials</strong> that guide new users through the node editor step by step, in plain language.</div>
+          </div>
+          <div class="sage-feature">
+            <div class="sage-feature-dot"></div>
+            <div class="sage-feature-text"><strong>Prompt enhancement</strong> — describe your idea, let Sage refine it into a battle-tested prompt optimised for your chosen model.</div>
+          </div>
+          <div class="sage-feature">
+            <div class="sage-feature-dot"></div>
+            <div class="sage-feature-text"><strong>Workflow guidance</strong> — ask Sage which LoRAs pair well with a concept, or how to structure a node chain for a specific look.</div>
+          </div>
+          <div class="sage-feature">
+            <div class="sage-feature-dot"></div>
+            <div class="sage-feature-text"><strong>Massive internal knowledge base</strong> of Graydient tricks, render gotchas, and model-specific tips — always at your fingertips.</div>
+          </div>
+        </div>
+
+        <div class="coming-soon-badge reveal">In Development — Coming Soon</div>
+      </div>
+
+      <div class="sage-card reveal">
+        <div class="sage-card-header">
+          <div class="sage-icon">✦</div>
+          <div class="sage-card-title">Sage Assistant</div>
+          <div class="sage-status">Preview</div>
+        </div>
+        <div class="sage-chat">
+          <div class="sage-msg">
+            <div class="sage-avatar">✦</div>
+            <div class="sage-bubble">Hey! I noticed you're using <strong>Flux 1.1 Pro Ultra</strong>. Want me to suggest some LoRAs that pair well with cinematic portrait prompts?</div>
+          </div>
+          <div class="sage-msg" style="flex-direction:row-reverse;">
+            <div class="sage-bubble user-bubble">yeah go for it, also my fog looks too harsh</div>
+          </div>
+          <div class="sage-msg">
+            <div class="sage-avatar">✦</div>
+            <div class="sage-bubble">For softer atmosphere, try dropping your CFG to <strong>6.0</strong> and adding <em>"soft volumetric haze, diffused light"</em> before your fog description. Also <strong>Fog_Atmos_v2</strong> at 0.6 weight is perfect for this — it's already in your library.<span class="typing-cursor" style="margin-left:4px;"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Install -->
   <section class="install-section" id="install">
     <div class="install-inner">
       <div>
         <p class="section-label reveal">Getting Started</p>
         <h2 class="reveal">INSTALLATION</h2>
-        <p class="section-intro reveal">Forge Junction connects to your Graydient account via an API token. Here's how to get set up in under 2 minutes.</p>
+        <p class="section-intro reveal">Forge Junction connects to your Graydient account via an API token. Get set up in under 2 minutes.</p>
 
         <div class="steps">
           <div class="step reveal">
             <div class="step-num">1</div>
             <div class="step-content">
               <div class="step-title">Get your API Token</div>
-              <div class="step-desc">Log into <a href="https://graydient.ai" target="_blank">Graydient.ai</a>, navigate to your Account Settings, and generate a new API token. Keep this safe.</div>
+              <div class="step-desc">Log into <a href="https://graydient.ai" target="_blank">Graydient.ai</a>, navigate to Account Settings, and generate a new API token. Keep this safe.</div>
             </div>
           </div>
           <div class="step reveal">
             <div class="step-num">2</div>
             <div class="step-content">
-              <div class="step-title">Download & Launch</div>
-              <div class="step-desc">Grab the recommended installer from the right, run it, and open Forge Junction.</div>
+              <div class="step-title">Download &amp; Launch</div>
+              <div class="step-desc">Grab the recommended installer from the right, run it, and open Forge Junction. No dependencies needed.</div>
             </div>
           </div>
           <div class="step reveal">
             <div class="step-num">3</div>
             <div class="step-content">
               <div class="step-title">Authenticate</div>
-              <div class="step-desc">On first launch, the app will ask for your token. Paste it in, and you're ready to start rendering.</div>
+              <div class="step-desc">On first launch, paste your API token when prompted. Future updates arrive silently in the background via the built-in auto-updater.</div>
             </div>
           </div>
         </div>
       </div>
 
       <div class="install-options reveal">
-        <a href="https://github.com/UnlimitedEditing/ForgeJunction/releases/tag/alpha1" target="_blank" class="install-card recommended" style="display: block; text-decoration: none; cursor: none;">
+        <a href="https://github.com/UnlimitedEditing/ForgeJunction/releases/tag/alpha2" target="_blank" class="install-card recommended" style="display: block; text-decoration: none; cursor: none;">
           <div class="install-card-header">
             <div class="install-card-title">⬇ Installer (Windows)</div>
             <div class="badge">Recommended</div>
@@ -1074,10 +1698,18 @@
           </div>
           <div class="install-card-desc" style="color: var(--muted);">Need help running Forge Junction on macOS? Contact @UnlimitedEditing on Telegram for dedicated support.</div>
         </a>
+
+        <div class="install-card" style="border-color:rgba(255,107,43,0.15);">
+          <div class="install-card-header">
+            <div class="install-card-title">🐛 Found a Bug?</div>
+          </div>
+          <div class="install-card-desc">Use <strong style="color:var(--text);">Help → Export Debug Report</strong>, attach the file, and open a GitHub issue. The report includes system info, app version, and relevant log output — it makes fixes much faster.</div>
+        </div>
       </div>
     </div>
   </section>
 
+  <!-- Shortcuts -->
   <section class="shortcuts-section" id="shortcuts">
     <div class="shortcuts-inner">
       <h2 class="reveal">KEYBOARD <span class="h2-dim">DRIVEN</span></h2>
@@ -1088,7 +1720,7 @@
         </div>
         <div class="shortcut">
           <div class="kbd-combo"><kbd>Ctrl</kbd> + <kbd>N</kbd></div>
-          <div class="shortcut-desc">Clear workflow & start fresh</div>
+          <div class="shortcut-desc">Clear workflow &amp; start fresh</div>
         </div>
         <div class="shortcut">
           <div class="kbd-combo"><kbd>Esc</kbd></div>
@@ -1098,6 +1730,7 @@
     </div>
   </section>
 
+  <!-- CTA -->
   <section class="cta-section">
     <p class="section-label reveal">Ready?</p>
     <h2 class="reveal">ENTER THE <span class="accent">FORGE</span></h2>
@@ -1138,7 +1771,7 @@
   }
   animRing();
 
-  document.querySelectorAll('a, button, .feature-card, .media-card, .shortcut, .install-card').forEach(el => {
+  document.querySelectorAll('a, button, .feature-card, .media-card, .shortcut, .install-card, .changelog-card, .mock-node').forEach(el => {
     el.addEventListener('mouseenter', () => {
       cursor.style.width  = '18px';
       cursor.style.height = '18px';
@@ -1156,9 +1789,8 @@
   // Scroll reveal
   const reveals = document.querySelectorAll('.reveal');
   const observer = new IntersectionObserver((entries) => {
-    entries.forEach((e, i) => {
+    entries.forEach((e) => {
       if (e.isIntersecting) {
-        // Stagger siblings
         const siblings = [...e.target.parentElement.querySelectorAll('.reveal')];
         const idx = siblings.indexOf(e.target);
         setTimeout(() => {
