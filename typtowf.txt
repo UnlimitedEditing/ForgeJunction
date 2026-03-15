@@ -1,0 +1,10 @@
+text to image -> Zimage-turbo
+image to iamge -> edit flux 2
+text to video -> smoothwan22
+video to video -> extend smoothwan22
+text to music -> musicace15
+text to speech -> infinitetalkread (this requires an input image, ask the user to create one if the library has none)
+image to video -> animate smoothwan22
+image to video with sound -> animate ltx
+video to video with sound -> audio ltx23
+text to video with sounds -> ltx

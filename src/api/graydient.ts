@@ -22,8 +22,14 @@ export interface Workflow {
   slug: string
   name: string
   description: string
+  thumbnail_url?: string | null
+  image_url?: string | null
+  avg_elapsed?: number | null
+  platform?: string | null
+  is_public?: boolean
   field_mapping: WorkflowFieldMapping[]
   concept_mapping: Record<string, string>
+  supports_dynamic_concepts: boolean
   supports_txt2img: boolean
   supports_img2img: boolean
   supports_txt2vid: boolean
@@ -33,6 +39,28 @@ export interface Workflow {
   supports_txt2wav: boolean
   supports_vid2wav: boolean
   supports_wav2txt: boolean
+}
+
+export interface Lora {
+  id: string
+  name: string
+  slug: string
+  description?: string
+  thumbnail_url?: string | null
+  compatible_workflows?: string[]
+  trigger_words?: string[]
+}
+
+export interface Concept {
+  concept_hash: string
+  name: string
+  description?: string
+  example_url?: string | null
+  info_url?: string | null
+  is_nsfw?: boolean
+  model_family?: string
+  tags?: string[]
+  token: string
 }
 
 export interface ParsedPrompt {
@@ -94,6 +122,48 @@ export type SSEEvent =
   | { rendering_done: { render_hash: string } }
   | { rendering_error: { message: string } }
 
+export interface WSRenderEvent {
+  event: string
+  data: Record<string, unknown>
+}
+
+/**
+ * Open a WebSocket to stream render events for a known render_hash.
+ * Returns a cleanup function — call it to close the socket.
+ */
+export function connectRenderWebSocket(
+  renderHash: string,
+  onEvent: (e: WSRenderEvent) => void,
+  signal?: AbortSignal
+): () => void {
+  const url = `wss://cached.graydient.ai/render-events/${renderHash}?token=${getApiKey()}`
+  let ws: WebSocket | null = null
+  try {
+    ws = new WebSocket(url)
+  } catch {
+    return () => {}
+  }
+
+  ws.onmessage = (e) => {
+    try { onEvent(JSON.parse(e.data as string) as WSRenderEvent) } catch { /* ignore */ }
+  }
+  ws.onerror = () => { /* silent — fallback to SSE state */ }
+
+  const pingTimer = setInterval(() => {
+    if (ws?.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ command: 'ping' }))
+    }
+  }, 25000)
+
+  const cleanup = () => {
+    clearInterval(pingTimer)
+    try { ws?.close() } catch { /* ignore */ }
+  }
+
+  signal?.addEventListener('abort', cleanup)
+  return cleanup
+}
+
 export interface RenderMedia {
   url: string
   media_type?: string
@@ -152,6 +222,37 @@ export async function cancelRender(renderHash: string): Promise<void> {
   }
 }
 
+export async function fetchConcepts(modelFamily?: string, search?: string): Promise<Concept[]> {
+  const params = new URLSearchParams({ per_page: '1000' })
+  if (modelFamily) params.set('model_family', modelFamily)
+  if (search) params.set('search', search)
+  try {
+    const res = await fetch(`${BASE_URL}concepts/?${params}`, { headers: headers() })
+    if (!res.ok) return []
+    const json = await res.json()
+    const items: unknown[] = json.data ?? json
+    if (!Array.isArray(items)) return []
+    return items.map((item: unknown) => {
+      const raw = item as Record<string, unknown>
+      const attrs = (raw.attributes ?? raw) as Record<string, unknown>
+      return {
+        concept_hash: (attrs.concept_hash ?? raw.id ?? '') as string,
+        name: (attrs.name ?? '') as string,
+        description: attrs.description as string | undefined,
+        example_url: attrs.example_url as string | null | undefined,
+        info_url: attrs.info_url as string | null | undefined,
+        is_nsfw: attrs.is_nsfw as boolean | undefined,
+        model_family: attrs.model_family as string | undefined,
+        tags: attrs.tags as string[] | undefined,
+        token: (attrs.token ?? '') as string,
+      }
+    })
+  } catch {
+    console.warn('fetchConcepts: request failed, returning empty list')
+    return []
+  }
+}
+
 export async function submitRender(
   rawInput: string,
   fallbackWorkflowSlug: string | undefined,
@@ -161,7 +262,8 @@ export async function submitRender(
     placeholders?: Record<string, string>
     optionPairs?: string[]
   },
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  onHash?: (hash: string) => void
 ): Promise<void> {
   const { prompt, negative, workflowSlug, optionsDict, optionsText, initImage: parsedInitImage } =
     parseTelegramPrompt(rawInput, fallbackWorkflowSlug)
@@ -191,6 +293,7 @@ export async function submitRender(
     options: optionsStr.trim(),
     placeholders: sourceMedia?.placeholders ?? {},
     stream: true,
+    client_request_id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
   }
 
   if (effectiveInitImage) {
@@ -199,7 +302,10 @@ export async function submitRender(
 
   console.log('RENDER REQUEST BODY:', JSON.stringify(bodyObj, null, 2))
 
-  const res = await fetch(`${BASE_URL}render/`, {
+  // Append a nonce to the URL to prevent Chromium / proxies from coalescing
+  // two concurrent POST requests with similar bodies into one response stream.
+  const nonce = `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  const res = await fetch(`${BASE_URL}render/?_r=${nonce}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -217,6 +323,7 @@ export async function submitRender(
   const reader = res.body.getReader()
   const decoder = new TextDecoder()
   let buffer = ''
+  let hashReported = false
 
   // If the signal fires after the response started streaming, cancel the reader
   signal?.addEventListener('abort', () => { reader.cancel() })
@@ -234,8 +341,18 @@ export async function submitRender(
       const raw = line.slice(5).trim()
       if (!raw || raw === '[DONE]') continue
       try {
-        const parsed = JSON.parse(raw) as SSEEvent
+        const parsed = JSON.parse(raw) as SSEEvent & Record<string, unknown>
         onEvent(parsed)
+        // Notify caller as soon as we see a render_hash in any SSE event
+        if (onHash && !hashReported) {
+          const earlyHash =
+            (parsed as Record<string, unknown>).render_hash as string | undefined
+            ?? ((parsed as Record<string, unknown>).rendering_done as Record<string, unknown> | undefined)?.render_hash as string | undefined
+          if (earlyHash) {
+            hashReported = true
+            onHash(earlyHash)
+          }
+        }
       } catch {
         // non-JSON data line — skip
       }
@@ -244,7 +361,7 @@ export async function submitRender(
 }
 
 export async function fetchRenderInfo(renderHash: string): Promise<RenderInfo> {
-  const res = await fetch(`${BASE_URL}render/${renderHash}/`, { headers: headers() })
+  const res = await fetch(`${BASE_URL}render/${renderHash}/`, { headers: headers(), cache: 'no-store' })
   if (!res.ok) throw new Error(`fetchRenderInfo failed: ${res.status}`)
   const json = await res.json()
   const data = (json.data?.attributes ?? json) as RenderInfo

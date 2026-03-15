@@ -99,6 +99,35 @@ contextBridge.exposeInMainWorld('electron', {
     validateKey: (key: string): Promise<{ valid: boolean; error: string | null; timedOut?: boolean }> =>
       ipcRenderer.invoke('auth:validateKey', key),
   },
+
+  // Video editor
+  video: {
+    probe: (url: string): Promise<{ duration: number; width: number; height: number; hasAudio: boolean }> =>
+      ipcRenderer.invoke('video:probe', url),
+    export: (params: object): Promise<{ outputPath: string }> =>
+      ipcRenderer.invoke('video:export', params),
+    getExportDir: (): Promise<string> =>
+      ipcRenderer.invoke('video:get-export-dir'),
+    onProgress: (cb: (data: { percent: number; timeStr: string }) => void) => {
+      const listener = (_e: Electron.IpcRendererEvent, data: { percent: number; timeStr: string }) => cb(data)
+      ipcRenderer.on('video:progress', listener)
+      return () => ipcRenderer.removeListener('video:progress', listener)
+    },
+  },
+
+  // Storage manager
+  storage: {
+    getDrives: (): Promise<Array<{ path: string; label: string; total: number; free: number; used: number }>> =>
+      ipcRenderer.invoke('storage:get-drives'),
+    scanDir: (path: string): Promise<{ path: string; files: Array<{ filePath: string; fileUrl: string; name: string; ext: string; mediaType: 'video' | 'image'; size: number; mtime: number }> }> =>
+      ipcRenderer.invoke('storage:scan-dir', path),
+    pickDir: (): Promise<string | null> =>
+      ipcRenderer.invoke('storage:pick-dir'),
+    moveDir: (sourcePath: string, targetParent: string): Promise<{ newPath: string }> =>
+      ipcRenderer.invoke('storage:move-dir', { sourcePath, targetParent }),
+    openInExplorer: (filePath: string): Promise<void> =>
+      ipcRenderer.invoke('storage:open-in-explorer', filePath),
+  },
 })
 
 export type ElectronAPI = typeof import('./preload')

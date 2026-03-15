@@ -1,0 +1,39 @@
+STEP 3 — Center Panel: Media Library Grid + Layout Refactor
+Files to modify: src/App.tsx, create src/components/MediaLibraryGrid.tsx
+Part A — New component: MediaLibraryGrid.tsx
+This component displays all completed renders (status === 'done') from useRenderQueueStore().queue as a responsive thumbnail grid.
+Grid layout:
+
+2–3 columns depending on panel width (use grid-cols-2 lg:grid-cols-3)
+Each cell is a fixed-aspect-ratio tile (use aspect-square or aspect-video)
+Cells ordered newest-first
+
+Each tile contains:
+
+The render's thumbnailUrl or resultUrl displayed as an <img> (background-cover style)
+For video renders (mediaType === 'video'): render an off-screen <video> element. On mouseenter, set video.currentTime = (mouseX / tileWidth) * video.duration as the user moves the mouse across, making it scrubbable. Show the video's current frame in the tile via a canvas snapshot or by making the <video> element the tile background
+Overlay at bottom of tile: workflow slug (truncated) + a tiny status chip
+If no thumbnailUrl and no resultUrl: show a placeholder with the workflow type icon
+
+Selection behavior:
+
+Clicking a tile selects it (ring highlight)
+Clicking again or pressing Escape deselects
+On selection: call useSourceMediaStore().setFromRender(render.resultUrl, render.mediaType) — this triggers the existing workflow filter in WorkflowSelector automatically (it already filters based on sourceMedia)
+Show a "Selected as source ✓" badge on the selected tile
+
+Empty state:
+
+When no completed renders exist, show a subtle centered message: "Your renders will appear here" with a faint grid placeholder pattern
+
+Part B — App.tsx layout change
+The center <main> column currently renders <PromptEditor /> full-size. Change it to:
+tsx<main className="flex flex-1 flex-col border-r border-white/10 bg-neutral-900 min-h-0 overflow-hidden relative">
+  <MediaLibraryGrid />
+  {/* PromptEditor will float over this in STEP 4 — leave a stub for now */}
+  <div className="absolute bottom-0 left-0 right-0 z-10">
+    <PromptEditor />
+  </div>
+</main>
+Keep PromptEditor as-is for now — STEP 4 will restyle it for the floating context. The absolute positioning will partially overlap the grid at the bottom; that's intentional and will be refined in STEP 4.
+Do NOT change: WorkflowSelector, RenderViewer, StatusBar, PromptEditor internals (STEP 4 handles that).

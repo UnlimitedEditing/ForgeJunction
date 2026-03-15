@@ -1,0 +1,33 @@
+Workflows
+Workflows define rendering pipelines for image and video generation. Use this endpoint to discover available workflows and their capabilities.
+
+List Workflows
+URL
+GET https://cached.graydient.ai/api/v3/workflows/
+Query Parameters
+page	Page number (default: 1)
+per_page	Items per page (default: 500, max: 1000)
+search	Filter workflows by slug
+Response format
+Response includes data (array of workflows), meta (pagination info), and links (pagination URLs).
+
+Meta object:
+
+total	Total number of workflows
+page	Current page number
+per_page	Items per page
+total_pages	Total number of pages
+Workflow attributes:
+
+avg_elapsed	Average render time in seconds
+description	Description of the workflow
+image_url	Preview image URL for the workflow
+is_public	Whether the workflow is publicly available
+name	Display name of the workflow
+platform	Target platform (e.g., comfyui)
+slug	URL-friendly identifier
+supports_dynamic_concepts	Can use custom concept models
+supports_img2img	Supports image-to-image generation
+supports_img2vid	Supports image-to-video generation
+supports_txt2img	Supports text-to-image generation
+supports_txt2vid	Supports text-to-video generation

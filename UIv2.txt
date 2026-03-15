@@ -1,0 +1,46 @@
+STEP 2 — Right Panel: Scrollable Output Feed with Selectable Cards
+Files to modify: src/stores/renderQueue.ts, src/components/RenderViewer.tsx
+Part A — Store addition (renderQueue.ts)
+Add two fields to RenderQueueState:
+tsselectedRenderId: string | null
+setSelectedRender: (id: string | null) => void
+Initialize selectedRenderId: null. The setter just does set({ selectedRenderId: id }).
+Also add a derived getter:
+tsgetSelectedRender: () => QueuedRender | null
+Returns the queue item matching selectedRenderId, or null.
+Part B — RenderViewer rewrite (RenderViewer.tsx)
+Replace the current carousel/tabbed layout entirely with a scrollable vertical feed. Keep all existing sub-components (RenderCard, MediaPreview, UseAsSourceButton, CancelButton) — only the outer RenderViewer component needs to change.
+New layout:
+┌─────────────────────────────────┐
+│  Output                    [↑]  │  ← header (already in App.tsx)
+├─────────────────────────────────┤
+│  ┌───────────────────────────┐  │
+│  │  CARD (newest at top)     │  │  ← selected card: brand-colored border
+│  │  workflow · timestamp     │  │
+│  │  [progress / media]       │  │
+│  └───────────────────────────┘  │
+│  ┌───────────────────────────┐  │
+│  │  CARD                     │  │
+│  └───────────────────────────┘  │
+│  ...scrollable...               │
+└─────────────────────────────────┘
+Card selection behavior:
+
+Clicking a card calls setSelectedRender(id) (toggles off if already selected)
+Selected card gets a distinct highlight: ring-2 ring-brand or similar
+The full RenderCard detail (progress bar, media, log) only expands for the selected card. Unselected cards show a collapsed summary: thumbnail (if resultUrl exists), workflow slug, status badge, and elapsed time. This keeps the feed scannable.
+
+In-progress card selected:
+When the selected card's status is 'queued', 'active', or 'streaming':
+
+Look up the workflow from useWorkflowStore().workflows using render.workflowSlug to find its output type (check supports_txt2img, supports_txt2vid, supports_txt2wav etc.)
+Call useSourceMediaStore().setPendingSource(...) with a synthetic pending entry that communicates intent — use mediaType inferred from the workflow type: video → 'video', audio → 'audio', else 'image'
+This will cause WorkflowSelector's existing source-media filter to activate automatically, narrowing the list to workflows that accept that media type
+Show a small notice on the card: "⏳ Queued as source — workflow list filtered"
+
+When the selected in-progress render completes:
+
+Automatically call setFromRender(resultUrl, mediaType) so the result is immediately available as source input
+
+Remove: The ← Prev / Next → carousel navigation, the selectedId local state, all tabbing logic. Replace with the feed as described.
+Do NOT change: RenderCard internals, MediaPreview, UseAsSourceButton, CancelButton, the queue store's enqueue/process logic.

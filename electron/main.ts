@@ -6,6 +6,10 @@ import { patchMainConsole, registerIpcHandlers } from './debugReporter'
 import { autoUpdater } from 'electron-updater'
 import { createLauncherWindow } from './launcher'
 import { initInstanceTracker, pingTracker } from './instanceTracker'
+import { registerVideoIpc } from './videoProcessor'
+import { registerStorageIpc } from './storageManager'
+
+app.commandLine.appendSwitch('disable-gpu-shader-disk-cache')
 
 const isDev = !app.isPackaged
 
@@ -297,6 +301,12 @@ function setupIpc(): void {
 
   // Suppress unused import warning — isApiKeyStored used for future extensibility
   void isApiKeyStored
+
+  // Video editor IPC
+  registerVideoIpc()
+
+  // Storage manager IPC
+  registerStorageIpc()
 }
 
 // ── Auto Updater ──────────────────────────────────────────────────────────────

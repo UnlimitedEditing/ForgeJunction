@@ -1,0 +1,68 @@
+Real-time Render Events (WebSocket)
+For real-time monitoring of render progress, you can connect to our WebSocket endpoint. This is useful when you want to display live progress updates to users or need immediate notification of render events without polling.
+
+Connection URL
+WebSocket wss://cached.graydient.ai/render-events/__RENDER_HASH__?token=YOUR_API_TOKEN
+Protocol
+Messages are plain JSON with no additional protocol overhead. Each message has the format:
+
+{"event": "event_name", "data": {...}}
+
+Events
+connected	Sent immediately after connection. Contains current render state including render_hash, status, prompt, and images array.
+started	Render has begun processing on a worker node.
+image_done	An individual image has completed. Useful for progressive display.
+done	All images have completed. Contains full render data including all image URLs.
+error	An error occurred during rendering.
+Client Commands
+You can send commands to the server:
+
+{"command": "get_state"}	Request current render state (responds with state event)
+{"command": "ping"}	Keepalive ping (responds with pong event)
+Python Example
+#!/usr/bin/env python3
+"""
+Connect to render events websocket and listen for status updates.
+Usage: python3 render-events-websocket.py 
+"""
+import asyncio
+import json
+import sys
+import websockets
+
+TOKEN = "YOUR_API_TOKEN"
+HOST = "__DOMAIN__"
+
+async def main(render_hash):
+    url = f"wss://{HOST}/render-events/{render_hash}?token={TOKEN}"
+    print(f"Connecting to {url[:50]}...")
+
+    async with websockets.connect(url) as ws:
+        print("Connected! Listening for events...\n")
+        async for message in ws:
+            msg = json.loads(message)
+            event = msg.get("event")
+            data = msg.get("data", {})
+
+            if event == "connected":
+                print(f"Initial state: {data.get('status')}")
+            elif event == "started":
+                print("Render started!")
+            elif event == "image_done":
+                print(f"Image completed: {data}")
+            elif event == "done":
+                print(f"All done! Images: {data.get('images', [])}")
+                break
+            else:
+                print(f"{event}: {data}")
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: python3 render-events-websocket.py ")
+        sys.exit(1)
+    asyncio.run(main(sys.argv[1]))
+Notes
+Authentication is via URL query parameter token
+The render must belong to your community (same as your API token)
+Connection will be rejected with HTTP 403 if token is invalid or render not found
+No "join" message required - events stream immediately after connection

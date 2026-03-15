@@ -1,0 +1,80 @@
+STEP 6 — Prompt Template / Conditional Highlighting Tool
+Files: Create src/stores/promptTemplate.ts, create src/components/PromptTemplateEditor.tsx, modify src/components/PromptEditor.tsx (add a mode toggle button only)
+This feature allows users to mark sections of a prompt as template slots — replaceable variables — and then re-run the same prompt structure with different values. It also supports chains (multiple sequenced prompts) that can all be edited from one place.
+Part A — Store (src/stores/promptTemplate.ts)
+tsinterface TemplateSlot {
+  id: string          // unique id
+  label: string       // user-facing name e.g. "Subject", "Style"
+  value: string       // current fill value
+  start: number       // char offset in the template string
+  end: number         // char offset in the template string
+}
+
+interface TemplateStep {
+  id: string
+  workflowSlug: string
+  templateText: string          // the prompt with slot placeholders encoded as {{slotId}}
+  slots: TemplateSlot[]
+  label?: string                // optional step label e.g. "Step 1 — Generate"
+}
+
+interface PromptTemplateState {
+  steps: TemplateStep[]
+  activeStepId: string | null
+  isTemplateMode: boolean
+
+  // Actions
+  setTemplateMode: (on: boolean) => void
+  addStep: (workflowSlug: string, rawPrompt: string) => void
+  removeStep: (stepId: string) => void
+  updateSlotValue: (stepId: string, slotId: string, value: string) => void
+  addSlot: (stepId: string, start: number, end: number, label: string) => void
+  removeSlot: (stepId: string, slotId: string) => void
+  buildFilledPrompt: (stepId: string) => string  // replaces {{slotId}} with slot.value
+  setActiveStep: (stepId: string | null) => void
+}
+Use zustand with create<PromptTemplateState>. Persist to localStorage using zustand's persist middleware (key: 'fj-prompt-templates').
+Part B — PromptTemplateEditor component
+Create src/components/PromptTemplateEditor.tsx. This is a modal or side-panel that opens when the user activates template mode.
+Layout:
+┌─────────────────────────────────────────────────────────────┐
+│  PROMPT TEMPLATES                               [✕ Close]  │
+│─────────────────────────────────────────────────────────────│
+│  Step 1 — flux-schnell       [+ Add Step]   [▶ Run Chain]  │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │ A [Subject    ] walks through a [Scene     ] scene    │  │
+│  │ in [Style     ] style                                  │  │
+│  │                                                        │  │
+│  │ [+ Highlight to add slot]                              │  │
+│  └───────────────────────────────────────────────────────┘  │
+│  Slots:  Subject [_______]  Scene [_______]  Style [______]│
+│─────────────────────────────────────────────────────────────│
+│  Step 2 — img2vid            [Remove step]                  │
+│  ┌────────────────────────────...                           │
+└─────────────────────────────────────────────────────────────┘
+Slot creation flow:
+
+User highlights text in the template editor textarea (standard browser selection)
+A small floating tooltip appears above the selection: [Make slot]
+Clicking "Make slot" prompts for a label (inline small input in the tooltip)
+Confirming replaces the selected range with a styled chip/badge showing [Label] in brand color
+The slot is saved to the store with the original text as the default value
+
+Rendering the template text:
+Use a contenteditable div or a carefully layered textarea + highlight overlay approach. The simplest viable implementation: render the template as plain text in a <textarea>, and separately render a <div> of absolutely-positioned colored <span> overlays at the slot positions. Match their pixel positions using a shared font + size.
+
+If the overlay approach is too complex to implement cleanly, use a simpler representation: show the template text with slot chips rendered inline as <input> fields (like GitHub's issue template editor). Prioritize working over perfect.
+
+Slot fill inputs:
+Below the template display, show a flat list of label: [input field] for each slot. Editing a field updates slot.value live. The template display reflects filled values in the preview.
+Chain management:
+
+Multiple TemplateStep objects represent a workflow chain
+Each step has its own workflow selector (small dropdown) and its own template text + slots
+Steps are reorderable (drag handle or up/down arrows)
+"Run Chain" button: for each step in order, calls buildFilledPrompt(stepId) and enqueues the render via useRenderQueueStore().enqueue(filledPrompt, step.workflowSlug). Steps after the first should set a flag/note indicating they may need the previous step's output as source (implement as a "Link to previous output" checkbox per step — when checked, the step will wait for the previous render to complete and then auto-set its source media).
+
+Part C — Integration into PromptEditor
+Add a single [⎇ Template] button to the PromptEditor's main bar (next to the ⚙ settings button added in STEP 4). Clicking it opens the PromptTemplateEditor as a modal overlay (full-screen or large centered modal with backdrop).
+When the template editor is closed with a step active, the selected step's buildFilledPrompt output is pasted back into the PromptEditor's descriptiveText.
+Do NOT change: The core render submission flow, the queue store, any API code.

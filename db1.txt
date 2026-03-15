@@ -1,0 +1,25 @@
+Fix a CSP (Content Security Policy) error that is blocking all concept/LoRA thumbnail images in the concept browser panel.
+
+The browser console shows hundreds of errors like:
+"Refused to load the image 'https://www.graydient.ai/...' because it violates the Content Security Policy directive: img-src 'self' https://*.amazonaws.com data:"
+
+The concept thumbnails are hosted across these domains:
+- https://www.graydient.ai
+- https://www.piratediffusion.com
+- https://www.animemaker.ai
+- https://image.civitai.com
+- https://imagecache.civitai.com
+- https://nsfwdalle.ai
+- https://docs.graydient.ai
+- https://docs.stable2go.ai
+
+Find where the Content Security Policy is defined for the Electron renderer. This will be in one of:
+- electron/main.ts (look for session.defaultSession.webRequest.onHeadersReceived or a Content-Security-Policy header being set)
+- index.html (look for a <meta http-equiv="Content-Security-Policy"> tag)
+
+Update the img-src directive to add all the domains listed above. The correct pattern is to add each domain as a wildcard origin, e.g.:
+  img-src 'self' https://*.amazonaws.com https://*.graydient.ai https://*.piratediffusion.com https://*.animemaker.ai https://image.civitai.com https://imagecache.civitai.com https://nsfwdalle.ai https://docs.graydient.ai https://docs.stable2go.ai data:
+
+Do NOT change any other CSP directives (script-src, connect-src, etc.) — only img-src.
+Do NOT change any component files.
+Verify the change compiles with npx tsc --noEmit after editing.

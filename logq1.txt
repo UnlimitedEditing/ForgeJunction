@@ -1,0 +1,54 @@
+SOURCE MEDIA clearIncompatibleSlots: kept Array(0)
+logCollector.ts:94 BUILD REQUEST FIELDS: Object
+logCollector.ts:94 [RQ] START id=1773517052086-wfvd75w8xui prompt="/run:zimage-distill chickens"
+logCollector.ts:94 RENDER REQUEST BODY: {
+  "prompt": "chickens",
+  "task": "workflow",
+  "progressive_return": true,
+  "options_text": "",
+  "options": "/run:zimage-distill",
+  "placeholders": {},
+  "stream": true,
+  "client_request_id": "1773517052112-soqs30nwqto"
+}
+logCollector.ts:94 RENDER RESPONSE STATUS: 200
+logCollector.ts:94 [RQ] DONE  id=1773517052086-wfvd75w8xui hash=5AZR8j
+logCollector.ts:94 RENDER INFO RESPONSE: {"based_on_image":null,"based_on_render":null,"clean_prompt":"chickens","community_id":"aPxkya","extra_data":{"api_metadata":{},"api_request_data":{},"api_url_params":{"_r":"1773517052112-mzvjfw9x9f","client_request_id":"1773517052112-soqs30nwqto","options":"/run:zimage-distill","options_text":"","placeholders":{},"progressive_return":true,"prompt":"chickens","stream":true,"task":"workflow"},"api_version":3,"clean_prompt":"chickens","error_callback":null,"placeholders":{},"post_callback":null,"progressive_return":true,"raw_prompt":"/run:zimage-distill chickens","seed":43077,"session_id":null,"source":"api","start":1773517056,"workflow_id":2786},"has_been_rendered":true,"images":[{"id":61086134,"url":"https://piratediffusion1.s3.amazonaws.com/renders2/5AZR8j/5AZR8j-workflow2786v3-0-ZE976JCVC.png","is_nsfw":false,"media":[],"render_options":"{\"height\":1024,\"machine\":\"tls-ny4-g0\",\"width\":1024,\"workflow_id\":2786}","watermark_url":null}],"is_nsfw":false,"options":" ","prompt":"chickens","render_hash":"5AZR8j","session_id":null,"task":"workflow","user":{"id":39901604,"user_name":"Jaykop Kombrenk","is_gallery_enabled":false}}
+logCollector.ts:94 RESOLVED MEDIA URL (fallback): https://piratediffusion1.s3.amazonaws.com/renders2/5AZR8j/5AZR8j-workflow2786v3-0-ZE976JCVC.png
+logCollector.ts:94 RENDER INFO RESPONSE: {"based_on_image":null,"based_on_render":null,"clean_prompt":"chickens","community_id":"aPxkya","extra_data":{"api_metadata":{},"api_request_data":{},"api_url_params":{"_r":"1773517052112-mzvjfw9x9f","client_request_id":"1773517052112-soqs30nwqto","options":"/run:zimage-distill","options_text":"","placeholders":{},"progressive_return":true,"prompt":"chickens","stream":true,"task":"workflow"},"api_version":3,"clean_prompt":"chickens","error_callback":null,"placeholders":{},"post_callback":null,"progressive_return":true,"raw_prompt":"/run:zimage-distill chickens","seed":43077,"session_id":null,"source":"api","start":1773517056,"workflow_id":2786},"has_been_rendered":true,"images":[{"id":61086134,"url":"https://piratediffusion1.s3.amazonaws.com/renders2/5AZR8j/5AZR8j-workflow2786v3-0-ZE976JCVC.png","is_nsfw":false,"media":[],"render_options":"{\"height\":1024,\"machine\":\"tls-ny4-g0\",\"width\":1024,\"workflow_id\":2786}","watermark_url":null}],"is_nsfw":false,"options":" ","prompt":"chickens","render_hash":"5AZR8j","session_id":null,"task":"workflow","user":{"id":39901604,"user_name":"Jaykop Kombrenk","is_gallery_enabled":false}}
+logCollector.ts:94 RESOLVED MEDIA URL (fallback): https://piratediffusion1.s3.amazonaws.com/renders2/5AZR8j/5AZR8j-workflow2786v3-0-ZE976JCVC.png
+logCollector.ts:94 BUILD REQUEST FIELDS: Object
+logCollector.ts:94 [RQ] START id=1773517101294-hfq1ryjn5fp prompt="/run:zimage-distill tires"
+logCollector.ts:94 RENDER REQUEST BODY: {
+  "prompt": "tires",
+  "task": "workflow",
+  "progressive_return": true,
+  "options_text": "",
+  "options": "/run:zimage-distill",
+  "placeholders": {},
+  "stream": true,
+  "client_request_id": "1773517101310-sm23ohx4zy"
+}
+logCollector.ts:94 BUILD REQUEST FIELDS: Object
+logCollector.ts:94 [RQ] START id=1773517104917-7fzyo0l03el prompt="/run:zimage-distill potatoes"
+logCollector.ts:94 RENDER REQUEST BODY: {
+  "prompt": "potatoes",
+  "task": "workflow",
+  "progressive_return": true,
+  "options_text": "",
+  "options": "/run:zimage-distill",
+  "placeholders": {},
+  "stream": true,
+  "client_request_id": "1773517104936-fkruwifybm"
+}
+2logCollector.ts:94 RENDER RESPONSE STATUS: 200
+logCollector.ts:94 [RQ] DONE  id=1773517101294-hfq1ryjn5fp hash=YgDL29
+logCollector.ts:94 [RQ] DONE  id=1773517104917-7fzyo0l03el hash=YgDL29
+logCollector.ts:94 RENDER INFO RESPONSE: {"based_on_image":null,"based_on_render":null,"clean_prompt":"tires","community_id":"aPxkya","extra_data":{"api_metadata":{},"api_request_data":{},"api_url_params":{"_r":"1773517101310-dcz5ueg71ww","client_request_id":"1773517101310-sm23ohx4zy","options":"/run:zimage-distill","options_text":"","placeholders":{},"progressive_return":true,"prompt":"tires","stream":true,"task":"workflow"},"api_version":3,"clean_prompt":"tires","error_callback":null,"placeholders":{},"post_callback":null,"progressive_return":true,"raw_prompt":"/run:zimage-distill tires","seed":395208,"session_id":null,"source":"api","start":1773517105,"workflow_id":2786},"has_been_rendered":true,"images":[{"id":61086136,"url":"https://piratediffusion1.s3.amazonaws.com/renders2/YgDL29/YgDL29-workflow2786v3-0-ZL100LOCY.png","is_nsfw":false,"media":[],"render_options":"{\"height\":1024,\"machine\":\"tls-ny3-g0\",\"width\":1024,\"workflow_id\":2786}","watermark_url":null}],"is_nsfw":false,"options":" ","prompt":"tires","render_hash":"YgDL29","session_id":null,"task":"workflow","user":{"id":39901604,"user_name":"Jaykop Kombrenk","is_gallery_enabled":false}}
+logCollector.ts:94 RESOLVED MEDIA URL (fallback): https://piratediffusion1.s3.amazonaws.com/renders2/YgDL29/YgDL29-workflow2786v3-0-ZL100LOCY.png
+logCollector.ts:94 RENDER INFO RESPONSE: {"based_on_image":null,"based_on_render":null,"clean_prompt":"tires","community_id":"aPxkya","extra_data":{"api_metadata":{},"api_request_data":{},"api_url_params":{"_r":"1773517101310-dcz5ueg71ww","client_request_id":"1773517101310-sm23ohx4zy","options":"/run:zimage-distill","options_text":"","placeholders":{},"progressive_return":true,"prompt":"tires","stream":true,"task":"workflow"},"api_version":3,"clean_prompt":"tires","error_callback":null,"placeholders":{},"post_callback":null,"progressive_return":true,"raw_prompt":"/run:zimage-distill tires","seed":395208,"session_id":null,"source":"api","start":1773517105,"workflow_id":2786},"has_been_rendered":true,"images":[{"id":61086136,"url":"https://piratediffusion1.s3.amazonaws.com/renders2/YgDL29/YgDL29-workflow2786v3-0-ZL100LOCY.png","is_nsfw":false,"media":[],"render_options":"{\"height\":1024,\"machine\":\"tls-ny3-g0\",\"width\":1024,\"workflow_id\":2786}","watermark_url":null}],"is_nsfw":false,"options":" ","prompt":"tires","render_hash":"YgDL29","session_id":null,"task":"workflow","user":{"id":39901604,"user_name":"Jaykop Kombrenk","is_gallery_enabled":false}}
+logCollector.ts:94 RESOLVED MEDIA URL (fallback): https://piratediffusion1.s3.amazonaws.com/renders2/YgDL29/YgDL29-workflow2786v3-0-ZL100LOCY.png
+logCollector.ts:94 RENDER INFO RESPONSE: {"based_on_image":null,"based_on_render":null,"clean_prompt":"tires","community_id":"aPxkya","extra_data":{"api_metadata":{},"api_request_data":{},"api_url_params":{"_r":"1773517101310-dcz5ueg71ww","client_request_id":"1773517101310-sm23ohx4zy","options":"/run:zimage-distill","options_text":"","placeholders":{},"progressive_return":true,"prompt":"tires","stream":true,"task":"workflow"},"api_version":3,"clean_prompt":"tires","error_callback":null,"placeholders":{},"post_callback":null,"progressive_return":true,"raw_prompt":"/run:zimage-distill tires","seed":395208,"session_id":null,"source":"api","start":1773517105,"workflow_id":2786},"has_been_rendered":true,"images":[{"id":61086136,"url":"https://piratediffusion1.s3.amazonaws.com/renders2/YgDL29/YgDL29-workflow2786v3-0-ZL100LOCY.png","is_nsfw":false,"media":[],"render_options":"{\"height\":1024,\"machine\":\"tls-ny3-g0\",\"width\":1024,\"workflow_id\":2786}","watermark_url":null}],"is_nsfw":false,"options":" ","prompt":"tires","render_hash":"YgDL29","session_id":null,"task":"workflow","user":{"id":39901604,"user_name":"Jaykop Kombrenk","is_gallery_enabled":false}}
+logCollector.ts:94 RESOLVED MEDIA URL (fallback): https://piratediffusion1.s3.amazonaws.com/renders2/YgDL29/YgDL29-workflow2786v3-0-ZL100LOCY.png
+logCollector.ts:94 RENDER INFO RESPONSE: {"based_on_image":null,"based_on_render":null,"clean_prompt":"tires","community_id":"aPxkya","extra_data":{"api_metadata":{},"api_request_data":{},"api_url_params":{"_r":"1773517101310-dcz5ueg71ww","client_request_id":"1773517101310-sm23ohx4zy","options":"/run:zimage-distill","options_text":"","placeholders":{},"progressive_return":true,"prompt":"tires","stream":true,"task":"workflow"},"api_version":3,"clean_prompt":"tires","error_callback":null,"placeholders":{},"post_callback":null,"progressive_return":true,"raw_prompt":"/run:zimage-distill tires","seed":395208,"session_id":null,"source":"api","start":1773517105,"workflow_id":2786},"has_been_rendered":true,"images":[{"id":61086136,"url":"https://piratediffusion1.s3.amazonaws.com/renders2/YgDL29/YgDL29-workflow2786v3-0-ZL100LOCY.png","is_nsfw":false,"media":[],"render_options":"{\"height\":1024,\"machine\":\"tls-ny3-g0\",\"width\":1024,\"workflow_id\":2786}","watermark_url":null}],"is_nsfw":false,"options":" ","prompt":"tires","render_hash":"YgDL29","session_id":null,"task":"workflow","user":{"id":39901604,"user_name":"Jaykop Kombrenk","is_gallery_enabled":false}}
+logCollector.ts:94 RESOLVED MEDIA URL (fallback): https://piratediffusion1.s3.amazonaws.com/renders2/YgDL29/YgDL29-workflow2786v3-0-ZL100LOCY.png

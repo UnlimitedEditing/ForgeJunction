@@ -302,76 +302,166 @@ function RenderCard({ render }: { render: QueuedRender }): React.ReactElement {
   )
 }
 
-export default function RenderViewer(): React.ReactElement {
-  const { queue } = useRenderQueueStore()
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-
-  const activeRender = queue.find((r) => r.status === 'active' || r.status === 'streaming') ?? null
-  const finishedRenders = queue.filter((r) => r.status === 'done' || r.status === 'error')
-
-  // Auto-advance: when a new render completes and user hasn't pinned a selection, show it
-  const latestFinished = finishedRenders[finishedRenders.length - 1] ?? null
-
-  const displayedFinished = selectedId
-    ? (finishedRenders.find((r) => r.id === selectedId) ?? latestFinished)
-    : latestFinished
-
-  const selectedIdx = displayedFinished
-    ? finishedRenders.findIndex((r) => r.id === displayedFinished.id)
-    : -1
-
-  function goTo(idx: number) {
-    const target = finishedRenders[idx]
-    if (target) setSelectedId(target.id)
+function statusBadge(render: QueuedRender): React.ReactElement {
+  switch (render.status) {
+    case 'queued':
+      return <span className="text-white/30 text-xs">Queued</span>
+    case 'active':
+    case 'streaming':
+      return <span className="text-brand text-xs font-medium">{render.progress}%</span>
+    case 'done':
+      return <span className="text-green-400 text-xs">Done</span>
+    case 'error':
+      return <span className="text-red-400 text-xs">Failed</span>
   }
+}
 
-  const isEmpty = !activeRender && finishedRenders.length === 0
+function CollapsedCard({ render }: { render: QueuedRender }): React.ReactElement {
+  const elapsedMs =
+    render.completedAt && render.startedAt
+      ? render.completedAt - render.startedAt
+      : null
 
   return (
-    <div className="flex h-full flex-col gap-4">
-      {isEmpty && (
-        <div className="flex min-h-[160px] items-center justify-center rounded border border-dashed border-white/10">
-          <p className="text-sm text-white/30">Select a workflow and submit a prompt</p>
+    <div className="flex items-center gap-3 px-3 py-2">
+      {/* Thumbnail / placeholder */}
+      {render.resultUrl && render.status === 'done' ? (
+        <img
+          src={render.thumbnailUrl ?? render.resultUrl}
+          alt=""
+          className="h-10 w-10 rounded object-cover shrink-0 bg-white/5"
+        />
+      ) : (
+        <div className="h-10 w-10 rounded bg-white/5 shrink-0 flex items-center justify-center">
+          {(render.status === 'active' || render.status === 'streaming') && (
+            <div className="h-2 w-2 rounded-full bg-brand animate-pulse" />
+          )}
         </div>
       )}
 
-      {/* Active render */}
-      {activeRender && <RenderCard render={activeRender} />}
+      {/* Info */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-white/70 text-xs font-mono truncate">{render.workflowSlug}</span>
+          {statusBadge(render)}
+        </div>
+        {elapsedMs !== null && (
+          <div className="text-white/30 text-xs mt-0.5">{formatTime(elapsedMs)}</div>
+        )}
+        {(render.status === 'active' || render.status === 'streaming') && (
+          <div className="mt-1 h-0.5 w-full rounded-full bg-white/10 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-brand transition-all duration-300"
+              style={{ width: `${render.progress}%` }}
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
 
-      {/* Carousel nav */}
-      {finishedRenders.length > 0 && (
-        <>
-          {finishedRenders.length > 1 && (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => goTo(selectedIdx - 1)}
-                disabled={selectedIdx <= 0}
-                className="rounded bg-neutral-800 px-2.5 py-1 text-xs text-white/60 disabled:opacity-30 hover:bg-neutral-700 transition-colors"
-              >
-                ← Prev
-              </button>
-              <span className="flex-1 text-center text-xs text-white/30">
-                {selectedIdx + 1} / {finishedRenders.length}
-              </span>
-              <button
-                onClick={() => {
-                  if (selectedIdx >= finishedRenders.length - 1) {
-                    setSelectedId(null)
-                  } else {
-                    goTo(selectedIdx + 1)
-                  }
-                }}
-                disabled={selectedIdx >= finishedRenders.length - 1 && selectedId === null}
-                className="rounded bg-neutral-800 px-2.5 py-1 text-xs text-white/60 disabled:opacity-30 hover:bg-neutral-700 transition-colors"
-              >
-                Next →
-              </button>
+export default function RenderViewer(): React.ReactElement {
+  const { queue, selectedRenderId, setSelectedRender, getSelectedRender } = useRenderQueueStore()
+  const { setPendingSource, setFromRender } = useSourceMediaStore()
+  const { workflows } = useWorkflowStore()
+
+  const selectedRender = getSelectedRender()
+  const autoSetPendingRef = useRef<string | null>(null)
+  const [pendingNotice, setPendingNotice] = useState(false)
+
+  // Newest first
+  const allRenders = [...queue].reverse()
+
+  // Pending source: set when in-progress render is selected; auto-resolve when it completes
+  useEffect(() => {
+    if (!selectedRender) {
+      setPendingNotice(false)
+      return
+    }
+
+    const { id, status, workflowSlug, resultUrl, mediaType } = selectedRender
+    const isInProgress = status === 'queued' || status === 'active' || status === 'streaming'
+
+    if (isInProgress && autoSetPendingRef.current !== id) {
+      autoSetPendingRef.current = id
+      const workflow = workflows.find((w) => w.slug === workflowSlug)
+      const mt: 'image' | 'video' | 'audio' = workflow?.supports_txt2vid
+        ? 'video'
+        : workflow?.supports_txt2wav
+          ? 'audio'
+          : 'image'
+      setPendingSource({ url: `pending:${id}`, fileName: 'pending-render', mediaType: mt, thumbnailUrl: null, source: 'render' })
+      setPendingNotice(true)
+      return
+    }
+
+    if (status === 'done' && resultUrl && autoSetPendingRef.current === id) {
+      autoSetPendingRef.current = null
+      setPendingNotice(false)
+      setFromRender(resultUrl, mediaType ?? 'image')
+      return
+    }
+
+    // Error or done with no URL — clear pending
+    if ((status === 'error' || status === 'done') && autoSetPendingRef.current === id) {
+      autoSetPendingRef.current = null
+      setPendingNotice(false)
+    }
+  }, [selectedRender?.id, selectedRender?.status, selectedRender?.resultUrl])
+
+  // Clear pending tracking on deselect
+  useEffect(() => {
+    if (!selectedRenderId) {
+      autoSetPendingRef.current = null
+      setPendingNotice(false)
+    }
+  }, [selectedRenderId])
+
+  if (allRenders.length === 0) {
+    return (
+      <div className="flex min-h-[160px] items-center justify-center rounded border border-dashed border-white/10">
+        <p className="text-sm text-white/30">Select a workflow and submit a prompt</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      {allRenders.map((render) => {
+        const isSelected = render.id === selectedRenderId
+        return (
+          <div
+            key={render.id}
+            className={`rounded-lg border transition-colors ${
+              isSelected
+                ? 'border-brand/50 ring-1 ring-brand/20'
+                : 'border-white/10 hover:border-white/20'
+            }`}
+          >
+            {/* Card header — always visible, click to toggle */}
+            <div
+              className="cursor-pointer"
+              onClick={() => setSelectedRender(isSelected ? null : render.id)}
+            >
+              <CollapsedCard render={render} />
             </div>
-          )}
 
-          {displayedFinished && <RenderCard render={displayedFinished} />}
-        </>
-      )}
+            {/* Expanded body */}
+            {isSelected && (
+              <div
+                className="border-t border-white/10 px-3 pb-3 pt-2 flex flex-col gap-3"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <RenderCard render={render} />
+                {pendingNotice && (
+                  <p className="text-xs text-white/40">⏳ Queued as source — workflow list filtered</p>
+                )}
+              </div>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }

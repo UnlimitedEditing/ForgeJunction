@@ -1,0 +1,38 @@
+STEP 1 — Concurrent Generation: 1 → 5, Add 20-min Timeout
+File: src/stores/renderQueue.ts
+What to change:
+
+The module-level singleton let activeAbortController: AbortController | null = null only supports one concurrent render. Replace it with a per-render map:
+
+ts   const activeAbortControllers = new Map<string, AbortController>()
+
+Inside runRender(id):
+
+Create a new AbortController for this render and register it: activeAbortControllers.set(id, controller)
+Add a 20-minute abort timeout immediately after registration:
+
+
+
+ts     const timeoutId = setTimeout(() => {
+       controller.abort()
+     }, 20 * 60 * 1000)
+
+In the finally block, clear both: activeAbortControllers.delete(id) and clearTimeout(timeoutId)
+
+
+Change the initial store value maxConcurrent: 1 → maxConcurrent: 5
+Update cancelActive():
+
+Find the oldest active render (first in queue with status 'active' or 'streaming')
+Look it up in activeAbortControllers by its id and call .abort() on that specific controller
+Remove it from the map
+
+
+Update cancelAll():
+
+Iterate over all entries in activeAbortControllers, call .abort() on each, then clear the map
+
+
+
+Do NOT change: Any SSE streaming logic, the processNext concurrency gate (it already checks activeCount >= maxConcurrent correctly), the queue data structure, or any component files.
+Verify after: Multiple renders can be queued and run simultaneously up to 5. Each times out after 20 minutes if not resolved. The cancel button cancels the correct render.
