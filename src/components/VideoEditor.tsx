@@ -208,7 +208,7 @@ function ClipCard({ clip, index, total, isSelected }: {
 // ── MediaBrowserItem ──────────────────────────────────────────────────────────
 
 function MediaBrowserItem({ render, onAdd }: { render: ProjectRender; onAdd: () => void }): React.ReactElement {
-  const isVideo = render.mediaType === 'video'
+  const isVideo = render.mediaType?.startsWith('video') ?? false
   return (
     <button
       onClick={onAdd}
@@ -306,15 +306,15 @@ export default function VideoEditor({ onClose }: { onClose: () => void }): React
     ? clips.find(c => c.id === previewClipId)
     : clips[0]
 
-  const projectVideos = activeProject?.renders.filter(r => r.mediaType === 'video' && r.resultUrl) ?? []
-  const projectImages = activeProject?.renders.filter(r => r.mediaType === 'image' && r.resultUrl) ?? []
+  const projectVideos = activeProject?.renders.filter(r => (r.mediaType?.startsWith('video') ?? false) && r.resultUrl) ?? []
+  const projectImages = activeProject?.renders.filter(r => !(r.mediaType?.startsWith('video') ?? false) && !(r.mediaType?.startsWith('audio') ?? false) && r.resultUrl) ?? []
 
   async function handleExport() {
     const state = useVideoEditorStore.getState()
     if (state.clips.length === 0) return
 
     for (const clip of state.clips) {
-      if (clip.mediaType === 'video' && clip.duration === 0 && window.electron?.video) {
+      if ((clip.mediaType?.startsWith('video') ?? false) && clip.duration === 0 && window.electron?.video) {
         appendLog(`Probing ${clip.label}...`)
         try {
           const info = await window.electron.video.probe(clip.url)

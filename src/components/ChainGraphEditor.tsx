@@ -8,6 +8,10 @@ import HighlightedPromptInput from '@/components/HighlightedPromptInput'
 const NODE_W = 230
 const NODE_H = 114   // header (40) + prompt (74)
 const PORT_R = 7
+const OUTPUT_HOVER_R   = 20  // px — extended output-port hit radius & glow trigger
+const INPUT_MAGNET_R_1 = 36  // px — snap radius, single-port nodes
+const INPUT_MAGNET_R_N = 22  // px — reduced snap radius, multi-port (avoid zone overlap)
+const NODE_BUFFER      = 28  // px — minimum gap between node bounding boxes
 
 // ── Compatibility helpers ─────────────────────────────────────────────────────
 
@@ -57,7 +61,7 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
     duplicateSelected, reorderChain,
     selectedNodeId, selectedNodeIds,
     chainOrder,
-    clearGraph, runChain, isRunning,
+    clearGraph, runChain, retryFailed, isRunning,
     isPaused, setPaused, runStartTime,
   } = useChainGraphStore()
   const { workflows } = useWorkflowStore()
@@ -106,7 +110,15 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
   const rerender = () => forceUpdate(v => v + 1)
 
   // Pending edge (dragging from output port)
-  const pendingEdgeRef = useRef<{ fromNodeId: string; currentPos: { x: number; y: number } } | null>(null)
+  const pendingEdgeRef = useRef<{
+    fromNodeId: string
+    currentPos: { x: number; y: number }  // visual endpoint (snapped when magnet active)
+    rawPos: { x: number; y: number }       // actual mouse position
+  } | null>(null)
+
+  // Port proximity state
+  const [nearOutputNodeId, setNearOutputNodeId] = useState<string | null>(null)
+  const [magnetPortKey, setMagnetPortKey]       = useState<string | null>(null)  // "nodeId:portField"
 
   // Workflow picker
   const [pickerTargetNodeId, setPickerTargetNodeId] = useState<string | null>(null)
@@ -172,10 +184,31 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
     }
   }
 
+  function handleCanvasMouseMove(e: React.MouseEvent) {
+    if (pendingEdgeRef.current) return  // global mousemove handles this during drag
+    const pos = toCanvas(e.clientX, e.clientY)
+    let near: string | null = null
+    for (const node of nodes) {
+      if (Math.hypot(pos.x - outputPortPos(node).x, pos.y - outputPortPos(node).y) < OUTPUT_HOVER_R) {
+        near = node.id
+        break
+      }
+    }
+    if (near !== nearOutputNodeId) setNearOutputNodeId(near)
+  }
+
   function handleCanvasMouseDown(e: React.MouseEvent) {
     const target = e.target as HTMLElement
     if (!target.closest('[data-node]') && !target.closest('[data-port]') && !target.closest('[data-edge-label]')) {
       if (editingEdgeId) { setEditingEdgeId(null); return }
+      // Extended output port hit radius — catch clicks that miss the port element
+      const pos = toCanvas(e.clientX, e.clientY)
+      for (const node of nodes) {
+        if (Math.hypot(pos.x - outputPortPos(node).x, pos.y - outputPortPos(node).y) < OUTPUT_HOVER_R) {
+          handleOutputPortMouseDown(e, node.id)
+          return
+        }
+      }
       clearSelection()
       const startPan = { ...panRef.current }
       const startMouse = { x: e.clientX, y: e.clientY }
@@ -195,6 +228,81 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
     }
   }
 
+  // ── Magnet / snap helpers ─────────────────────────────────────────────────
+
+  /** Find the nearest input port within magnet range of a canvas position. */
+  function computeSnap(pos: { x: number; y: number }): { portKey: string; snappedPos: { x: number; y: number } } | null {
+    const allNodes = useChainGraphStore.getState().nodes
+    const fromId = pendingEdgeRef.current?.fromNodeId
+    let best: { portKey: string; snappedPos: { x: number; y: number }; dist: number } | null = null
+    for (const node of allNodes) {
+      if (node.id === fromId) continue
+      const ports = getInputPorts(node.workflowSlug)
+      const r = ports.length > 1 ? INPUT_MAGNET_R_N : INPUT_MAGNET_R_1
+      for (let i = 0; i < ports.length; i++) {
+        const pp = inputPortPos(node, i, ports.length)
+        const d = Math.hypot(pos.x - pp.x, pos.y - pp.y)
+        if (d < r && (!best || d < best.dist)) {
+          best = { portKey: `${node.id}:${ports[i].field}`, snappedPos: pp, dist: d }
+        }
+      }
+    }
+    return best ? { portKey: best.portKey, snappedPos: best.snappedPos } : null
+  }
+
+  /** Shared edge-add logic with compatibility check — used by both direct click and magnet drop. */
+  function tryConnectEdge(fromNodeId: string, toNodeId: string, toPortField: string) {
+    if (fromNodeId === toNodeId) return
+    const fromNode = nodes.find(n => n.id === fromNodeId)
+    const toNode   = nodes.find(n => n.id === toNodeId)
+    if (fromNode?.workflowSlug && toNode?.workflowSlug) {
+      const fromWf = workflows.find(w => w.slug === fromNode.workflowSlug)
+      if (fromWf) {
+        const outType = workflowOutputType(fromWf)
+        const ports = getInputPorts(toNode.workflowSlug)
+        const port = ports.find(p => p.field === toPortField)
+        if (outType && port && port.mediaType !== 'any' && port.mediaType !== outType) {
+          setIncompatiblePortId(`${toNodeId}:${toPortField}`)
+          setTimeout(() => setIncompatiblePortId(null), 600)
+          return
+        }
+      }
+    }
+    addEdge(fromNodeId, toNodeId, toPortField)
+  }
+
+  /** Push nodeId away from any other node whose bounding box (+ buffer) overlaps it. */
+  function pushAwayFromOverlaps(nodeId: string) {
+    const allNodes = useChainGraphStore.getState().nodes
+    const current = allNodes.find(n => n.id === nodeId)
+    if (!current) return
+    let pos = { ...current.position }
+    let changed = true
+    for (let iter = 0; changed && iter < 10; iter++) {
+      changed = false
+      for (const other of allNodes) {
+        if (other.id === nodeId) continue
+        const dx = pos.x - other.position.x
+        const dy = pos.y - other.position.y
+        const overlapX = (NODE_W + NODE_BUFFER) - Math.abs(dx)
+        const overlapY = (NODE_H + NODE_BUFFER) - Math.abs(dy)
+        if (overlapX > 0 && overlapY > 0) {
+          if (overlapX < overlapY) {
+            pos.x += dx >= 0 ? overlapX : -overlapX
+          } else {
+            pos.y += dy >= 0 ? overlapY : -overlapY
+          }
+          pos.x = Math.max(0, pos.x)
+          pos.y = Math.max(0, pos.y)
+          changed = true
+        }
+      }
+    }
+    if (pos.x !== current.position.x || pos.y !== current.position.y) {
+      updateNode(nodeId, { position: pos })
+    }
+  }
+
   function handleNodeMouseDown(e: React.MouseEvent, nodeId: string) {
     e.stopPropagation()
     if (e.shiftKey) toggleSelectNode(nodeId)
@@ -211,6 +319,7 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
       })
     }
     function onUp() {
+      pushAwayFromOverlaps(nodeId)
       document.removeEventListener('mousemove', onMove)
       document.removeEventListener('mouseup', onUp)
     }
@@ -221,15 +330,34 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
   function handleOutputPortMouseDown(e: React.MouseEvent, nodeId: string) {
     e.stopPropagation()
     const startPos = toCanvas(e.clientX, e.clientY)
-    pendingEdgeRef.current = { fromNodeId: nodeId, currentPos: startPos }
+    pendingEdgeRef.current = { fromNodeId: nodeId, currentPos: startPos, rawPos: startPos }
     rerender()
     function onMove(ev: MouseEvent) {
       if (!pendingEdgeRef.current) return
-      pendingEdgeRef.current = { ...pendingEdgeRef.current, currentPos: toCanvas(ev.clientX, ev.clientY) }
+      const raw = toCanvas(ev.clientX, ev.clientY)
+      const snap = computeSnap(raw)
+      pendingEdgeRef.current = {
+        ...pendingEdgeRef.current,
+        rawPos: raw,
+        currentPos: snap ? snap.snappedPos : raw,
+      }
+      setMagnetPortKey(snap?.portKey ?? null)
       rerender()
     }
     function onUp() {
+      const pending = pendingEdgeRef.current
+      if (pending) {
+        // Re-compute snap at release point in case user didn't move (no onMove fired)
+        const snap = computeSnap(pending.rawPos)
+        const portKey = snap?.portKey ?? null
+        if (portKey) {
+          const sep = portKey.indexOf(':')
+          tryConnectEdge(pending.fromNodeId, portKey.slice(0, sep), portKey.slice(sep + 1))
+        }
+      }
       pendingEdgeRef.current = null
+      setMagnetPortKey(null)
+      setNearOutputNodeId(null)
       rerender()
       document.removeEventListener('mousemove', onMove)
       document.removeEventListener('mouseup', onUp)
@@ -241,26 +369,10 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
   function handleInputPortMouseUp(e: React.MouseEvent, toNodeId: string, toPortField: string) {
     e.stopPropagation()
     if (!pendingEdgeRef.current || pendingEdgeRef.current.fromNodeId === toNodeId) return
-
-    const fromNode = nodes.find(n => n.id === pendingEdgeRef.current!.fromNodeId)
-    const toNode   = nodes.find(n => n.id === toNodeId)
-
-    // Port-specific compatibility check
-    if (fromNode?.workflowSlug && toNode?.workflowSlug) {
-      const fromWf = workflows.find(w => w.slug === fromNode.workflowSlug)
-      if (fromWf) {
-        const outType = workflowOutputType(fromWf)
-        const ports = getInputPorts(toNode.workflowSlug)
-        const port = ports.find(p => p.field === toPortField)
-        if (outType && port && port.mediaType !== 'any' && port.mediaType !== outType) {
-          setIncompatiblePortId(`${toNodeId}:${toPortField}`)
-          setTimeout(() => setIncompatiblePortId(null), 600)
-          return
-        }
-      }
-    }
-
-    addEdge(pendingEdgeRef.current.fromNodeId, toNodeId, toPortField)
+    const fromNodeId = pendingEdgeRef.current.fromNodeId
+    // Clear pending first so the onUp document handler skips double-connect
+    pendingEdgeRef.current = null
+    tryConnectEdge(fromNodeId, toNodeId, toPortField)
   }
 
   function handleWheel(e: React.WheelEvent) {
@@ -273,10 +385,12 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
   function addNewNode() {
     const cx = (canvasRef.current!.clientWidth / 2 - panRef.current.x) / zoomRef.current
     const cy = (canvasRef.current!.clientHeight / 2 - panRef.current.y) / zoomRef.current
-    addNode('', '', {
+    const nodeId = addNode('', '', {
       x: cx - NODE_W / 2 + nodes.length * 24,
       y: cy - NODE_H / 2 + nodes.length * 16,
     })
+    // Small delay so the store has the new node before resolving overlaps
+    setTimeout(() => pushAwayFromOverlaps(nodeId), 0)
   }
 
   async function handleCanvasDoubleClick(e: React.MouseEvent) {
@@ -311,6 +425,7 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
 
     const nodeId = addNode(workflowSlug, workflowName, { x: pos.x - NODE_W / 2, y: pos.y - NODE_H / 2 })
     if (prompt) updateNode(nodeId, { prompt })
+    setTimeout(() => pushAwayFromOverlaps(nodeId), 0)
   }
 
   function openPickerForNode(nodeId: string) {
@@ -320,7 +435,14 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
 
   function handlePickerSelect(slug: string, name: string) {
     if (pickerTargetNodeId !== null) {
-      updateNode(pickerTargetNodeId, { workflowSlug: slug, workflowName: name })
+      const node = nodes.find(n => n.id === pickerTargetNodeId)
+      // Strip any /run: directive from the prompt — the node header is the workflow authority
+      const cleanedPrompt = node?.prompt.replace(/\/run:\S+\s*/gi, '').trim()
+      updateNode(pickerTargetNodeId, {
+        workflowSlug: slug,
+        workflowName: name,
+        ...(cleanedPrompt !== undefined && cleanedPrompt !== node?.prompt ? { prompt: cleanedPrompt } : {}),
+      })
     }
     setPickerTargetNodeId(null)
     setPickerSearch('')
@@ -378,7 +500,7 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
       {/* ── Mini run bar ── */}
       <div className="flex items-center gap-3 border-b border-white/5 bg-neutral-950/60 px-4 py-1.5 flex-shrink-0">
         <button
-          onClick={isRunning ? () => setPaused(!isPaused) : runChain}
+          onClick={isRunning ? () => setPaused(!isPaused) : () => runChain().catch(console.error)}
           disabled={!isRunning && nodes.length === 0}
           className={`rounded px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
             isRunning
@@ -390,6 +512,15 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
         >
           {isRunning ? (isPaused ? '▶ Resume' : '⏸ Pause') : '▶ Run Chain'}
         </button>
+        {!isRunning && nodes.some(n => n.status === 'error') && (
+          <button
+            onClick={() => retryFailed().catch(console.error)}
+            className="rounded px-3 py-1 text-xs font-semibold bg-amber-500/15 text-amber-400 hover:bg-amber-500/25 transition-colors"
+            title="Re-run failed nodes, keeping already-completed results"
+          >
+            ↻ Retry failed
+          </button>
+        )}
         {isRunning && (
           <>
             <span className="text-xs font-mono text-white/50">
@@ -418,6 +549,8 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
         className="flex-1 relative overflow-hidden cursor-default select-none"
         style={{ background: '#0d0d14' }}
         onMouseDown={handleCanvasMouseDown}
+        onMouseMove={handleCanvasMouseMove}
+        onMouseLeave={() => setNearOutputNodeId(null)}
         onDoubleClick={handleCanvasDoubleClick}
         onWheel={handleWheel}
       >
@@ -622,6 +755,7 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
                 {inputPorts.map((port, portIdx) => {
                   const portKey = `${node.id}:${port.field}`
                   const isIncompat = incompatiblePortId === portKey
+                  const isMagnet  = magnetPortKey === portKey
                   const hasEdge = edges.some(e => e.toNodeId === node.id && (e.toPortField ?? 'init_image_filename') === port.field)
                   const portY = inputPortY(portIdx, inputPorts.length)
                   const mediaIcon = port.mediaType === 'audio' ? '♪' : port.mediaType === 'video' ? '▶' : ''
@@ -631,16 +765,20 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
                       key={port.field}
                       data-port="in"
                       title={tooltip}
-                      className={`absolute rounded-full border-2 transition-colors ${
+                      className={`absolute rounded-full border-2 ${
                         isIncompat
                           ? 'border-red-500 bg-red-900/60'
-                          : hasEdge
+                          : isMagnet
                             ? port.isControlnet
-                              ? 'border-orange-400/80 bg-orange-900/40'
-                              : 'border-brand/80 bg-brand/30'
-                            : port.isControlnet
-                              ? 'border-orange-500/40 bg-neutral-800 hover:border-orange-400 hover:bg-orange-900/30'
-                              : 'border-white/30 bg-neutral-800 hover:border-brand hover:bg-brand/30'
+                              ? 'border-orange-300 bg-orange-800/60'
+                              : 'border-emerald-400 bg-emerald-900/50'
+                            : hasEdge
+                              ? port.isControlnet
+                                ? 'border-orange-400/80 bg-orange-900/40'
+                                : 'border-brand/80 bg-brand/30'
+                              : port.isControlnet
+                                ? 'border-orange-500/40 bg-neutral-800 hover:border-orange-400 hover:bg-orange-900/30'
+                                : 'border-white/30 bg-neutral-800 hover:border-brand hover:bg-brand/30'
                       }`}
                       style={{
                         left: -PORT_R,
@@ -648,20 +786,48 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
                         width: PORT_R * 2,
                         height: PORT_R * 2,
                         cursor: 'crosshair',
+                        transform: isMagnet ? 'scale(1.45)' : undefined,
+                        boxShadow: isMagnet
+                          ? port.isControlnet
+                            ? '0 0 8px 3px rgba(251,146,60,0.55)'
+                            : '0 0 8px 3px rgba(52,211,153,0.5)'
+                          : undefined,
+                        transition: 'transform 120ms ease, box-shadow 120ms ease',
                       }}
                       onMouseUp={(e) => handleInputPortMouseUp(e, node.id, port.field)}
                     />
                   )
                 })}
 
-                {/* ── Output port ── */}
+                {/* ── Output port — larger transparent hit area + glow on hover ── */}
                 <div
-                  data-port="out"
                   title="Output — drag to connect to another node's input"
-                  className="absolute rounded-full border-2 border-brand/60 bg-brand/25 hover:bg-brand hover:border-brand transition-colors"
-                  style={{ right: -PORT_R, top: NODE_H / 2 - PORT_R, width: PORT_R * 2, height: PORT_R * 2, cursor: 'crosshair' }}
+                  className="absolute flex items-center justify-center"
+                  style={{
+                    right: -(PORT_R + OUTPUT_HOVER_R),
+                    top: NODE_H / 2 - PORT_R - OUTPUT_HOVER_R,
+                    width: (PORT_R + OUTPUT_HOVER_R) * 2,
+                    height: (PORT_R + OUTPUT_HOVER_R) * 2,
+                    cursor: 'crosshair',
+                    zIndex: 10,
+                  }}
                   onMouseDown={(e) => handleOutputPortMouseDown(e, node.id)}
-                />
+                >
+                  <div
+                    data-port="out"
+                    className={`rounded-full border-2 transition-all duration-150 ${
+                      nearOutputNodeId === node.id
+                        ? 'border-brand bg-brand'
+                        : 'border-brand/60 bg-brand/25'
+                    }`}
+                    style={{
+                      width: PORT_R * 2,
+                      height: PORT_R * 2,
+                      transform: nearOutputNodeId === node.id ? 'scale(1.35)' : undefined,
+                      boxShadow: nearOutputNodeId === node.id ? '0 0 10px 4px rgba(108,71,255,0.55)' : undefined,
+                    }}
+                  />
+                </div>
 
                 {/* ── Header — drag handle ── */}
                 <div

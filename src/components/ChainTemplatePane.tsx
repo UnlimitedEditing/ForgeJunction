@@ -58,7 +58,7 @@ export default function ChainTemplatePane(): React.ReactElement {
         updateNode(node.id, { prompt: resolvePrompt(node.prompt) })
       }
     }
-    runChain()
+    runChain().catch(console.error)
   }
 
   function handleReload() {

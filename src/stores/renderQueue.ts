@@ -95,7 +95,7 @@ export const useRenderQueueStore = create<RenderQueueState>()(persist((set, get)
     activeAbortControllers.set(id, controller)
     const timeoutId = setTimeout(() => {
       controller.abort()
-    }, 20 * 60 * 1000)
+    }, 6 * 60 * 1000)
 
     try {
       let resolvedHash: string | null = null
@@ -184,8 +184,16 @@ export const useRenderQueueStore = create<RenderQueueState>()(persist((set, get)
       // If WS already handled the done event, skip fetchRenderInfo
       if (resolvedHash && !doneHandled) {
         doneHandled = true
-        const info = await fetchRenderInfo(resolvedHash)
-        const resolved = resolveMediaUrl(info)
+        // Retry fetchRenderInfo until the server actually returns images (render may
+        // still be finalising when the SSE stream closes).
+        let resolved: import('@/api/graydient').ResolvedMedia | null = null
+        for (let attempt = 0; attempt < 6 && !resolved; attempt++) {
+          if (attempt > 0) await new Promise(r => setTimeout(r, 5000))
+          try {
+            const info = await fetchRenderInfo(resolvedHash)
+            resolved = resolveMediaUrl(info)
+          } catch { /* will retry */ }
+        }
         update({
           status: 'done',
           resultUrl: resolved?.url ?? null,
@@ -201,11 +209,13 @@ export const useRenderQueueStore = create<RenderQueueState>()(persist((set, get)
           try {
             const refreshedInfo = await fetchRenderInfo(resolvedHash!)
             const refreshed = resolveMediaUrl(refreshedInfo)
-            update({
-              resultUrl: refreshed?.url ?? null,
-              mediaType: refreshed?.mediaType ?? null,
-              thumbnailUrl: refreshed?.thumbnailUrl ?? null,
-            })
+            if (refreshed) {
+              update({
+                resultUrl: refreshed.url,
+                mediaType: refreshed.mediaType ?? null,
+                thumbnailUrl: refreshed.thumbnailUrl ?? null,
+              })
+            }
           } catch {
             // ignore refresh errors
           }

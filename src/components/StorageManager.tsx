@@ -117,7 +117,7 @@ function StorageTile({ file }: { file: ScannedFile }): React.ReactElement {
       onMouseLeave={() => setHovered(false)}
     >
       {/* Media */}
-      {file.mediaType === 'video' ? (
+      {file.mediaType?.startsWith('video') ? (
         <VideoTile
           src={file.fileUrl}
           className="absolute inset-0 w-full h-full bg-neutral-800"

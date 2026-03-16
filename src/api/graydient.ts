@@ -280,39 +280,33 @@ export async function submitRender(
   signal?: AbortSignal,
   onHash?: (hash: string) => void
 ): Promise<void> {
-  const { prompt, negative, workflowSlug, optionsDict, optionsText, initImage: parsedInitImage } =
-    parseTelegramPrompt(rawInput, fallbackWorkflowSlug)
-
-  // Build options string: /run:<slug> /key:value ...
-  const kvPairs = Object.entries(optionsDict)
-    .map(([k, v]) => `/${k}:${v}`)
-    .join(' ')
-  let optionsStr = `/run:${workflowSlug}${kvPairs ? ' ' + kvPairs : ''}`.trim()
-
-  // Append placeholder option pairs (/image1:URL0, /image2:URL1, etc.)
-  if (sourceMedia?.optionPairs?.length) {
-    optionsStr += ' ' + sourceMedia.optionPairs.join(' ')
+  // Pass the raw input directly as the prompt — the API accepts the full telegram
+  // command string verbatim (Russ confirmed: /render <concept> prompt works as-is).
+  // Only prepend /run:slug when no command is present and a slug is known.
+  const hasCommand = /\/(?:render|run:|workflow)\b/i.test(rawInput)
+  let effectivePrompt = rawInput.trim()
+  if (!hasCommand && fallbackWorkflowSlug) {
+    effectivePrompt = `/run:${fallbackWorkflowSlug} ${effectivePrompt}`
   }
 
-  // Combine prompt + negative the way the Python SDK does
-  const fullPrompt = negative ? `${prompt} [${negative}]` : prompt
-
-  // Primary source media: explicit > parsed from raw prompt
-  const effectiveInitImage = sourceMedia?.initImage ?? parsedInitImage ?? undefined
+  // Append chain-injected option pairs (e.g. /image1:URL for ControlNet nodes)
+  if (sourceMedia?.optionPairs?.length) {
+    effectivePrompt += ' ' + sourceMedia.optionPairs.join(' ')
+  }
 
   const bodyObj: Record<string, unknown> = {
-    prompt: fullPrompt,
+    prompt: effectivePrompt,
     task: 'workflow',
     progressive_return: true,
-    options_text: optionsText,
-    options: optionsStr.trim(),
+    options_text: '',
+    options: '',
     placeholders: sourceMedia?.placeholders ?? {},
     stream: true,
     client_request_id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
   }
 
-  if (effectiveInitImage) {
-    bodyObj.init_image = effectiveInitImage
+  if (sourceMedia?.initImage) {
+    bodyObj.init_image = sourceMedia.initImage
   }
 
   console.log('RENDER REQUEST BODY:', JSON.stringify(bodyObj, null, 2))

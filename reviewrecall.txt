@@ -1,0 +1,108 @@
+FORGE JUNCTION — REVIEW & RECALL
+Things deferred pending better data or API clarity.
+================================================
+
+[RENDER POLICY / VRAM-AWARE CONCURRENCY]
+Date noted: 2026-03-16
+Status: Deferred — required API data not yet confirmed
+
+What we want to build:
+  - src/lib/renderPolicy.ts — pure logic module, no Zustand/fetch
+      · Error classifier: which error strings are retryable vs permanent
+        (overload, transient network → retry; auth failure, bad prompt → never)
+      · VRAM budget tracker: sum estimated VRAM draw of all active renders,
+        compare to a safe threshold; if over threshold and a render fails,
+        hold it in a circuit-breaker wait state rather than hard-failing
+      · Retry/backoff: exponential or fixed delay per attempt N
+      · Per-workflow timeout: replace the blunt 90-min AbortController cap with
+        workflow.avg_elapsed * multiplier (e.g. 5×) so fast workflows cap fast
+        and slow video workflows get proportional headroom
+  - renderQueue.ts consults renderPolicy on every failure before deciding
+    to re-enqueue (with delay) or permanently mark error
+  - chainGraph.ts sees only the final status — no policy logic leaks in
+
+What we need from the API that we can't confirm yet:
+  1. VRAM estimate per workflow — does the Workflow object (or a detail endpoint)
+     expose a field like `vram_required`, `resource_class`, or similar?
+     Current Workflow interface only has: avg_elapsed, platform, supports_* flags.
+     Without this, VRAM weighting must be a hardcoded slug → weight table (brittle).
+  2. Overload error signature — what exact string does the server return when a
+     job is rejected due to resource exhaustion? Need this to classify it correctly
+     in the error classifier vs a generic failure.
+  3. Concurrent render limits per account tier — is `maxConcurrent: 5` a hard
+     server-enforced cap or an account-tier value returned at auth/session time?
+     If it's dynamic it should come from the API, not be hardcoded.
+
+Next action when data is available:
+  - Check /workflows/ response for any resource/vram fields not in current types
+  - Check a real overload error response body (trigger intentionally or catch in wild)
+  - Check auth/session endpoint for account capability fields
+  - Then build renderPolicy.ts against confirmed field names
+
+================================================
+
+[CUSTOM WORKFLOW BUILDER / PROMPT COMPOSER]
+Date noted: 2026-03-16
+Status: Deferred — need to understand the full parameter space before designing UI
+
+Core idea:
+  The API accepts the full telegram command string verbatim, meaning users can
+  compose arbitrarily complex workflows by combining command flags in a single
+  prompt string. Our current workflow list only exposes named slugs — it misses
+  the entire "raw command" surface that power users rely on in the Telegram bot.
+  We want a UI that lets users assemble, save, and reuse these compound calls
+  as first-class workflow options in ForgeJunction.
+
+What the builder should let you do:
+  - Select a base command: /render <concept>, /run:slug, /workflow
+  - Attach a checkpoint/concept token: e.g. <hentai-cinematic3-xl>, <flux-dev>
+  - Stack LoRA tokens with weights: e.g. <lora-name:0.7>
+  - Set key/value parameter flags:
+      /size:WxH
+      /steps:N
+      /cfg:N
+      /seed:N
+      /images:N
+      /vae:slug (VAE override)
+      /sampler:name
+      /scheduler:name
+  - Add a negative prompt: [what to avoid]
+  - Optionally chain into a second pass: img2img slug + strength
+  - Save the assembled string as a named "custom workflow" card that
+    appears in the workflow picker alongside the fetched list
+
+Why this matters:
+  - /render <hentai-cinematic3-xl> is valid but currently broken by our
+    parseTelegramPrompt mapping it to /run:sdxl and discarding the concept token
+    (now fixed — but users still have no UI to discover or compose these calls)
+  - LoRA weighting, VAE selection, custom samplers are all inaccessible without
+    knowing the exact flag syntax
+  - A saved custom workflow card makes these reproducible without memorising flags
+
+What we need to understand before building:
+  1. Complete flag/parameter list — what /key:value pairs does the server accept?
+     Is there an endpoint or docs listing valid keys (vae, sampler, scheduler,
+     clip_skip, etc.)? The Workflow.field_mapping might partially cover this for
+     /run:slug but /render uses a different resolution path.
+  2. Concept token syntax — is <name:weight> the only format, or are there others?
+     Does weight apply to LoRA only, or also to full checkpoints?
+  3. Multi-LoRA stacking — can you chain multiple <lora:w> tokens in one prompt?
+     Is there a limit?
+  4. VAE/sampler/scheduler valid values — are these free-form strings or enum
+     values the server validates? Need the valid set to build a dropdown vs free input.
+  5. img2img chaining syntax — how do you specify init_image strength as a flag
+     rather than a body field? Is there a /strength:N or /denoise:N flag?
+  6. Whether saved custom workflows should be stored locally only (localStorage/
+     Zustand persist) or if there's an API endpoint for user-saved configurations.
+
+Next action when data is available:
+  - Get the full flag reference from API docs or Russ (same contact as apisends.txt)
+  - Prototype the builder as a modal/panel in src/components/WorkflowComposer.tsx
+  - Saved custom workflows stored in a new Zustand store (src/stores/customWorkflows.ts)
+    persisted to localStorage, rendered in the workflow picker below the fetched list
+  - Each custom workflow card stores: { name, promptTemplate, baseSlug, previewImageUrl }
+
+================================================
+
+[ADD MORE ITEMS BELOW AS NEEDED]
+

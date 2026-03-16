@@ -85,6 +85,7 @@ interface ChainGraphState {
   clearGraph: () => void
   loadFromTemplate: (template: import('@/stores/chainTemplate').ChainTemplate) => void
   runChain: () => Promise<void>
+  retryFailed: () => Promise<void>
   setPaused: (paused: boolean) => void
 }
 
@@ -94,8 +95,13 @@ export const useChainGraphStore = create<ChainGraphState>((set, get) => {
     set(s => ({ nodes: s.nodes.map(n => n.id === id ? { ...n, status, ...extra } : n) }))
   }
 
-  /** Execute all nodes in one connected component, respecting their DAG order. */
-  async function runChainNodes(nodeIds: string[], allEdges: ChainEdge[]): Promise<void> {
+  /** Execute all nodes in one connected component, respecting their DAG order.
+   *  Pass preResults to seed already-completed nodes (used by retryFailed). */
+  async function runChainNodes(
+    nodeIds: string[],
+    allEdges: ChainEdge[],
+    preResults?: Map<string, string | null>
+  ): Promise<void> {
     // Build multi-input map: nodeId → all incoming edges (one per port)
     const incomingEdges = new Map<string, ChainEdge[]>()
     for (const id of nodeIds) incomingEdges.set(id, [])
@@ -103,19 +109,23 @@ export const useChainGraphStore = create<ChainGraphState>((set, get) => {
       if (incomingEdges.has(edge.toNodeId)) incomingEdges.get(edge.toNodeId)!.push(edge)
     }
 
-    const results  = new Map<string, string | null>()
-    const completed = new Set<string>()
+    const results   = new Map<string, string | null>(preResults)
+    const completed = new Set<string>(preResults ? [...preResults.keys()].filter(id => nodeIds.includes(id)) : [])
     const failed    = new Set<string>()
 
     async function executeNode(node: ChainNode): Promise<void> {
       setNodeStatus(node.id, 'active')
 
+      // Strip /run:slug from node prompt — node.workflowSlug is authoritative in chain context;
+      // a /run: directive in the prompt text would otherwise override the node header selection.
+      const cleanPrompt = node.prompt.replace(/\/run:\S+\s*/gi, '').trim()
+
       // Inject project size constraint if set and not already in prompt
       const activeProject = useProjectsStore.getState().getActiveProject()
       const dim = activeProject?.dimensions
-      const nodePrompt = dim && !/\/size:/i.test(node.prompt)
-        ? `/size:${dim.width}x${dim.height} ${node.prompt}`
-        : node.prompt
+      const nodePrompt = dim && !/\/size:/i.test(cleanPrompt)
+        ? `/size:${dim.width}x${dim.height} ${cleanPrompt}`
+        : cleanPrompt
 
       const deps = incomingEdges.get(node.id) ?? []
 
@@ -147,24 +157,42 @@ export const useChainGraphStore = create<ChainGraphState>((set, get) => {
         Object.keys(sourceMedia).length > 0 ? sourceMedia : undefined
       )
 
-      // Poll the queue until this render finishes
-      const render = await new Promise<import('./renderQueue').QueuedRender>(resolve => {
+      // Poll until render finishes. Once done, wait up to 10s for resultUrl to populate.
+      const render = await new Promise<import('./renderQueue').QueuedRender | null>(resolve => {
+        let doneAt: number | null = null
         function check() {
           const r = useRenderQueueStore.getState().queue.find(q => q.id === renderId)
-          if (!r || r.status === 'done' || r.status === 'error') resolve(r!)
-          else setTimeout(check, 400)
+          if (!r) { resolve(null); return }
+          if (r.status === 'error') { resolve(r); return }
+          if (r.status === 'done' && r.resultUrl) { resolve(r); return }
+          if (r.status === 'done') {
+            // Waiting for resultUrl — give it up to 10s then accept whatever we have
+            if (!doneAt) doneAt = Date.now()
+            if (Date.now() - doneAt > 10_000) { resolve(r); return }
+          }
+          setTimeout(check, 400)
         }
         check()
       })
 
-      if (render.status === 'done') {
+      if (render?.status === 'done') {
         const url = render.resultUrl ?? null
         results.set(node.id, url)
         setNodeStatus(node.id, 'done', { resultUrl: url })
         completed.add(node.id)
       } else {
         failed.add(node.id)
-        setNodeStatus(node.id, 'error', { error: render.error ?? 'Render failed' })
+        setNodeStatus(node.id, 'error', { error: render?.error ?? 'Render failed' })
+      }
+    }
+
+    async function executeNodeSafe(node: ChainNode): Promise<void> {
+      try {
+        await executeNode(node)
+      } catch (e) {
+        // Catch any unexpected throws so a single node never crashes the whole chain
+        failed.add(node.id)
+        setNodeStatus(node.id, 'error', { error: (e as Error).message ?? 'Unexpected error' })
       }
     }
 
@@ -205,10 +233,10 @@ export const useChainGraphStore = create<ChainGraphState>((set, get) => {
       })
     }
 
-    // Mark non-root nodes as waiting
+    // Mark non-root nodes as waiting (skip already-completed seeded nodes)
     set(s => ({
       nodes: s.nodes.map(n => {
-        if (!nodeIds.includes(n.id)) return n
+        if (!nodeIds.includes(n.id) || completed.has(n.id)) return n
         const deps = incomingEdges.get(n.id) ?? []
         return deps.length > 0 ? { ...n, status: 'waiting' as const } : n
       })
@@ -219,7 +247,7 @@ export const useChainGraphStore = create<ChainGraphState>((set, get) => {
       const ready = getReadyNodes()
       if (ready.length === 0) break
       // Fire all ready nodes — the render queue handles stagger and concurrency limits
-      for (const node of ready) executeNode(node) // intentionally not awaited
+      for (const node of ready) executeNodeSafe(node) // intentionally not awaited
       await waitForWave(ready)
     }
   }
@@ -417,6 +445,59 @@ export const useChainGraphStore = create<ChainGraphState>((set, get) => {
         await runChainNodes(chain.map(n => n.id), edges)
 
         // Pause between chains if requested
+        if (get().isPaused) {
+          await new Promise<void>(resolve => {
+            function check() { !get().isPaused ? resolve() : setTimeout(check, 500) }
+            check()
+          })
+        }
+      }
+
+      set({ isRunning: false, runStartTime: null })
+    },
+
+    retryFailed: async () => {
+
+      const { nodes, edges, chainOrder } = get()
+      const failedNodes = nodes.filter(n => n.workflowSlug && n.status === 'error')
+      if (failedNodes.length === 0) return
+
+      // Seed results from nodes that already completed successfully
+      const preResults = new Map<string, string | null>()
+      for (const n of nodes) {
+        if (n.status === 'done') preResults.set(n.id, n.resultUrl)
+      }
+
+      // Reset only the errored nodes
+      set(s => ({
+        nodes: s.nodes.map(n =>
+          n.status === 'error' && n.workflowSlug
+            ? { ...n, status: 'idle' as const, resultUrl: null, error: null }
+            : n
+        ),
+      }))
+
+      set({ isRunning: true, runStartTime: Date.now(), isPaused: false })
+
+      const components = findComponents(get().nodes, edges)
+      const sorted = [...components].sort((a, b) => {
+        const ra = getChainRoot(a, edges), rb = getChainRoot(b, edges)
+        const ia = chainOrder.indexOf(ra.id), ib = chainOrder.indexOf(rb.id)
+        if (ia === -1 && ib === -1) return ra.position.x - rb.position.x
+        if (ia === -1) return 1
+        if (ib === -1) return -1
+        return ia - ib
+      })
+
+      for (const chain of sorted) {
+        const chainIds = chain.map(n => n.id)
+        const hasIncomplete = chainIds.some(id => {
+          const n = get().nodes.find(nd => nd.id === id)
+          return n && n.status !== 'done'
+        })
+        if (!hasIncomplete) continue
+        await runChainNodes(chainIds, edges, preResults)
+
         if (get().isPaused) {
           await new Promise<void>(resolve => {
             function check() { !get().isPaused ? resolve() : setTimeout(check, 500) }

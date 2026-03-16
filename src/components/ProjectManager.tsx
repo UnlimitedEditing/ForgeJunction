@@ -17,8 +17,8 @@ function RenderCard({
   render: ProjectRender; index: number; total: number; projectId: string
 }): React.ReactElement {
   const { removeRenderFromProject, reorderRender } = useProjectsStore()
-  const isVideo = render.mediaType === 'video'
-  const isAudio = render.mediaType === 'audio'
+  const isVideo = render.mediaType?.startsWith('video') ?? false
+  const isAudio = render.mediaType?.startsWith('audio') ?? false
 
   return (
     <div className="relative rounded-lg overflow-hidden bg-neutral-800 border border-white/8 group">
@@ -97,7 +97,7 @@ function ProjectListItem({
     setEditing(false)
   }
 
-  const videoCount = project.renders.filter(r => r.mediaType === 'video').length
+  const videoCount = project.renders.filter(r => r.mediaType?.startsWith('video')).length
 
   return (
     <div
@@ -195,7 +195,7 @@ export default function ProjectManager({ onClose }: { onClose: () => void }): Re
 
   function importVideos(replace: boolean) {
     if (!viewedProject) return
-    const clips = viewedProject.renders.filter(r => (r.mediaType === 'video' || r.mediaType === 'image') && r.resultUrl)
+    const clips = viewedProject.renders.filter(r => !r.mediaType?.startsWith('audio') && r.resultUrl)
     if (clips.length === 0) return
     if (replace) clearEditor()
     for (const r of clips) {
@@ -208,8 +208,8 @@ export default function ProjectManager({ onClose }: { onClose: () => void }): Re
     setTimeout(() => setImportFeedback(null), 3000)
   }
 
-  const videoCount   = viewedProject?.renders.filter(r => r.mediaType === 'video').length ?? 0
-  const imageCount   = viewedProject?.renders.filter(r => r.mediaType === 'image').length ?? 0
+  const videoCount   = viewedProject?.renders.filter(r => r.mediaType?.startsWith('video')).length ?? 0
+  const imageCount   = viewedProject?.renders.filter(r => !r.mediaType?.startsWith('video') && !r.mediaType?.startsWith('audio')).length ?? 0
   const totalRenders = viewedProject?.renders.length ?? 0
   const importableCount = videoCount + imageCount
 

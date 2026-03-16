@@ -89,8 +89,8 @@ function MediaTile({
   onClick: (e: React.MouseEvent) => void
   onAddToEditor: () => void
 }): React.ReactElement {
-  const isVideo = render.mediaType === 'video'
-  const isImage = !isVideo && render.mediaType !== 'audio'
+  const isVideo = render.mediaType?.startsWith('video') ?? false
+  const isImage = !isVideo && !(render.mediaType?.startsWith('audio') ?? false)
   const thumb = render.thumbnailUrl ?? render.resultUrl ?? null
   const canAddToEditor = !!render.resultUrl && (isVideo || isImage)
 
@@ -253,23 +253,23 @@ export default function MediaLibraryGrid({ cols, search }: { cols: number; searc
 
   function addSingleToEditor(render: QueuedRender) {
     if (!render.resultUrl) return
-    const mt = render.mediaType === 'video' ? 'video' : 'image'
+    const mt = render.mediaType?.startsWith('video') ? 'video' : 'image'
     addClip(render.resultUrl, render.prompt ?? '', render.workflowSlug, mt)
   }
 
   function sendBatchToEditor() {
     const clips = batchIds
       .map(id => completed.find(r => r.id === id))
-      .filter((r): r is QueuedRender => !!r && (r.mediaType === 'video' || r.mediaType === 'image') && !!r.resultUrl)
+      .filter((r): r is QueuedRender => !!r && !(r.mediaType?.startsWith('audio') ?? false) && !!r.resultUrl)
     for (const r of clips) {
-      addClip(r.resultUrl!, r.prompt ?? '', r.workflowSlug, r.mediaType === 'video' ? 'video' : 'image')
+      addClip(r.resultUrl!, r.prompt ?? '', r.workflowSlug, r.mediaType?.startsWith('video') ? 'video' : 'image')
     }
     setBatchIds([])
   }
 
   const batchEditorCount = batchIds
     .map(id => completed.find(r => r.id === id))
-    .filter((r): r is QueuedRender => !!r && (r.mediaType === 'video' || r.mediaType === 'image') && !!r.resultUrl)
+    .filter((r): r is QueuedRender => !!r && !(r.mediaType?.startsWith('audio') ?? false) && !!r.resultUrl)
     .length
 
   if (completed.length === 0) {
