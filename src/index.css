@@ -14,6 +14,30 @@
   --sage-glow:   rgba(106, 255, 200, 0.06);
 }
 
+/* ── CHAIN NODE ANIMATIONS ──────────────────────────────────────────────────── */
+
+@keyframes chain-node-in {
+  0%   { transform: scale(0);    opacity: 0; }
+  60%  { transform: scale(1.06); opacity: 1; }
+  78%  { transform: scale(0.97);             }
+  90%  { transform: scale(1.02);             }
+  100% { transform: scale(1);    opacity: 1; }
+}
+@keyframes chain-node-out {
+  0%   { transform: scale(1);    opacity: 1; }
+  28%  { transform: scale(1.07); opacity: 1; }
+  100% { transform: scale(0);    opacity: 0; }
+}
+.animate-node-in {
+  animation: chain-node-in 320ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  transform-origin: center center;
+}
+.animate-node-out {
+  animation: chain-node-out 240ms ease-in both;
+  transform-origin: center center;
+  pointer-events: none;
+}
+
 @keyframes sage-blink {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0; }

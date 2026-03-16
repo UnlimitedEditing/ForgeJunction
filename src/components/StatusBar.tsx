@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { useRenderQueueStore } from '@/stores/renderQueue'
 import { useChainGraphStore, findComponents } from '@/stores/chainGraph'
 import WorkflowGalleryPopup from '@/components/WorkflowGalleryPopup'
+import InspirationFeed from '@/components/InspirationFeed'
 
 export default function StatusBar(): React.ReactElement {
   const { queue, maxConcurrent, totalRendersThisSession, cancelById } = useRenderQueueStore()
@@ -24,6 +25,7 @@ export default function StatusBar(): React.ReactElement {
   const [elapsedSec, setElapsedSec] = useState(0)
   const [popupOpen, setPopupOpen] = useState(false)
   const [galleryOpen, setGalleryOpen] = useState(false)
+  const [inspirationOpen, setInspirationOpen] = useState(false)
   const popupRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
 
@@ -65,10 +67,22 @@ export default function StatusBar(): React.ReactElement {
   return (
     <>
       <WorkflowGalleryPopup open={galleryOpen} onClose={() => setGalleryOpen(false)} />
+      {inspirationOpen && <InspirationFeed onClose={() => setInspirationOpen(false)} />}
 
     <div className="fixed bottom-0 left-0 right-0 h-7 bg-neutral-900 border-t border-neutral-800 flex items-center px-3 font-mono text-xs z-50 gap-4 select-none">
-      {/* Left — gallery toggle + render status */}
+      {/* Left — inspiration + gallery toggles + render status */}
       <div className="flex items-center gap-3 flex-1 min-w-0 overflow-hidden">
+        <button
+          onClick={() => setInspirationOpen((v) => !v)}
+          className={`flex-shrink-0 flex items-center gap-1 rounded px-1.5 py-0.5 transition-colors ${
+            inspirationOpen
+              ? 'text-brand bg-brand/10'
+              : 'text-white/40 hover:text-white/70 hover:bg-white/5'
+          }`}
+          title="Inspiration feed"
+        >
+          ✦ Inspiration
+        </button>
         <button
           onClick={() => setGalleryOpen((v) => !v)}
           className={`flex-shrink-0 flex items-center gap-1 rounded px-1.5 py-0.5 transition-colors ${

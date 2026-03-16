@@ -72,14 +72,29 @@ export interface ParsedPrompt {
   initImage: string | null
 }
 
+// Commands that act as implicit workflow aliases (no /run:slug needed)
+const COMMAND_WORKFLOW_ALIASES: Record<string, string> = {
+  render: 'sdxl',
+}
+
 export function parseTelegramPrompt(rawInput: string, fallbackWorkflowSlug?: string): ParsedPrompt {
   let input = rawInput.trim()
 
   // Strip leading /wf
   input = input.replace(/^\/wf\s*/i, '')
 
-  // Extract /run:<slug>
+  // Detect leading command alias e.g. /render → resolves to a workflow slug
   let workflowSlug = fallbackWorkflowSlug ?? ''
+  const aliasMatch = input.match(/^\/(\w+)\b/)
+  if (aliasMatch) {
+    const alias = aliasMatch[1].toLowerCase()
+    if (COMMAND_WORKFLOW_ALIASES[alias]) {
+      workflowSlug = COMMAND_WORKFLOW_ALIASES[alias]
+      input = input.slice(aliasMatch[0].length).trim()
+    }
+  }
+
+  // Extract /run:<slug> (overrides alias if both present)
   const runMatch = input.match(/\/run:(\S+)/)
   if (runMatch) {
     workflowSlug = runMatch[1]

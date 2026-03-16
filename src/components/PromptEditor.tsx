@@ -8,6 +8,7 @@ import { getWorkflowInputSlots, type MediaInputSlot } from '@/utils/workflowInpu
 import ParameterBar from '@/components/ParameterBar'
 import MediaDropZone from '@/components/MediaDropZone'
 import PromptTemplateEditor from '@/components/PromptTemplateEditor'
+import HighlightedPromptInput from '@/components/HighlightedPromptInput'
 import type { Workflow } from '@/api/graydient'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -372,15 +373,16 @@ export default function PromptEditor(): React.ReactElement {
         </button>
 
         {/* Prompt textarea — auto-grows 1–4 lines */}
-        <textarea
-          ref={textareaRef}
-          value={descriptiveText}
-          onChange={(e) => setDescriptiveText(e.target.value)}
+        <HighlightedPromptInput
+          textareaRef={textareaRef}
+          value={descriptiveText ?? ''}
+          onChange={setDescriptiveText}
           onPaste={handlePaste}
           onKeyDown={handleKeyDown}
           rows={1}
           placeholder={getPlaceholder(selectedWorkflow)}
-          className="flex-1 resize-none rounded-lg bg-white/5 px-3 py-2 text-sm text-white placeholder-white/25 outline-none ring-1 ring-white/10 focus:ring-brand leading-relaxed overflow-y-auto"
+          wrapperClassName="flex-1 rounded-lg bg-white/5 ring-1 ring-white/10 focus-within:ring-brand"
+          textClassName="px-3 py-2 text-sm leading-relaxed overflow-y-auto"
           style={{ minHeight: '36px', maxHeight: '96px' }}
         />
 

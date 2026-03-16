@@ -1,6 +1,6 @@
 import { create } from 'zustand'
-import { submitRender, fetchRenderInfo, resolveMediaUrl, type SSEEvent } from '@/api/graydient'
 import { useProjectsStore } from './projects'
+import { useRenderQueueStore } from './renderQueue'
 
 export interface ChainNode {
   id: string
@@ -132,7 +132,6 @@ export const useChainGraphStore = create<ChainGraphState>((set, get) => {
         if (field === 'init_image_filename') {
           sourceMedia.initImage = upstreamUrl
         } else {
-          // Secondary/controlnet input — use controlnetSlug as placeholder key
           const key = dep.controlnetSlug?.trim() || field
           sourceMedia.placeholders ??= {}
           sourceMedia.placeholders[key] = upstreamUrl
@@ -141,42 +140,31 @@ export const useChainGraphStore = create<ChainGraphState>((set, get) => {
         }
       }
 
-      try {
-        let resolvedHash: string | null = null
-        await submitRender(
-          nodePrompt,
-          node.workflowSlug,
-          (event: SSEEvent) => {
-            if ('rendering_done' in event) resolvedHash = event.rendering_done.render_hash
-          },
-          Object.keys(sourceMedia).length > 0 ? sourceMedia : undefined
-        )
-        if (resolvedHash) {
-          const info = await fetchRenderInfo(resolvedHash)
-          const resolved = resolveMediaUrl(info)
-          const url = resolved?.url ?? null
-          results.set(node.id, url)
-          setNodeStatus(node.id, 'done', { resultUrl: url })
-          if (url) {
-            useProjectsStore.getState().notifyRenderComplete({
-              id: `chain-${node.id}-${Date.now()}`,
-              workflowSlug: node.workflowSlug,
-              prompt: node.prompt,
-              resultUrl: url,
-              thumbnailUrl: resolved?.thumbnailUrl ?? null,
-              mediaType: resolved?.mediaType ?? 'image',
-              completedAt: Date.now(),
-              nodeId: node.id,
-            })
-          }
-        } else {
-          results.set(node.id, null)
-          setNodeStatus(node.id, 'done')
+      // Route through the render queue so stagger + cancellation are handled centrally
+      const renderId = useRenderQueueStore.getState().enqueue(
+        nodePrompt,
+        node.workflowSlug,
+        Object.keys(sourceMedia).length > 0 ? sourceMedia : undefined
+      )
+
+      // Poll the queue until this render finishes
+      const render = await new Promise<import('./renderQueue').QueuedRender>(resolve => {
+        function check() {
+          const r = useRenderQueueStore.getState().queue.find(q => q.id === renderId)
+          if (!r || r.status === 'done' || r.status === 'error') resolve(r!)
+          else setTimeout(check, 400)
         }
+        check()
+      })
+
+      if (render.status === 'done') {
+        const url = render.resultUrl ?? null
+        results.set(node.id, url)
+        setNodeStatus(node.id, 'done', { resultUrl: url })
         completed.add(node.id)
-      } catch (e) {
+      } else {
         failed.add(node.id)
-        setNodeStatus(node.id, 'error', { error: (e as Error).message })
+        setNodeStatus(node.id, 'error', { error: render.error ?? 'Render failed' })
       }
     }
 
@@ -226,18 +214,12 @@ export const useChainGraphStore = create<ChainGraphState>((set, get) => {
       })
     }))
 
-    let lastStart = 0
     while (completed.size + failed.size < nodeIds.length) {
       propagateFailures()
       const ready = getReadyNodes()
       if (ready.length === 0) break
-      for (const node of ready) {
-        const now = Date.now()
-        const wait = Math.max(0, lastStart + 5000 - now)
-        if (wait > 0) await new Promise(r => setTimeout(r, wait))
-        lastStart = Date.now()
-        executeNode(node) // intentionally not awaited — staggered parallel
-      }
+      // Fire all ready nodes — the render queue handles stagger and concurrency limits
+      for (const node of ready) executeNode(node) // intentionally not awaited
       await waitForWave(ready)
     }
   }

@@ -105,79 +105,136 @@ function MainLayout(): React.ReactElement {
     }
   }, [openDebug, setTheme])
 
+  const [mediaLibCols, setMediaLibCols] = useState(2)
+  const [mediaLibSearch, setMediaLibSearch] = useState('')
+  const mediaLibSearchTerm = mediaLibSearch.trim().toLowerCase()
+  const showMediaLib = !showVideoEditor && !showStorage && !showProjects && !showChain
+
   return (
     <div className="flex h-full flex-col bg-neutral-950 text-white">
-      <div className="flex flex-1 min-h-0 pb-7">
-        {/* Left — workflow selector (hidden when video editor is open) */}
-        {!showVideoEditor && (
-          <aside className="flex w-[220px] flex-shrink-0 flex-col border-r border-white/10 bg-panel">
-            <div className="flex items-center justify-end border-b border-white/10 px-4 py-3">
-              <div className="flex items-center gap-1">
-                {showChain && (
-                  <button
-                    onClick={() => setChainPaneView(v => v === 'chain' ? 'workflows' : 'chain')}
-                    className={`text-xs rounded px-1.5 py-0.5 transition-colors ${
-                      chainPaneView === 'chain'
-                        ? 'text-brand bg-brand/10'
-                        : 'text-neutral-500 hover:text-white'
-                    }`}
-                    title={chainPaneView === 'chain' ? 'Switch to Workflows' : 'Switch to Chain Templates'}
-                  >
-                    {chainPaneView === 'chain' ? '◫' : '⛓'}
-                  </button>
+
+      {/* ── Unified top bar (home view only) ── */}
+      {!showVideoEditor && (
+        <div className="flex items-stretch h-10 border-b border-white/10 bg-neutral-950 flex-shrink-0">
+
+          {/* Left section — Home label + shortcut icons */}
+          <div className="flex items-center gap-0.5 px-3 w-[220px] flex-shrink-0 border-r border-white/8">
+            <span className="text-[11px] font-semibold text-white/40 tracking-wide mr-2 select-none">Home</span>
+            <div className="w-px h-3.5 bg-white/10 mr-1" />
+            {showChain && (
+              <button
+                onClick={() => setChainPaneView(v => v === 'chain' ? 'workflows' : 'chain')}
+                className={`w-6 h-6 flex items-center justify-center rounded text-sm transition-colors ${
+                  chainPaneView === 'chain' ? 'text-brand bg-brand/10' : 'text-white/35 hover:text-white hover:bg-white/8'
+                }`}
+                title={chainPaneView === 'chain' ? 'Switch to Workflows' : 'Switch to Chain Templates'}
+              >
+                {chainPaneView === 'chain' ? '◫' : '⛓'}
+              </button>
+            )}
+            <button
+              onClick={() => setShowStorage(v => !v)}
+              className={`w-6 h-6 flex items-center justify-center rounded text-sm transition-colors ${showStorage ? 'text-brand bg-brand/10' : 'text-white/35 hover:text-white hover:bg-white/8'}`}
+              title="Storage Manager"
+            >📁</button>
+            <button
+              onClick={() => setShowVideoEditor(v => !v)}
+              className="w-6 h-6 flex items-center justify-center rounded text-sm text-white/35 hover:text-white hover:bg-white/8 transition-colors"
+              title="Video Editor"
+            >✂</button>
+            <button
+              onClick={() => setShowChain(v => !v)}
+              className={`w-6 h-6 flex items-center justify-center rounded text-sm transition-colors ${showChain ? 'text-brand bg-brand/10' : 'text-white/35 hover:text-white hover:bg-white/8'}`}
+              title="Chain Builder"
+            >⛓</button>
+            <button
+              onClick={() => setShowProjects(v => !v)}
+              className={`w-6 h-6 flex items-center justify-center rounded text-sm transition-colors ${showProjects ? 'text-emerald-400 bg-emerald-900/20' : 'text-white/35 hover:text-white hover:bg-white/8'}`}
+              title="Projects"
+            >◫</button>
+            <button
+              onClick={() => setShowSettings(v => !v)}
+              className={`w-6 h-6 flex items-center justify-center rounded text-sm transition-colors ${showSettings ? 'text-white/80 bg-white/8' : 'text-white/35 hover:text-white hover:bg-white/8'}`}
+              title="Settings"
+            >⚙</button>
+          </div>
+
+          {/* Center section — resize + search (media library) or view label */}
+          <div className="flex-1 flex items-center gap-2 px-3 border-r border-white/8 min-w-0">
+            {showMediaLib ? (
+              <>
+                {/* Resize icon */}
+                <svg width="13" height="13" viewBox="0 0 14 14" fill="none" className="flex-shrink-0 text-white/25" aria-hidden>
+                  <rect x="0.5" y="0.5" width="9" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.2"/>
+                  <rect x="7.5" y="7.5" width="5.5" height="5.5" rx="1" fill="currentColor" opacity="0.55"/>
+                </svg>
+                {/* Slider */}
+                <input
+                  type="range" min={2} max={5} step={1}
+                  value={mediaLibCols}
+                  onChange={e => setMediaLibCols(parseInt(e.target.value))}
+                  className="w-14 flex-shrink-0 accent-brand cursor-pointer"
+                  title={`${mediaLibCols} columns`}
+                />
+                {/* Search */}
+                <div className="relative flex-1 min-w-0">
+                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-white/20 text-[11px] pointer-events-none select-none">⌕</span>
+                  <input
+                    type="text"
+                    value={mediaLibSearch}
+                    onChange={e => setMediaLibSearch(e.target.value)}
+                    placeholder="Search prompts…"
+                    className="w-full rounded-md bg-white/5 pl-5.5 pr-5 py-1 text-[11px] text-white placeholder-white/20 outline-none focus:bg-white/8 transition-colors"
+                    style={{ paddingLeft: '1.4rem' }}
+                  />
+                  {mediaLibSearch && (
+                    <button
+                      onClick={() => setMediaLibSearch('')}
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 text-white/25 hover:text-white/55 text-[10px] transition-colors"
+                      title="Clear"
+                    >✕</button>
+                  )}
+                </div>
+                {mediaLibSearchTerm && (
+                  <span className="text-[10px] text-white/25 flex-shrink-0 tabular-nums select-none">
+                    {/* count rendered inside grid, just show indicator */}
+                    ↳
+                  </span>
                 )}
-                <button
-                  onClick={() => setShowStorage(v => !v)}
-                  className={`text-neutral-500 hover:text-white transition-colors ${showStorage ? 'text-brand' : ''}`}
-                  title={showStorage ? 'Close Storage' : 'Storage Manager'}
-                >
-                  📁
-                </button>
-                <button
-                  onClick={() => setShowVideoEditor(v => !v)}
-                  className="text-neutral-500 hover:text-white transition-colors"
-                  title="Video Editor"
-                >
-                  ✂
-                </button>
-                <button
-                  onClick={() => setShowChain(v => !v)}
-                  className={`text-neutral-500 hover:text-white transition-colors ${showChain ? 'text-brand' : ''}`}
-                  title={showChain ? 'Close Chain Builder' : 'Chain Builder'}
-                >
-                  ⛓
-                </button>
-                <button
-                  onClick={() => setShowProjects(v => !v)}
-                  className={`text-neutral-500 hover:text-white transition-colors ${showProjects ? 'text-emerald-400' : ''}`}
-                  title={showProjects ? 'Close Projects' : 'Projects'}
-                >
-                  ◫
-                </button>
-                <button
-                  onClick={() => setShowSettings((v) => !v)}
-                  className="text-neutral-500 hover:text-white"
-                  title="Settings"
-                >
-                  ⚙
-                </button>
-              </div>
-            </div>
+              </>
+            ) : (
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-white/25 select-none">
+                {showStorage ? 'Storage' : showProjects ? 'Projects' : showChain ? 'Chain Builder' : ''}
+              </span>
+            )}
+          </div>
+
+          {/* Right section — Output label */}
+          <div className="w-96 flex-shrink-0 flex items-center px-4">
+            <span className="text-[10px] font-semibold uppercase tracking-widest text-white/30 select-none">
+              Output History
+            </span>
             {activeProject && (
-              <div className="flex items-center gap-2 px-3 py-1.5 border-b border-white/8 bg-emerald-950/20 shrink-0">
+              <div className="flex items-center gap-1.5 ml-auto">
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-                <span className="text-[10px] text-emerald-400/70 truncate flex-1" title={activeProject.name}>
+                <span className="text-[10px] text-emerald-400/60 truncate max-w-[100px]" title={activeProject.name}>
                   {activeProject.name}
                 </span>
                 <button
                   onClick={() => setActiveProject(null)}
-                  className="text-[9px] text-emerald-400/30 hover:text-emerald-400/70 transition-colors shrink-0"
-                  title="Deactivate project (new renders won't be added)"
-                >
-                  ✕
-                </button>
+                  className="text-[9px] text-emerald-400/25 hover:text-emerald-400/60 transition-colors"
+                  title="Deactivate project"
+                >✕</button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-1 min-h-0 pb-7">
+        {/* Left — workflow selector (hidden when video editor is open) */}
+        {!showVideoEditor && (
+          <aside className="flex w-[220px] flex-shrink-0 flex-col border-r border-white/10 bg-panel">
             <div className="flex-1 overflow-hidden min-h-0">
               {showSettings
                 ? <div className="p-3"><Settings onClose={() => setShowSettings(false)} /></div>
@@ -189,7 +246,7 @@ function MainLayout(): React.ReactElement {
           </aside>
         )}
 
-        {/* Video editor — full width when open, passing home callback */}
+        {/* Video editor — full width when open */}
         {showVideoEditor ? (
           <div className="flex flex-1 min-w-0 min-h-0">
             <VideoEditor onClose={() => setShowVideoEditor(false)} />
@@ -204,7 +261,7 @@ function MainLayout(): React.ReactElement {
                   ? <ProjectManager onClose={() => setShowProjects(false)} />
                   : showChain
                     ? <ChainGraphEditor onClose={() => setShowChain(false)} />
-                    : <MediaLibraryGrid />
+                    : <MediaLibraryGrid cols={mediaLibCols} search={mediaLibSearch} />
               }
               {!showStorage && (
                 <div className="absolute bottom-0 left-0 right-0 z-10">
@@ -215,11 +272,6 @@ function MainLayout(): React.ReactElement {
 
             {/* Right — Render Viewer */}
             <aside className="flex w-96 flex-shrink-0 flex-col bg-neutral-900">
-              <div className="border-b border-white/10 px-4 py-3">
-                <span className="themed-heading text-xs font-semibold uppercase tracking-widest text-white/40">
-                  Output
-                </span>
-              </div>
               <div className="flex-1 overflow-y-auto p-4">
                 <RenderViewer />
               </div>

@@ -37,7 +37,7 @@ interface RenderQueueState {
   maxConcurrent: number
   totalRendersThisSession: number
   selectedRenderId: string | null
-  enqueue: (prompt: string, workflowSlug: string, sourceMedia?: { initImage?: string; placeholders?: Record<string, string>; optionPairs?: string[] }) => void
+  enqueue: (prompt: string, workflowSlug: string, sourceMedia?: { initImage?: string; placeholders?: Record<string, string>; optionPairs?: string[] }) => string
   processNext: () => void
   cancelById: (id: string) => void
   cancelActive: () => void
@@ -259,7 +259,7 @@ export const useRenderQueueStore = create<RenderQueueState>()(persist((set, get)
     totalRendersThisSession: 0,
     selectedRenderId: null,
 
-    enqueue: (prompt, workflowSlug, sourceMedia) => {
+    enqueue: (prompt, workflowSlug, sourceMedia): string => {
       // Inject project size if active project has dimensions and prompt doesn't already specify /size:
       const activeProject = useProjectsStore.getState().getActiveProject()
       const dim = activeProject?.dimensions
@@ -287,6 +287,7 @@ export const useRenderQueueStore = create<RenderQueueState>()(persist((set, get)
       }
       set((s) => ({ queue: [...s.queue, newRender] }))
       setTimeout(() => get().processNext(), 0)
+      return newRender.id
     },
 
     processNext: () => {

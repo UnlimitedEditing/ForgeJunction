@@ -181,10 +181,7 @@ function EmptyState(): React.ReactElement {
 
 // ── MediaLibraryGrid ───────────────────────────────────────────────────────────
 
-const COL_OPTIONS = [2, 3, 4, 5] as const
-type ColCount = typeof COL_OPTIONS[number]
-
-export default function MediaLibraryGrid(): React.ReactElement {
+export default function MediaLibraryGrid({ cols, search }: { cols: number; search: string }): React.ReactElement {
   const { queue } = useRenderQueueStore()
   const { setFromRender } = useSourceMediaStore()
   const { addClip } = useVideoEditorStore()
@@ -192,11 +189,15 @@ export default function MediaLibraryGrid(): React.ReactElement {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [batchIds, setBatchIds] = useState<string[]>([])
   const lastClickedIdxRef = useRef<number | null>(null)
-  const [cols, setCols] = useState<ColCount>(2)
 
   const completed = [...queue]
     .filter((r) => r.status === 'done' && (r.resultUrl || r.thumbnailUrl))
     .reverse()
+
+  const searchTerm = search.trim().toLowerCase()
+  const filtered = searchTerm
+    ? completed.filter(r => r.prompt?.toLowerCase().includes(searchTerm))
+    : completed
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -225,7 +226,7 @@ export default function MediaLibraryGrid(): React.ReactElement {
       e.preventDefault()
       const from = Math.min(lastClickedIdxRef.current, idx)
       const to   = Math.max(lastClickedIdxRef.current, idx)
-      const rangeIds = completed.slice(from, to + 1).map(r => r.id)
+      const rangeIds = filtered.slice(from, to + 1).map(r => r.id)
       setBatchIds(prev => {
         const merged = [...prev]
         for (const id of rangeIds) {
@@ -279,40 +280,10 @@ export default function MediaLibraryGrid(): React.ReactElement {
     )
   }
 
-  const gridClass = {
-    2: 'grid-cols-2',
-    3: 'grid-cols-3',
-    4: 'grid-cols-4',
-    5: 'grid-cols-5',
-  }[cols]
+  const gridClass = ['', '', 'grid-cols-2', 'grid-cols-3', 'grid-cols-4', 'grid-cols-5'][cols] ?? 'grid-cols-2'
 
   return (
     <div className="flex flex-col h-full">
-
-      {/* ── Toolbar: size control ── */}
-      <div className="flex items-center gap-2 px-3 py-1.5 border-b border-white/8 flex-shrink-0">
-        <span className="text-[10px] text-white/25 select-none">Size</span>
-        <div className="flex gap-0.5">
-          {COL_OPTIONS.map(n => (
-            <button
-              key={n}
-              onClick={() => setCols(n)}
-              className={`w-6 h-5 rounded text-[10px] transition-colors ${
-                cols === n
-                  ? 'bg-white/15 text-white/80'
-                  : 'text-white/25 hover:text-white/50 hover:bg-white/5'
-              }`}
-              title={`${n} columns`}
-            >
-              {n}
-            </button>
-          ))}
-        </div>
-        <div className="flex-1" />
-        {batchIds.length === 0 && (
-          <span className="text-[10px] text-white/15 select-none">Ctrl+click to select</span>
-        )}
-      </div>
 
       {/* ── Batch action bar ── */}
       {batchIds.length > 0 && (
@@ -343,8 +314,13 @@ export default function MediaLibraryGrid(): React.ReactElement {
 
       {/* ── Grid ── */}
       <div className="flex-1 overflow-y-auto p-2">
+        {filtered.length === 0 && searchTerm && (
+          <p className="text-[11px] text-white/25 text-center py-6">
+            No renders match "{search}"
+          </p>
+        )}
         <div className={`grid ${gridClass} gap-1.5`}>
-          {completed.map((render, idx) => {
+          {filtered.map((render, idx) => {
             const batchIdx = batchIds.indexOf(render.id)
             return (
               <MediaTile

@@ -41,6 +41,22 @@ declare global {
         deleteKey: () => Promise<boolean>
         validateKey: (key: string) => Promise<{ valid: boolean; error: string | null; timedOut?: boolean }>
       }
+
+      video: {
+        probe: (url: string) => Promise<{ duration: number; width: number; height: number; hasAudio: boolean }>
+        export: (params: object) => Promise<{ outputPath: string }>
+        getExportDir: () => Promise<string>
+        onProgress: (cb: (data: { percent: number; timeStr: string }) => void) => () => void
+      }
+
+      storage: {
+        getDrives: () => Promise<Array<{ path: string; label: string; total: number; free: number; used: number }>>
+        scanDir: (path: string) => Promise<{ path: string; files: Array<{ filePath: string; fileUrl: string; name: string; ext: string; mediaType: 'video' | 'image'; size: number; mtime: number }> }>
+        pickDir: () => Promise<string | null>
+        moveDir: (sourcePath: string, targetParent: string) => Promise<{ newPath: string }>
+        openInExplorer: (filePath: string) => Promise<void>
+      }
+
     }
   }
 }

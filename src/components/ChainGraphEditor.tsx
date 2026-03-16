@@ -3,6 +3,7 @@ import { useChainGraphStore, findComponents, getChainRoot, type ChainNode, type 
 import { useWorkflowStore } from '@/stores/workflows'
 import { getInputPorts, inputPortY } from '@/utils/workflowPorts'
 import { parseTelegramPrompt, type Workflow } from '@/api/graydient'
+import HighlightedPromptInput from '@/components/HighlightedPromptInput'
 
 const NODE_W = 230
 const NODE_H = 114   // header (40) + prompt (74)
@@ -86,6 +87,18 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
 
   const formatTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 
+  // Node enter / exit animations
+  const mountedNodeIds = useRef<Set<string>>(new Set())
+  const [dyingNodeIds, setDyingNodeIds] = useState<Set<string>>(new Set())
+
+  function handleDeleteNode(id: string) {
+    setDyingNodeIds(prev => new Set([...prev, id]))
+    setTimeout(() => {
+      removeNode(id)
+      setDyingNodeIds(prev => { const n = new Set(prev); n.delete(id); return n })
+    }, 250)
+  }
+
   const canvasRef = useRef<HTMLDivElement>(null)
   const panRef = useRef({ x: 80, y: 60 })
   const zoomRef = useRef(1)
@@ -133,7 +146,7 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
         return
       }
       if ((e.key === 'Delete' || e.key === 'Backspace') && !inInput) {
-        selectedNodeIds.forEach(id => removeNode(id))
+        selectedNodeIds.forEach(id => handleDeleteNode(id))
         return
       }
       if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !inInput) {
@@ -591,11 +604,16 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
             const showResult = node.status === 'done' && node.resultUrl
             const inputPorts = getInputPorts(node.workflowSlug)
 
+            const isDying = dyingNodeIds.has(node.id)
+            const isNew = !mountedNodeIds.current.has(node.id)
+            if (isNew && !isDying) mountedNodeIds.current.add(node.id)
+            const animClass = isDying ? 'animate-node-out' : isNew ? 'animate-node-in' : ''
+
             return (
               <div
                 key={node.id}
                 data-node={node.id}
-                className={`absolute rounded-xl border shadow-2xl transition-colors ${
+                className={`absolute rounded-xl border shadow-2xl transition-colors ${animClass} ${
                   isSelected ? 'border-brand/60 ring-1 ring-brand/25' : 'border-white/10 hover:border-white/20'
                 } bg-neutral-900`}
                 style={{ left: node.position.x, top: node.position.y, width: NODE_W }}
@@ -672,43 +690,43 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
                   <button
                     className="text-white/20 hover:text-red-400 transition-colors ml-2 flex-shrink-0 leading-none text-xs"
                     onMouseDown={(e) => e.stopPropagation()}
-                    onClick={(e) => { e.stopPropagation(); removeNode(node.id) }}
+                    onClick={(e) => { e.stopPropagation(); handleDeleteNode(node.id) }}
                   >
                     ✕
                   </button>
                 </div>
 
                 {/* ── Prompt ── */}
-                <div className="px-3 py-2" style={{ height: 74 }}>
-                  <textarea
-                    value={node.prompt}
-                    onChange={(e) => updateNode(node.id, { prompt: e.target.value })}
-                    placeholder="Describe what to generate…"
-                    rows={3}
-                    className="w-full h-full resize-none bg-transparent text-xs text-white/70 placeholder-white/20 outline-none leading-relaxed"
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onClick={(e) => { e.stopPropagation(); e.shiftKey ? toggleSelectNode(node.id) : setSelectedNode(node.id) }}
-                    onMouseUp={(e) => {
-                      const el = e.currentTarget
-                      if (el.selectionStart !== el.selectionEnd) {
-                        setNodeFieldMark({ nodeId: node.id, start: el.selectionStart, end: el.selectionEnd })
-                        setMarkFieldLabel('')
-                      }
-                    }}
-                    onKeyUp={(e) => {
-                      const el = e.currentTarget
-                      if (el.selectionStart !== el.selectionEnd) {
-                        setNodeFieldMark({ nodeId: node.id, start: el.selectionStart, end: el.selectionEnd })
-                        setMarkFieldLabel('')
-                      }
-                    }}
-                    onBlur={() => {
-                      setTimeout(() => {
-                        setNodeFieldMark(prev => prev?.nodeId === node.id ? null : prev)
-                      }, 150)
-                    }}
-                  />
-                </div>
+                <HighlightedPromptInput
+                  value={node.prompt}
+                  onChange={(v) => updateNode(node.id, { prompt: v })}
+                  placeholder="Describe what to generate…"
+                  rows={3}
+                  wrapperClassName="px-3 py-2"
+                  textClassName="text-xs leading-relaxed"
+                  style={{ height: 74 }}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => { e.stopPropagation(); e.shiftKey ? toggleSelectNode(node.id) : setSelectedNode(node.id) }}
+                  onMouseUp={(e) => {
+                    const el = e.currentTarget
+                    if (el.selectionStart !== el.selectionEnd) {
+                      setNodeFieldMark({ nodeId: node.id, start: el.selectionStart, end: el.selectionEnd })
+                      setMarkFieldLabel('')
+                    }
+                  }}
+                  onKeyUp={(e) => {
+                    const el = e.currentTarget
+                    if (el.selectionStart !== el.selectionEnd) {
+                      setNodeFieldMark({ nodeId: node.id, start: el.selectionStart, end: el.selectionEnd })
+                      setMarkFieldLabel('')
+                    }
+                  }}
+                  onBlur={() => {
+                    setTimeout(() => {
+                      setNodeFieldMark(prev => prev?.nodeId === node.id ? null : prev)
+                    }, 150)
+                  }}
+                />
 
                 {/* ── Mark-as-field UI ── */}
                 {nodeFieldMark?.nodeId === node.id && (

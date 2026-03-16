@@ -356,6 +356,7 @@ export default function WorkflowSelector(): React.ReactElement {
   const [lastConcept, setLastConcept] = useState<Concept | null>(null)
   const [query, setQuery] = useState('')
   const [activeCategory, setActiveCategory] = useState<WorkflowCategory | null>(null)
+  const [filtersOpen, setFiltersOpen] = useState(false)
 
   function toggleSimpleMode() {
     setSimpleMode((v) => {
@@ -586,30 +587,59 @@ export default function WorkflowSelector(): React.ReactElement {
         )}
 
         {availableCategories.length > 0 && (
-          <div className="flex flex-wrap gap-1 px-3 pt-3 pb-1">
-            <button
-              onClick={() => setActiveCategory(null)}
-              className={`rounded px-2 py-0.5 text-xs transition-colors ${
-                activeCategory === null
-                  ? 'border-l-2 border-brand bg-brand/10 pl-1.5 text-brand'
-                  : 'text-white/50 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              All ({workflows.length})
-            </button>
-            {availableCategories.map((cat) => (
+          <div className="border-b border-white/8">
+            {/* Collapsed row — active filter + toggle */}
+            <div className="flex items-center gap-1.5 px-3 py-1.5">
+              <span className="text-[10px] text-white/25 uppercase tracking-widest flex-shrink-0">Type</span>
               <button
-                key={cat}
-                onClick={() => setActiveCategory(cat)}
-                className={`rounded px-2 py-0.5 text-xs transition-colors ${
-                  activeCategory === cat
-                    ? 'border-l-2 border-brand bg-brand/10 pl-1.5 text-brand'
-                    : 'text-white/50 hover:text-white hover:bg-white/5'
+                onClick={() => { setActiveCategory(null); setFiltersOpen(false) }}
+                className={`rounded px-2 py-0.5 text-xs transition-colors flex-shrink-0 ${
+                  activeCategory === null
+                    ? 'bg-brand/15 text-brand border border-brand/30'
+                    : 'text-white/40 hover:text-white hover:bg-white/5'
                 }`}
               >
-                {cat} ({categoryCounts.get(cat) ?? 0})
+                {activeCategory === null ? `All (${workflows.length})` : 'All'}
               </button>
-            ))}
+              {activeCategory !== null && (
+                <span className="text-xs bg-brand/15 text-brand border border-brand/30 rounded px-2 py-0.5 flex-shrink-0">
+                  {activeCategory}
+                </span>
+              )}
+              <div className="flex-1" />
+              <button
+                onClick={() => setFiltersOpen(v => !v)}
+                className="flex items-center gap-1 px-2 py-0.5 rounded text-[11px] text-white/40 hover:text-white/80 hover:bg-white/8 transition-colors flex-shrink-0"
+                title={filtersOpen ? 'Hide filters' : 'Show all types'}
+              >
+                <span className="text-[10px] text-white/30">filter</span>
+                <svg
+                  width="10" height="10" viewBox="0 0 10 10" fill="none"
+                  className={`transition-transform duration-150 ${filtersOpen ? 'rotate-180' : ''}`}
+                >
+                  <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            </div>
+
+            {/* Expanded — all category chips */}
+            {filtersOpen && (
+              <div className="flex flex-wrap gap-1 px-3 pb-2">
+                {availableCategories.map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => { setActiveCategory(cat); setFiltersOpen(false) }}
+                    className={`rounded px-2 py-0.5 text-xs transition-colors ${
+                      activeCategory === cat
+                        ? 'bg-brand/15 text-brand border border-brand/30'
+                        : 'text-white/45 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    {cat} ({categoryCounts.get(cat) ?? 0})
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
