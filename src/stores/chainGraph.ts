@@ -4,6 +4,8 @@ import { useRenderQueueStore } from './renderQueue'
 
 export interface ChainNode {
   id: string
+  /** 'workflow' (default/undefined) | 'media' (URL source) | 'annotation' (sticky note) */
+  nodeType?: 'workflow' | 'media' | 'annotation'
   workflowSlug: string
   workflowName: string
   prompt: string
@@ -11,6 +13,12 @@ export interface ChainNode {
   status: 'idle' | 'waiting' | 'active' | 'done' | 'error'
   resultUrl: string | null
   error: string | null
+  // Media node fields
+  mediaUrl?: string | null
+  mediaType?: string | null
+  // Annotation node fields
+  annotationText?: string
+  annotationColor?: string
 }
 
 export interface ChainEdge {
@@ -71,8 +79,10 @@ interface ChainGraphState {
   runStartTime: number | null
 
   addNode: (workflowSlug: string, workflowName: string, position: { x: number; y: number }) => string
+  addMediaNode: (mediaUrl: string, mediaType: string, sourcePrompt?: string, position?: { x: number; y: number }) => string
+  addAnnotationNode: (position: { x: number; y: number }) => string
   removeNode: (id: string) => void
-  updateNode: (id: string, patch: Partial<Pick<ChainNode, 'prompt' | 'position' | 'workflowSlug' | 'workflowName'>>) => void
+  updateNode: (id: string, patch: Partial<Pick<ChainNode, 'prompt' | 'position' | 'workflowSlug' | 'workflowName' | 'annotationText' | 'annotationColor'>>) => void
   addEdge: (fromNodeId: string, toNodeId: string, toPortField: string, controlnetSlug?: string) => void
   removeEdge: (id: string) => void
   updateEdge: (id: string, patch: Partial<Pick<ChainEdge, 'controlnetSlug'>>) => void
@@ -112,6 +122,17 @@ export const useChainGraphStore = create<ChainGraphState>((set, get) => {
     const results   = new Map<string, string | null>(preResults)
     const completed = new Set<string>(preResults ? [...preResults.keys()].filter(id => nodeIds.includes(id)) : [])
     const failed    = new Set<string>()
+
+    // Media source nodes resolve immediately with their stored URL — no render needed
+    for (const id of nodeIds) {
+      if (completed.has(id)) continue
+      const n = get().nodes.find(nd => nd.id === id)
+      if (n?.nodeType === 'media') {
+        results.set(id, n.mediaUrl ?? null)
+        completed.add(id)
+        setNodeStatus(id, 'done', { resultUrl: n.mediaUrl ?? null })
+      }
+    }
 
     async function executeNode(node: ChainNode): Promise<void> {
       setNodeStatus(node.id, 'active')
@@ -271,6 +292,35 @@ export const useChainGraphStore = create<ChainGraphState>((set, get) => {
       return node.id
     },
 
+    addMediaNode: (mediaUrl, mediaType, sourcePrompt, position) => {
+      const { nodes } = get()
+      const pos = position ?? {
+        x: 80 + (nodes.length % 8) * 260,
+        y: 80 + Math.floor(nodes.length / 8) * 220,
+      }
+      const node: ChainNode = {
+        id: makeId(), nodeType: 'media',
+        workflowSlug: '', workflowName: '',
+        prompt: sourcePrompt ?? '',
+        position: pos, status: 'idle',
+        resultUrl: null, error: null,
+        mediaUrl, mediaType,
+      }
+      set(s => ({ nodes: [...s.nodes, node] }))
+      return node.id
+    },
+
+    addAnnotationNode: (position) => {
+      const node: ChainNode = {
+        id: makeId(), nodeType: 'annotation',
+        workflowSlug: '', workflowName: '', prompt: '',
+        position, status: 'idle', resultUrl: null, error: null,
+        annotationText: '', annotationColor: 'amber',
+      }
+      set(s => ({ nodes: [...s.nodes, node] }))
+      return node.id
+    },
+
     removeNode: (id) => {
       set(s => ({
         nodes: s.nodes.filter(n => n.id !== id),
@@ -416,20 +466,25 @@ export const useChainGraphStore = create<ChainGraphState>((set, get) => {
       const { nodes, edges } = get()
       if (nodes.length === 0) return
 
-      // Mark untyped nodes as errors, proceed with the rest
+      // Reset runnable nodes; annotation nodes are untouched (they don't render)
       set(s => ({
-        nodes: s.nodes.map(n => !n.workflowSlug
-          ? { ...n, status: 'error' as const, error: 'No workflow selected' }
-          : { ...n, status: 'idle' as const, resultUrl: null, error: null }
-        ),
+        nodes: s.nodes.map(n => {
+          if (n.nodeType === 'annotation') return n
+          if (n.nodeType === 'media') return { ...n, status: 'idle' as const }
+          return !n.workflowSlug
+            ? { ...n, status: 'error' as const, error: 'No workflow selected' }
+            : { ...n, status: 'idle' as const, resultUrl: null, error: null }
+        }),
       }))
-      const typedNodes = get().nodes.filter(n => n.workflowSlug)
-      if (typedNodes.length === 0) return
+      const runnableNodes = get().nodes.filter(n =>
+        n.nodeType !== 'annotation' && (n.workflowSlug || n.nodeType === 'media')
+      )
+      if (runnableNodes.length === 0) return
 
       set({ isRunning: true, runStartTime: Date.now(), isPaused: false })
 
       const { chainOrder } = get()
-      const components = findComponents(typedNodes, edges)
+      const components = findComponents(runnableNodes, edges)
 
       // Sort components by explicit chain order, falling back to canvas X position
       const sorted = [...components].sort((a, b) => {
@@ -459,7 +514,7 @@ export const useChainGraphStore = create<ChainGraphState>((set, get) => {
     retryFailed: async () => {
 
       const { nodes, edges, chainOrder } = get()
-      const failedNodes = nodes.filter(n => n.workflowSlug && n.status === 'error')
+      const failedNodes = nodes.filter(n => n.workflowSlug && n.status === 'error' && !n.nodeType)
       if (failedNodes.length === 0) return
 
       // Seed results from nodes that already completed successfully

@@ -1,0 +1,52 @@
+chunk-TYILIMWK.js?v=5aafeb02:21551 Download the React DevTools for a better development experience: https://reactjs.org/link/react-devtools
+client:797 Refused to load the stylesheet 'https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;1,300&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap' because it violates the following Content Security Policy directive: "style-src 'self' 'unsafe-inline'". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback.
+
+updateStyle @ client:797
+logCollector.ts:94 [ForgeJunction] Log collector initialised.
+VM4 sandbox_bundle:2 Electron Security Warning (Disabled webSecurity) This renderer process has "webSecurity" disabled. This
+  exposes users of this app to severe security risks.
+
+For more information and help, consult
+https://electronjs.org/docs/tutorial/security.
+This warning will not show up
+once the app is packaged.
+(anonymous) @ VM4 sandbox_bundle:2
+VM4 sandbox_bundle:2 Electron Security Warning (allowRunningInsecureContent) This renderer process has "allowRunningInsecureContent"
+  enabled. This exposes users of this app to severe security risks.
+
+  
+For more information and help, consult
+https://electronjs.org/docs/tutorial/security.
+This warning will not show up
+once the app is packaged.
+(anonymous) @ VM4 sandbox_bundle:2
+localhost/:1 Refused to load the stylesheet 'https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;1,300&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap' because it violates the following Content Security Policy directive: "style-src 'self' 'unsafe-inline'". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback.
+
+logCollector.ts:94 SOURCE MEDIA clearIncompatibleSlots: kept Array(0)
+localhost/:1 Refused to load the image 'http://docs.graydient.ai/wp-content/uploads/sites/7/2024/02/hassaku13.jpg' because it violates the following Content Security Policy directive: "img-src 'self' https: data: blob:".
+
+logCollector.ts:94 SOURCE MEDIA clearIncompatibleSlots: kept Array(0)
+logCollector.ts:94 [RQ] START id=1773672326122-7ucs95z0j4q prompt="/size:1024x1024 /seed:181372 /workflow cat woman"
+logCollector.ts:94 RENDER REQUEST BODY: {
+  "prompt": "/size:1024x1024 /seed:181372 /workflow cat woman",
+  "task": "workflow",
+  "progressive_return": true,
+  "options_text": "",
+  "options": "",
+  "placeholders": {},
+  "stream": true,
+  "client_request_id": "1773672326228-d317vi6csj"
+}
+logCollector.ts:94 RENDER RESPONSE STATUS: 200
+logCollector.ts:94 [RQ] START id=1773672696548-ayo7ohxb0u prompt=""
+logCollector.ts:94 RENDER REQUEST BODY: {
+  "prompt": "/run:animate-idleloop ",
+  "task": "workflow",
+  "progressive_return": true,
+  "options_text": "",
+  "options": "",
+  "placeholders": {},
+  "stream": true,
+  "client_request_id": "1773672696568-m1ihiy29h38"
+}
+logCollector.ts:94 RENDER RESPONSE STATUS: 200

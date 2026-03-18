@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react'
 import { useRenderQueueStore, type QueuedRender } from '@/stores/renderQueue'
 import { useSourceMediaStore } from '@/stores/sourceMedia'
 import { useVideoEditorStore } from '@/stores/videoEditor'
+import { usePromptStore } from '@/stores/prompt'
+import { useChainGraphStore } from '@/stores/chainGraph'
 
 // ── Video tile — scrubs on mousemove via canvas snapshot ──────────────────────
 
@@ -78,21 +80,28 @@ function MediaTile({
   batchSelected,
   batchIndex,
   compact,
+  promptGrabbed,
   onClick,
   onAddToEditor,
+  onGrabPrompt,
+  onSendToNodegraph,
 }: {
   render: QueuedRender
   sourceSelected: boolean
   batchSelected: boolean
   batchIndex: number
-  compact: boolean        // true when many columns — hide label text
+  compact: boolean
+  promptGrabbed: boolean
   onClick: (e: React.MouseEvent) => void
   onAddToEditor: () => void
+  onGrabPrompt: () => void
+  onSendToNodegraph: () => void
 }): React.ReactElement {
   const isVideo = render.mediaType?.startsWith('video') ?? false
   const isImage = !isVideo && !(render.mediaType?.startsWith('audio') ?? false)
   const thumb = render.thumbnailUrl ?? render.resultUrl ?? null
   const canAddToEditor = !!render.resultUrl && (isVideo || isImage)
+  const hasPrompt = !!render.prompt
 
   const ringClass = batchSelected
     ? 'ring-2 ring-orange-400 ring-offset-2 ring-offset-neutral-900'
@@ -121,7 +130,7 @@ function MediaTile({
         </div>
       )}
 
-      {/* Hover overlay — workflow slug + Add to Editor button */}
+      {/* Hover overlay */}
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent px-1.5 py-1.5
         translate-y-full group-hover:translate-y-0 transition-transform duration-150">
         {!compact && (
@@ -129,15 +138,34 @@ function MediaTile({
             {render.workflowSlug}
           </p>
         )}
-        {canAddToEditor && (
-          <button
-            onClick={(e) => { e.stopPropagation(); onAddToEditor() }}
-            className="w-full text-center text-[10px] leading-none py-1 rounded bg-brand/80 hover:bg-brand text-white transition-colors font-medium"
-            title="Add to Video Editor timeline"
-          >
-            ✂ Add to Editor
-          </button>
-        )}
+        <div className="flex gap-0.5">
+          {canAddToEditor && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onAddToEditor() }}
+              className="flex-1 text-center text-[10px] leading-none py-1 rounded bg-brand/80 hover:bg-brand text-white transition-colors font-medium"
+              title="Add to Video Editor timeline"
+            >
+              ✂ Editor
+            </button>
+          )}
+          {(hasPrompt || canAddToEditor) && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                if (promptGrabbed) onSendToNodegraph()
+                else onGrabPrompt()
+              }}
+              className={`flex-1 text-center text-[10px] leading-none py-1 rounded transition-colors font-medium ${
+                promptGrabbed
+                  ? 'bg-emerald-600/80 hover:bg-emerald-600 text-white'
+                  : 'bg-white/15 hover:bg-white/25 text-white/80'
+              }`}
+              title={promptGrabbed ? 'Send media to node graph' : 'Load prompt into editor'}
+            >
+              {promptGrabbed ? '⧉ To Graph' : '⌕ Prompt'}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Batch selection badge (top-left) */}
@@ -189,6 +217,61 @@ export default function MediaLibraryGrid({ cols, search }: { cols: number; searc
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [batchIds, setBatchIds] = useState<string[]>([])
   const lastClickedIdxRef = useRef<number | null>(null)
+  // Which tile's prompt has been grabbed (shows "To Graph" button)
+  const [grabbedId, setGrabbedId] = useState<string | null>(null)
+
+  // ── Rubber-band overscroll ─────────────────────────────────────────────────
+  const gridScrollRef = useRef<HTMLDivElement>(null)
+  const overscrollRef = useRef(0)
+  const [overscroll, setOverscroll] = useState(0)
+  const springRafRef = useRef<number | null>(null)
+  const springTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    const el = gridScrollRef.current
+    if (!el) return
+
+    function startSpring() {
+      const from = overscrollRef.current
+      const start = performance.now()
+      const dur = 420
+      function frame(now: number) {
+        const t = Math.min(1, (now - start) / dur)
+        const eased = 1 - Math.pow(1 - t, 3) // cubic ease-out
+        overscrollRef.current = from * (1 - eased)
+        setOverscroll(overscrollRef.current)
+        if (t < 1) {
+          springRafRef.current = requestAnimationFrame(frame)
+        } else {
+          overscrollRef.current = 0
+          setOverscroll(0)
+          springRafRef.current = null
+        }
+      }
+      springRafRef.current = requestAnimationFrame(frame)
+    }
+
+    function onWheel(e: WheelEvent) {
+      const atTop = el.scrollTop <= 0
+      const atBottom = el.scrollTop >= el.scrollHeight - el.clientHeight - 1
+      if ((atTop && e.deltaY < 0) || (atBottom && e.deltaY > 0)) {
+        e.preventDefault()
+        if (springRafRef.current !== null) { cancelAnimationFrame(springRafRef.current); springRafRef.current = null }
+        if (springTimerRef.current !== null) clearTimeout(springTimerRef.current)
+        const sign = e.deltaY < 0 ? 1 : -1
+        overscrollRef.current = Math.max(-52, Math.min(52, overscrollRef.current + sign * Math.min(32, Math.abs(e.deltaY) * 0.28)))
+        setOverscroll(overscrollRef.current)
+        springTimerRef.current = setTimeout(startSpring, 90)
+      }
+    }
+
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => {
+      el.removeEventListener('wheel', onWheel)
+      if (springRafRef.current !== null) cancelAnimationFrame(springRafRef.current)
+      if (springTimerRef.current !== null) clearTimeout(springTimerRef.current)
+    }
+  }, [])
 
   const completed = [...queue]
     .filter((r) => r.status === 'done' && (r.resultUrl || r.thumbnailUrl))
@@ -257,6 +340,22 @@ export default function MediaLibraryGrid({ cols, search }: { cols: number; searc
     addClip(render.resultUrl, render.prompt ?? '', render.workflowSlug, mt)
   }
 
+  function grabPrompt(render: QueuedRender) {
+    if (!render.prompt) return
+    usePromptStore.getState().setRawPrompt(render.prompt)
+    setGrabbedId(render.id)
+  }
+
+  function sendToNodegraph(render: QueuedRender) {
+    if (!render.resultUrl) return
+    useChainGraphStore.getState().addMediaNode(
+      render.resultUrl,
+      render.mediaType ?? 'image',
+      render.prompt ?? '',
+    )
+    setGrabbedId(null)
+  }
+
   function sendBatchToEditor() {
     const clips = batchIds
       .map(id => completed.find(r => r.id === id))
@@ -313,13 +412,16 @@ export default function MediaLibraryGrid({ cols, search }: { cols: number; searc
       )}
 
       {/* ── Grid ── */}
-      <div className="flex-1 overflow-y-auto p-2">
+      <div ref={gridScrollRef} className="flex-1 overflow-y-auto p-2">
         {filtered.length === 0 && searchTerm && (
           <p className="text-[11px] text-white/25 text-center py-6">
             No renders match "{search}"
           </p>
         )}
-        <div className={`grid ${gridClass} gap-1.5`}>
+        <div
+          className={`grid ${gridClass} gap-1.5`}
+          style={{ transform: overscroll !== 0 ? `translateY(${overscroll}px)` : undefined }}
+        >
           {filtered.map((render, idx) => {
             const batchIdx = batchIds.indexOf(render.id)
             return (
@@ -330,8 +432,11 @@ export default function MediaLibraryGrid({ cols, search }: { cols: number; searc
                 batchSelected={batchIdx !== -1}
                 batchIndex={batchIdx + 1}
                 compact={cols >= 4}
+                promptGrabbed={grabbedId === render.id}
                 onClick={(e) => handleTileClick(render, idx, e)}
                 onAddToEditor={() => addSingleToEditor(render)}
+                onGrabPrompt={() => grabPrompt(render)}
+                onSendToNodegraph={() => sendToNodegraph(render)}
               />
             )
           })}

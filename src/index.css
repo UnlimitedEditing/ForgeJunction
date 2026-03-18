@@ -14,6 +14,229 @@
   --sage-glow:   rgba(106, 255, 200, 0.06);
 }
 
+/* ── CANVAS WORKSPACE BACKGROUND ────────────────────────────────────────────── */
+
+@keyframes fj-ember-pulse {
+  0%, 100% { opacity: 1;   transform: scale(1);    }
+  50%       { opacity: 0.6; transform: scale(1.08); }
+}
+@keyframes fj-arc-pulse {
+  0%, 100% { opacity: 0.7; transform: scale(1);    }
+  50%       { opacity: 1;   transform: scale(1.05); }
+}
+
+.canvas-blob-ember {
+  position: absolute;
+  bottom: -100px; left: -8%;
+  width: 55%; height: 480px;
+  background: radial-gradient(ellipse at center, rgba(255,107,43,0.10) 0%, transparent 70%);
+  animation: fj-ember-pulse 6s ease-in-out infinite;
+}
+.canvas-blob-arc {
+  position: absolute;
+  top: 5%; right: -5%;
+  width: 45%; height: 550px;
+  background: radial-gradient(ellipse at center, rgba(74,227,255,0.065) 0%, transparent 65%);
+  animation: fj-arc-pulse 8s ease-in-out infinite;
+}
+.canvas-blob-sage {
+  position: absolute;
+  bottom: 18%; right: 12%;
+  width: 28%; height: 280px;
+  background: radial-gradient(ellipse at center, rgba(106,255,200,0.038) 0%, transparent 65%);
+  animation: fj-arc-pulse 10s ease-in-out 2s infinite;
+}
+
+/* ── CANVAS NODE SPAWN / DESPAWN ─────────────────────────────────────────────── */
+
+@keyframes crt-power-on {
+  /* ── Bright point ── */
+  0%   { transform: scaleY(0)     scaleX(0);     opacity: 0;    filter: brightness(20) contrast(0) saturate(0); }
+  4%   { transform: scaleY(0.008) scaleX(0.02);  opacity: 1;    filter: brightness(20) contrast(0) saturate(0); }
+  /* ── Scanline forms horizontally ── */
+  14%  { transform: scaleY(0.018) scaleX(1.15);                 filter: brightness(14) contrast(0) saturate(0); }
+  /* ── Scanline expands vertically ── */
+  22%  { transform: scaleY(0.06)  scaleX(1.10);                 filter: brightness(9)  contrast(0) saturate(0); }
+  32%  { transform: scaleY(0.30)  scaleX(1.04);                 filter: brightness(6)  contrast(0) saturate(0); }
+  /* ── Full height, still white ── */
+  40%  { transform: scaleY(1.02)  scaleX(1.02);  opacity: 1;    filter: brightness(4)  contrast(0) saturate(0); }
+  /* ── Colour channels snap on — CA burst ── */
+  46%  { transform: scale(1);
+         filter: brightness(1.8) contrast(1.6) saturate(2.5)
+                 drop-shadow( 5px 0 0 rgba(255,0,50,0.9))
+                 drop-shadow(-4px 0 0 rgba(0,200,255,0.9)); }
+  52%  { transform: translateX(4px) skewX(1.5deg);
+         filter: brightness(1.4) contrast(2)
+                 drop-shadow(-5px 0 0 rgba(255,0,50,0.6))
+                 drop-shadow( 3px 0 0 rgba(0,200,255,0.6)); }
+  58%  { transform: translateX(-2px);
+         filter: brightness(1.1) contrast(1.3)
+                 drop-shadow( 2px 0 0 rgba(255,0,50,0.25))
+                 drop-shadow(-1px 0 0 rgba(0,200,255,0.25)); }
+  /* ── Rubberband settle ── */
+  66%  { transform: scale(1.06); filter: none; }
+  78%  { transform: scale(0.97); filter: none; }
+  90%  { transform: scale(1.02); filter: none; }
+  100% { transform: scale(1);    opacity: 1;    filter: none; }
+}
+@keyframes vhs-glitch-out {
+  /* ── Glitch burst 1 ── */
+  0%   { transform: scale(1);                            opacity: 1; filter: none; }
+  5%   { transform: translateX(-6px) skewX(-2deg) scaleX(1.01);
+         filter: brightness(1.8) contrast(1.6) saturate(2.5)
+                 drop-shadow( 5px 0 0 rgba(255,0,50,0.95))
+                 drop-shadow(-4px 0 0 rgba(0,200,255,0.95)); }
+  8%   { transform: translateX(7px) skewX(1.5deg);
+         filter: brightness(1.3) contrast(2.2)
+                 drop-shadow(-7px 0 0 rgba(255,0,50,0.8))
+                 drop-shadow( 5px 0 0 rgba(0,200,255,0.8)); }
+  /* ── White flash ── */
+  12%  { transform: translateX(0) scale(1.01);
+         filter: brightness(10) contrast(0.3) saturate(0); }
+  /* ── Glitch burst 2 ── */
+  16%  { transform: translateX(9px) skewX(3deg) scaleX(1.03);
+         filter: brightness(1.6) contrast(2.5)
+                 drop-shadow( 9px 0 0 rgba(255,0,50,1))
+                 drop-shadow(-6px 0 0 rgba(0,200,255,1)); }
+  19%  { transform: translateX(-5px) skewX(-1deg);
+         filter: brightness(2.2) contrast(2) hue-rotate(-35deg) saturate(4); }
+  22%  { transform: translateX(0) scale(1); filter: brightness(1) contrast(1); }
+  /* ── White bloom ── */
+  27%  { transform: scale(1.02); opacity: 1; filter: brightness(22) contrast(0) saturate(0); }
+  /* ── CRT vertical collapse ── */
+  33%  { transform: scaleY(0.30) scaleX(1.04); opacity: 1; filter: brightness(6)  contrast(0) saturate(0); }
+  42%  { transform: scaleY(0.06) scaleX(1.10); opacity: 1; filter: brightness(9)  contrast(0) saturate(0); }
+  50%  { transform: scaleY(0.022) scaleX(1.15); opacity: 1; filter: brightness(12) contrast(0) saturate(0); }
+  /* ── Scanline shrinks to a point ── */
+  62%  { transform: scaleY(0.018) scaleX(0.55); opacity: 1;    filter: brightness(14) contrast(0) saturate(0); }
+  74%  { transform: scaleY(0.012) scaleX(0.12); opacity: 0.85; filter: brightness(16) contrast(0) saturate(0); }
+  84%  { transform: scaleY(0.008) scaleX(0.025); opacity: 0.5; filter: brightness(20) contrast(0) saturate(0); }
+  100% { transform: scaleY(0) scaleX(0);        opacity: 0;    filter: brightness(0); }
+}
+.animate-canvas-node-in {
+  animation: crt-power-on 580ms ease-out both;
+}
+.animate-canvas-node-out {
+  animation: vhs-glitch-out 680ms ease-out both;
+  pointer-events: none !important;
+}
+
+/* ── RADIAL MENU TWIRL ───────────────────────────────────────────────────────── */
+
+@keyframes radial-menu-in {
+  /* 0–74%: twirl in (rescaled from original 0–100%) */
+  0%   { transform: scale(0.22) rotate(-130deg); opacity: 0;   filter: none; }
+  43%  { transform: scale(1.08) rotate(7deg);    opacity: 1;   filter: none; }
+  56%  { transform: scale(0.96) rotate(-3deg);                 filter: none; }
+  67%  { transform: scale(1.02) rotate(1deg);                  filter: none; }
+  74%  { transform: scale(1)    rotate(0deg);    opacity: 1;   filter: none; }
+  /* 74–84%: CA burst ignites */
+  80%  { transform: scale(1)    rotate(0deg);
+         filter: brightness(1.6) contrast(1.8) saturate(2)
+                 drop-shadow( 6px 0 0 rgba(255,0,50,0.95))
+                 drop-shadow(-5px 0 0 rgba(0,210,255,0.95)); }
+  /* 84–92%: CA shifts and shakes */
+  87%  { transform: translateX(-3px) skewX(-1deg) scale(1);
+         filter: brightness(1.3) contrast(1.5)
+                 drop-shadow(-4px 0 0 rgba(255,0,50,0.65))
+                 drop-shadow( 3px 0 0 rgba(0,210,255,0.65)); }
+  /* 92–100%: CA fades out, settles */
+  94%  { transform: translateX(1px) scale(1.01);
+         filter: brightness(1.1) contrast(1.2)
+                 drop-shadow( 2px 0 0 rgba(255,0,50,0.25))
+                 drop-shadow(-1px 0 0 rgba(0,210,255,0.25)); }
+  100% { transform: scale(1)    rotate(0deg);    opacity: 1;   filter: none; }
+}
+@keyframes radial-menu-out {
+  /* 0–20%: CA flash before spinning away */
+  0%   { transform: scale(1)    rotate(0deg);  opacity: 1;
+         filter: brightness(1.5) contrast(1.6) saturate(1.8)
+                 drop-shadow( 5px 0 0 rgba(255,0,50,0.9))
+                 drop-shadow(-4px 0 0 rgba(0,210,255,0.9)); }
+  12%  { transform: translateX(-2px) skewX(-1deg) scale(1);  opacity: 1;
+         filter: brightness(1.2) contrast(1.3)
+                 drop-shadow(-3px 0 0 rgba(255,0,50,0.55))
+                 drop-shadow( 2px 0 0 rgba(0,210,255,0.55)); }
+  20%  { transform: scale(1)    rotate(0deg);  opacity: 1;   filter: none; }
+  /* 20–100%: twirl out */
+  100% { transform: scale(0.18) rotate(85deg); opacity: 0;   filter: none; }
+}
+.animate-radial-in {
+  animation: radial-menu-in 580ms cubic-bezier(0.34, 1.35, 0.64, 1) both;
+  transform-origin: 0 0;
+}
+.animate-radial-out {
+  animation: radial-menu-out 300ms ease-in both;
+  transform-origin: 0 0;
+}
+.animate-radial-mist-out {
+  animation: vhs-glitch-out 680ms ease-out both;
+  transform-origin: 0 0;
+  pointer-events: none !important;
+}
+
+/* ── PORT & EDGE ANIMATIONS ─────────────────────────────────────────────────── */
+
+/* Port glitch-in: RGB split collapses and aligns as the port forms, sheen flash at the end */
+@keyframes port-glitch-in {
+  0%   { scale: 0;    opacity: 0;
+         filter: drop-shadow( 6px 0 0 rgba(255,0,80,1.0))
+                 drop-shadow(-5px 0 0 rgba(0,210,255,1.0))
+                 brightness(4); }
+  16%  { scale: 1.3;  opacity: 1;
+         filter: drop-shadow( 4px 0 0 rgba(255,0,80,0.85))
+                 drop-shadow(-3px 0 0 rgba(0,210,255,0.85))
+                 brightness(2.2); }
+  36%  { scale: 0.85;
+         filter: drop-shadow( 2px 0 0 rgba(255,0,80,0.45))
+                 drop-shadow(-1px 0 0 rgba(0,210,255,0.45))
+                 brightness(1.4); }
+  54%  { scale: 1.08;
+         filter: brightness(2.6) saturate(2); }
+  72%  { scale: 0.96; filter: brightness(1.2); }
+  88%  { scale: 1.02; filter: none; }
+  100% { scale: 1;    opacity: 1;  filter: none; }
+}
+
+/* Port glitch-out: brief CA burst then splits apart and vanishes */
+@keyframes port-glitch-out {
+  0%   { scale: 1;    opacity: 1; filter: none; }
+  18%  { scale: 1.18;
+         filter: drop-shadow( 5px 0 0 rgba(255,0,80,0.95))
+                 drop-shadow(-4px 0 0 rgba(0,210,255,0.95))
+                 brightness(2.4); }
+  45%  { scale: 0.65; opacity: 0.7;
+         filter: drop-shadow( 9px 0 0 rgba(255,0,80,0.55))
+                 drop-shadow(-7px 0 0 rgba(0,210,255,0.55)); }
+  100% { scale: 0;    opacity: 0;
+         filter: drop-shadow(14px 0 0 rgba(255,0,80,0))
+                 drop-shadow(-12px 0 0 rgba(0,210,255,0)); }
+}
+
+.animate-port-in {
+  animation: port-glitch-in 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.animate-port-out {
+  animation: port-glitch-out 260ms ease-in both;
+  pointer-events: none !important;
+}
+
+/* Edge draw-on — SVG stroke-dashoffset reveal (requires pathLength="1" on path) */
+@keyframes edge-draw {
+  from { stroke-dashoffset: 1; opacity: 0; }
+  10%  {                        opacity: 1; }
+  to   { stroke-dashoffset: 0; opacity: 1; }
+}
+.animate-edge-in {
+  animation: edge-draw 420ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+/* Pipe edge flow — continuous dashes flowing from source to dest */
+@keyframes pipe-flow {
+  from { stroke-dashoffset: 0.18; }
+  to   { stroke-dashoffset: 0; }
+}
+
 /* ── CHAIN NODE ANIMATIONS ──────────────────────────────────────────────────── */
 
 @keyframes chain-node-in {

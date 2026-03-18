@@ -14,6 +14,7 @@ import ChainTemplatePane from '@/components/ChainTemplatePane'
 import VideoEditor from '@/components/VideoEditor'
 import StorageManager from '@/components/StorageManager'
 import ProjectManager from '@/components/ProjectManager'
+import InfiniteCanvas from '@/components/canvas/InfiniteCanvas'
 import { useProjectsStore } from '@/stores/projects'
 import SagePane from '@/components/SagePane'
 import { useDebugProtocolStore } from '@/stores/debugProtocol'
@@ -44,6 +45,7 @@ function MainLayout(): React.ReactElement {
   const [showVideoEditor, setShowVideoEditor] = useState(false)
   const [showStorage, setShowStorage] = useState(false)
   const [showProjects, setShowProjects] = useState(false)
+  const [showCanvas, setShowCanvas] = useState(false)
   const [chainPaneView, setChainPaneView] = useState<'workflows' | 'chain'>('workflows')
   const { activeProjectId, getActiveProject, setActiveProject } = useProjectsStore()
   const activeProject = getActiveProject()
@@ -56,11 +58,11 @@ function MainLayout(): React.ReactElement {
   // Track whether a change originated from the node selection to avoid loops
   const syncingFromNodeRef = useRef(false)
 
-  // Node selected → push prompt + workflow into editor
+  // Node selected → push prompt + workflow into editor (workflow nodes only)
   useEffect(() => {
     if (!selectedNodeId) return
     const node = nodes.find(n => n.id === selectedNodeId)
-    if (!node) return
+    if (!node || node.nodeType === 'media' || node.nodeType === 'annotation') return
     syncingFromNodeRef.current = true
     setDescriptiveText(node.prompt)
     selectWorkflow(node.workflowSlug)
@@ -68,15 +70,19 @@ function MainLayout(): React.ReactElement {
     Promise.resolve().then(() => { syncingFromNodeRef.current = false })
   }, [selectedNodeId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Editor prompt changed → push back into selected node
+  // Editor prompt changed → push back into selected workflow node
   useEffect(() => {
     if (syncingFromNodeRef.current || !selectedNodeId) return
+    const node = nodes.find(n => n.id === selectedNodeId)
+    if (!node || node.nodeType === 'media' || node.nodeType === 'annotation') return
     updateChainNode(selectedNodeId, { prompt: descriptiveText ?? '' })
   }, [descriptiveText]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Editor workflow changed → push back into selected node
+  // Editor workflow changed → push back into selected workflow node
   useEffect(() => {
     if (syncingFromNodeRef.current || !selectedNodeId || !selectedWorkflow) return
+    const node = nodes.find(n => n.id === selectedNodeId)
+    if (!node || node.nodeType === 'media' || node.nodeType === 'annotation') return
     updateChainNode(selectedNodeId, { workflowSlug: selectedWorkflow.slug, workflowName: selectedWorkflow.name })
   }, [selectedWorkflow?.slug]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -157,6 +163,12 @@ function MainLayout(): React.ReactElement {
               className={`w-6 h-6 flex items-center justify-center rounded text-sm transition-colors ${showSettings ? 'text-white/80 bg-white/8' : 'text-white/35 hover:text-white hover:bg-white/8'}`}
               title="Settings"
             >⚙</button>
+            <div className="w-px h-3.5 bg-white/10 mx-0.5" />
+            <button
+              onClick={() => setShowCanvas(v => !v)}
+              className={`w-6 h-6 flex items-center justify-center rounded text-sm transition-colors ${showCanvas ? 'text-brand bg-brand/10' : 'text-white/35 hover:text-white hover:bg-white/8'}`}
+              title="Canvas Workspace"
+            >⬡</button>
           </div>
 
           {/* Center section — resize + search (media library) or view label */}
@@ -231,7 +243,14 @@ function MainLayout(): React.ReactElement {
         </div>
       )}
 
-      <div className="flex flex-1 min-h-0 pb-7">
+      {/* Canvas workspace */}
+      {showCanvas && (
+        <div className="flex-1 min-h-0">
+          <InfiniteCanvas onOpenSettings={() => setShowSettings(true)} />
+        </div>
+      )}
+
+      <div className={`flex flex-1 min-h-0 pb-7 ${showCanvas ? 'hidden' : ''}`}>
         {/* Left — workflow selector (hidden when video editor is open) */}
         {!showVideoEditor && (
           <aside className="flex w-[220px] flex-shrink-0 flex-col border-r border-white/10 bg-panel">

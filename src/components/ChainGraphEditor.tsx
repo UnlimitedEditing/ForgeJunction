@@ -7,11 +7,19 @@ import HighlightedPromptInput from '@/components/HighlightedPromptInput'
 
 const NODE_W = 230
 const NODE_H = 114   // header (40) + prompt (74)
+const MEDIA_NODE_H = 190  // header (36) + thumbnail (154)
+const ANNOT_NODE_H = 140  // header (30) + textarea (~110)
 const PORT_R = 7
 const OUTPUT_HOVER_R   = 20  // px — extended output-port hit radius & glow trigger
 const INPUT_MAGNET_R_1 = 36  // px — snap radius, single-port nodes
 const INPUT_MAGNET_R_N = 22  // px — reduced snap radius, multi-port (avoid zone overlap)
 const NODE_BUFFER      = 28  // px — minimum gap between node bounding boxes
+
+function nodeH(node: ChainNode): number {
+  if (node.nodeType === 'media') return MEDIA_NODE_H
+  if (node.nodeType === 'annotation') return ANNOT_NODE_H
+  return NODE_H
+}
 
 // ── Compatibility helpers ─────────────────────────────────────────────────────
 
@@ -30,7 +38,7 @@ function inputPortPos(node: ChainNode, portIdx: number, portCount: number) {
   return { x: node.position.x, y: node.position.y + inputPortY(portIdx, portCount) }
 }
 function outputPortPos(node: ChainNode) {
-  return { x: node.position.x + NODE_W, y: node.position.y + NODE_H / 2 }
+  return { x: node.position.x + NODE_W, y: node.position.y + nodeH(node) / 2 }
 }
 function bezierPath(from: { x: number; y: number }, to: { x: number; y: number }) {
   const cp = Math.max(80, Math.abs(to.x - from.x) * 0.5)
@@ -55,7 +63,7 @@ function statusLabel(node: ChainNode) {
 export default function ChainGraphEditor({ onClose }: { onClose: () => void }): React.ReactElement {
   const {
     nodes, edges,
-    addNode, removeNode, updateNode,
+    addNode, addMediaNode, addAnnotationNode, removeNode, updateNode,
     addEdge, removeEdge, updateEdge,
     setSelectedNode, toggleSelectNode, selectAllNodes, clearSelection,
     duplicateSelected, reorderChain,
@@ -189,6 +197,7 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
     const pos = toCanvas(e.clientX, e.clientY)
     let near: string | null = null
     for (const node of nodes) {
+      if (node.nodeType === 'annotation') continue
       if (Math.hypot(pos.x - outputPortPos(node).x, pos.y - outputPortPos(node).y) < OUTPUT_HOVER_R) {
         near = node.id
         break
@@ -204,6 +213,7 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
       // Extended output port hit radius — catch clicks that miss the port element
       const pos = toCanvas(e.clientX, e.clientY)
       for (const node of nodes) {
+        if (node.nodeType === 'annotation') continue
         if (Math.hypot(pos.x - outputPortPos(node).x, pos.y - outputPortPos(node).y) < OUTPUT_HOVER_R) {
           handleOutputPortMouseDown(e, node.id)
           return
@@ -255,17 +265,27 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
     if (fromNodeId === toNodeId) return
     const fromNode = nodes.find(n => n.id === fromNodeId)
     const toNode   = nodes.find(n => n.id === toNodeId)
-    if (fromNode?.workflowSlug && toNode?.workflowSlug) {
+    // Annotation nodes have no ports — never connect to/from them
+    if (fromNode?.nodeType === 'annotation' || toNode?.nodeType === 'annotation') return
+    // Media nodes are sources only — nothing connects INTO them
+    if (toNode?.nodeType === 'media') return
+
+    // Compatibility check
+    let outType: MediaType | null = null
+    if (fromNode?.nodeType === 'media' && fromNode.mediaType) {
+      outType = fromNode.mediaType.startsWith('video') ? 'video'
+        : fromNode.mediaType.startsWith('audio') ? 'audio' : 'image'
+    } else if (fromNode?.workflowSlug) {
       const fromWf = workflows.find(w => w.slug === fromNode.workflowSlug)
-      if (fromWf) {
-        const outType = workflowOutputType(fromWf)
-        const ports = getInputPorts(toNode.workflowSlug)
-        const port = ports.find(p => p.field === toPortField)
-        if (outType && port && port.mediaType !== 'any' && port.mediaType !== outType) {
-          setIncompatiblePortId(`${toNodeId}:${toPortField}`)
-          setTimeout(() => setIncompatiblePortId(null), 600)
-          return
-        }
+      if (fromWf) outType = workflowOutputType(fromWf)
+    }
+    if (outType && toNode?.workflowSlug) {
+      const ports = getInputPorts(toNode.workflowSlug)
+      const port = ports.find(p => p.field === toPortField)
+      if (port && port.mediaType !== 'any' && port.mediaType !== outType) {
+        setIncompatiblePortId(`${toNodeId}:${toPortField}`)
+        setTimeout(() => setIncompatiblePortId(null), 600)
+        return
       }
     }
     addEdge(fromNodeId, toNodeId, toPortField)
@@ -285,7 +305,7 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
         const dx = pos.x - other.position.x
         const dy = pos.y - other.position.y
         const overlapX = (NODE_W + NODE_BUFFER) - Math.abs(dx)
-        const overlapY = (NODE_H + NODE_BUFFER) - Math.abs(dy)
+        const overlapY = (nodeH(other) + NODE_BUFFER) - Math.abs(dy)
         if (overlapX > 0 && overlapY > 0) {
           if (overlapX < overlapY) {
             pos.x += dx >= 0 ? overlapX : -overlapX
@@ -389,7 +409,16 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
       x: cx - NODE_W / 2 + nodes.length * 24,
       y: cy - NODE_H / 2 + nodes.length * 16,
     })
-    // Small delay so the store has the new node before resolving overlaps
+    setTimeout(() => pushAwayFromOverlaps(nodeId), 0)
+  }
+
+  function addNewAnnotation() {
+    const cx = (canvasRef.current!.clientWidth / 2 - panRef.current.x) / zoomRef.current
+    const cy = (canvasRef.current!.clientHeight / 2 - panRef.current.y) / zoomRef.current
+    const nodeId = addAnnotationNode({
+      x: cx - NODE_W / 2 + nodes.length * 20,
+      y: cy - ANNOT_NODE_H / 2 + nodes.length * 12,
+    })
     setTimeout(() => pushAwayFromOverlaps(nodeId), 0)
   }
 
@@ -482,6 +511,13 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
             Clear
           </button>
         )}
+        <button
+          onClick={addNewAnnotation}
+          disabled={isRunning}
+          className="rounded bg-white/8 px-2.5 py-1 text-xs text-white/60 hover:bg-white/12 hover:text-white transition-colors disabled:opacity-40"
+        >
+          📝 Note
+        </button>
         <button
           onClick={addNewNode}
           disabled={isRunning}
@@ -741,6 +777,126 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
             const isNew = !mountedNodeIds.current.has(node.id)
             if (isNew && !isDying) mountedNodeIds.current.add(node.id)
             const animClass = isDying ? 'animate-node-out' : isNew ? 'animate-node-in' : ''
+
+            // ── Annotation node ───────────────────────────────────────────────
+            if (node.nodeType === 'annotation') {
+              return (
+                <div
+                  key={node.id}
+                  data-node={node.id}
+                  className={`absolute rounded-xl border shadow-xl ${animClass} ${
+                    isSelected ? 'border-yellow-400/60 ring-1 ring-yellow-400/20' : 'border-yellow-500/25 hover:border-yellow-500/50'
+                  }`}
+                  style={{
+                    left: node.position.x, top: node.position.y, width: NODE_W,
+                    background: 'rgba(45,38,0,0.88)', backdropFilter: 'blur(4px)',
+                  }}
+                >
+                  <div
+                    className="flex items-center px-3 border-b border-yellow-500/20 cursor-grab active:cursor-grabbing rounded-t-xl"
+                    style={{ height: 30 }}
+                    onMouseDown={(e) => handleNodeMouseDown(e, node.id)}
+                  >
+                    <span className="text-[10px] text-yellow-400/60 font-semibold flex-1 select-none">📝 Note</span>
+                    <button
+                      className="text-white/20 hover:text-red-400 transition-colors text-xs"
+                      onMouseDown={e => e.stopPropagation()}
+                      onClick={e => { e.stopPropagation(); handleDeleteNode(node.id) }}
+                    >✕</button>
+                  </div>
+                  <textarea
+                    value={node.annotationText ?? ''}
+                    onChange={e => updateNode(node.id, { annotationText: e.target.value })}
+                    placeholder="Add a note or workflow guide…"
+                    rows={4}
+                    className="w-full bg-transparent text-xs text-yellow-100/70 resize-none px-3 py-2 outline-none placeholder-yellow-600/40 rounded-b-xl"
+                    onMouseDown={e => e.stopPropagation()}
+                    onClick={e => { e.stopPropagation(); setSelectedNode(node.id) }}
+                  />
+                </div>
+              )
+            }
+
+            // ── Media source node ─────────────────────────────────────────────
+            if (node.nodeType === 'media') {
+              const isVideo = node.mediaType?.startsWith('video') ?? false
+              return (
+                <div
+                  key={node.id}
+                  data-node={node.id}
+                  className={`absolute rounded-xl border shadow-2xl overflow-hidden ${animClass} ${
+                    isSelected ? 'border-brand/60 ring-1 ring-brand/25' : 'border-white/10 hover:border-white/20'
+                  } bg-neutral-900`}
+                  style={{ left: node.position.x, top: node.position.y, width: NODE_W, height: MEDIA_NODE_H }}
+                >
+                  {/* Output port */}
+                  <div
+                    title="Output — drag to connect"
+                    className="absolute flex items-center justify-center"
+                    style={{
+                      right: -(PORT_R + OUTPUT_HOVER_R),
+                      top: MEDIA_NODE_H / 2 - PORT_R - OUTPUT_HOVER_R,
+                      width: (PORT_R + OUTPUT_HOVER_R) * 2,
+                      height: (PORT_R + OUTPUT_HOVER_R) * 2,
+                      cursor: 'crosshair', zIndex: 10,
+                    }}
+                    onMouseDown={(e) => handleOutputPortMouseDown(e, node.id)}
+                  >
+                    <div
+                      data-port="out"
+                      className={`rounded-full border-2 transition-all duration-150 ${
+                        nearOutputNodeId === node.id ? 'border-brand bg-brand' : 'border-brand/60 bg-brand/25'
+                      }`}
+                      style={{
+                        width: PORT_R * 2, height: PORT_R * 2,
+                        transform: nearOutputNodeId === node.id ? 'scale(1.35)' : undefined,
+                        boxShadow: nearOutputNodeId === node.id ? '0 0 10px 4px rgba(108,71,255,0.55)' : undefined,
+                      }}
+                    />
+                  </div>
+
+                  {/* Header */}
+                  <div
+                    className="flex items-center justify-between px-3 border-b border-white/8 cursor-grab active:cursor-grabbing bg-neutral-900"
+                    style={{ height: 36, flexShrink: 0 }}
+                    onMouseDown={(e) => handleNodeMouseDown(e, node.id)}
+                  >
+                    <span className="text-xs text-white/50 font-medium truncate flex-1 select-none">
+                      {isVideo ? '▶' : '🖼'} Media Source
+                    </span>
+                    <button
+                      className="text-white/20 hover:text-red-400 transition-colors ml-2 flex-shrink-0 text-xs"
+                      onMouseDown={e => e.stopPropagation()}
+                      onClick={e => { e.stopPropagation(); handleDeleteNode(node.id) }}
+                    >✕</button>
+                  </div>
+
+                  {/* Thumbnail */}
+                  <div
+                    className="absolute inset-x-0 bottom-0 cursor-grab"
+                    style={{ top: 36 }}
+                    onMouseDown={(e) => handleNodeMouseDown(e, node.id)}
+                  >
+                    {isVideo ? (
+                      <video
+                        src={node.mediaUrl ?? undefined}
+                        className="w-full h-full object-cover"
+                        muted playsInline
+                        onMouseEnter={e => (e.currentTarget as HTMLVideoElement).play().catch(() => {})}
+                        onMouseLeave={e => { const v = e.currentTarget as HTMLVideoElement; v.pause(); v.currentTime = 0 }}
+                      />
+                    ) : (
+                      <img
+                        src={node.mediaUrl ?? undefined}
+                        alt="media source"
+                        className="w-full h-full object-cover"
+                        draggable={false}
+                      />
+                    )}
+                  </div>
+                </div>
+              )
+            }
 
             return (
               <div

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { submitRender, cancelRender, fetchRenderInfo, resolveMediaUrl, connectRenderWebSocket, type SSEEvent } from '@/api/graydient'
+import { submitRender, cancelRender, fetchRenderInfo, resolveMediaUrl, resolveAllMedia, connectRenderWebSocket } from '@/api/graydient'
 import { useProjectsStore } from './projects'
 
 // Per-render abort controllers keyed by render id
@@ -8,10 +8,6 @@ const activeAbortControllers = new Map<string, AbortController>()
 // Per-render WebSocket cleanup functions
 const activeWebSockets = new Map<string, () => void>()
 
-// Minimum gap between consecutive render starts to prevent the server
-// from coalescing concurrent SSE streams into the same job
-const RENDER_START_GAP_MS = 5000
-let lastRenderStartTime = 0
 
 export interface QueuedRender {
   id: string
@@ -22,6 +18,7 @@ export interface QueuedRender {
   progress: number
   renderHash: string | null
   resultUrl: string | null
+  resultUrls: Array<{ url: string; mediaType: string | null }>
   mediaType: string | null
   thumbnailUrl: string | null
   error: string | null
@@ -68,11 +65,9 @@ export const useRenderQueueStore = create<RenderQueueState>()(persist((set, get)
     const item = get().queue.find((r) => r.id === id)
     if (!item || item.status !== 'queued') return
 
-    const startedAt = Date.now()
-
     set((s) => ({
       queue: s.queue.map((r) =>
-        r.id === id ? { ...r, status: 'active' as const, startedAt } : r
+        r.id === id ? { ...r, status: 'active' as const, startedAt: Date.now() } : r
       ),
       totalRendersThisSession: s.totalRendersThisSession + 1,
     }))
@@ -93,14 +88,9 @@ export const useRenderQueueStore = create<RenderQueueState>()(persist((set, get)
 
     const controller = new AbortController()
     activeAbortControllers.set(id, controller)
-    const timeoutId = setTimeout(() => {
-      controller.abort()
-    }, 6 * 60 * 1000)
+    const timeoutId = setTimeout(() => { controller.abort() }, 6 * 60 * 1000)
 
     try {
-      let resolvedHash: string | null = null
-      let doneHandled = false
-
       // Resolve any pending render reference in the source media
       let resolvedSourceMedia = item.sourceMedia
       if (item.sourceMedia?.initImage?.startsWith('pending:')) {
@@ -116,115 +106,94 @@ export const useRenderQueueStore = create<RenderQueueState>()(persist((set, get)
         appendLog({ timestamp: Date.now(), type: 'progress', data: 'Source render ready — submitting…' })
       }
 
-      async function handleRenderHash(hash: string) {
-        if (resolvedHash) return // already handled
-        resolvedHash = hash
-        update({ renderHash: hash })
+      // Stream the render — events arrive inline until rendering_done.
+      // The HTTP stream IS the real-time feed; no WebSocket or polling needed.
+      console.log(`[RQ] SUBMIT id=${id} prompt="${item.prompt}"`)
 
-        // Open WebSocket for real-time progress events
-        const wsCleanup = connectRenderWebSocket(hash, (wsEvent) => {
+      let renderHash = ''
+      let totalEtaSec = 0
+      let progressTimer: ReturnType<typeof setInterval> | null = null
+      let doneImages: Array<{ url?: string; media?: Array<{ url: string; media_type?: string }> }> | null = null
+      let streamError: string | null = null
+
+      const { renderHash: hash, estimatedRenderTime, estimatedWaitTime, doneImages: streamDoneImages } = await submitRender(
+        item.prompt,
+        item.workflowSlug,
+        (eventName, data) => {
           const ts = Date.now()
-          if (wsEvent.event === 'started') {
+          if (eventName === 'render_queued') {
+            renderHash = (data.render_hash as string | undefined) ?? renderHash
+            const etaSec = ((data.estimated_render_time as number | null) ?? 0)
+              + ((data.estimated_wait_time as number | null) ?? 0)
+            totalEtaSec = etaSec
+            update({
+              renderHash,
+              eta: etaSec > 0 ? ts + etaSec * 1000 : null,
+              status: 'streaming',
+              progress: 2,
+            })
+            appendLog({ timestamp: ts, type: 'progress', data: `Queued — hash: ${renderHash} | ETA ~${etaSec}s` })
+
+            // Start time-based progress simulation now that we have ETA
+            const etaMs = etaSec > 0 ? etaSec * 1000 : 60_000
+            const start = ts
+            progressTimer = setInterval(() => {
+              const elapsed = Date.now() - start
+              const frac = Math.min(elapsed / etaMs, 1)
+              const simulated = Math.round(2 + 86 * (1 - Math.pow(1 - frac, 2)))
+              const cur = get().queue.find((r) => r.id === id)
+              if (cur && cur.status === 'streaming' && cur.progress < simulated) {
+                update({ progress: simulated })
+              }
+            }, 1000)
+          } else if (eventName === 'rendering_started') {
             appendLog({ timestamp: ts, type: 'progress', data: 'Rendering started on worker' })
-            update({ status: 'streaming', progress: 5, startedAt: ts })
-          } else if (wsEvent.event === 'image_done') {
-            appendLog({ timestamp: ts, type: 'progress', data: 'Image completed' })
-            update({ progress: 80 })
-          } else if (wsEvent.event === 'done' && !doneHandled) {
-            doneHandled = true
+            update({ startedAt: ts })
+          } else if (eventName === 'rendering_done') {
+            doneImages = data.images as typeof doneImages
             appendLog({ timestamp: ts, type: 'done', data: 'Render complete' })
-            update({ progress: 100 })
-            // Extract images from WS done payload
-            const images = wsEvent.data.images as Array<{ url?: string; media?: Array<{ url: string; media_type?: string }> }> | undefined
-            if (images?.length) {
-              const first = images[0]
-              const thumbnailUrl = first.url ?? null
-              const media = first.media?.[0]
-              update({
-                status: 'done',
-                resultUrl: media?.url ?? first.url ?? null,
-                mediaType: media?.media_type ?? null,
-                thumbnailUrl,
-                completedAt: ts,
-              })
-            }
-          } else if (wsEvent.event === 'error') {
-            const msg = (wsEvent.data.message as string | undefined) ?? 'WebSocket render error'
-            appendLog({ timestamp: ts, type: 'error', data: msg })
+            update({ progress: 95 })
+          } else if (eventName === 'rendering_error') {
+            streamError = (data.message as string | undefined) ?? 'Render failed'
+            appendLog({ timestamp: ts, type: 'error', data: streamError })
           }
-        }, controller.signal)
-        activeWebSockets.set(id, wsCleanup)
-      }
+        },
+        resolvedSourceMedia,
+        controller.signal
+      )
 
-      console.log(`[RQ] START id=${id} prompt="${item.prompt}"`)
-      await submitRender(item.prompt, item.workflowSlug, (event: SSEEvent) => {
-        const ts = Date.now()
-        if ('rendering_progress' in event) {
-          appendLog({ timestamp: ts, type: 'progress', data: `Progress: ${event.rendering_progress.percent}%` })
-          // Only update SSE progress if WS hasn't taken over
-          const current = get().queue.find((r) => r.id === id)
-          if (current && current.progress < 5) {
-            update({ status: 'streaming', progress: event.rendering_progress.percent })
-          }
-        } else if ('rendering_done' in event) {
-          const hash = event.rendering_done.render_hash
-          console.log(`[RQ] DONE  id=${id} hash=${hash}`)
-          appendLog({ timestamp: ts, type: 'done', data: `Done — hash: ${hash}` })
-          update({ status: 'streaming', progress: 100, renderHash: hash })
-          handleRenderHash(hash)
-        } else if ('rendering_error' in event) {
-          appendLog({ timestamp: ts, type: 'error', data: `Error: ${event.rendering_error.message}` })
-          update({ status: 'error', error: event.rendering_error.message, completedAt: Date.now() })
+      // Use values from the resolved result if the event callback didn't set them
+      if (!renderHash) renderHash = hash
+      if (!doneImages) doneImages = streamDoneImages
+
+      if (progressTimer) clearInterval(progressTimer)
+      if (controller.signal.aborted) return
+
+      if (streamError) {
+        update({ status: 'error', error: streamError, completedAt: Date.now() })
+      } else {
+        // Try to resolve media from the stream's done payload first;
+        // fall back to fetchRenderInfo (needed for video media[] URLs).
+        let resolvedAll: import('@/api/graydient').ResolvedMedia[] = []
+        if (doneImages?.length) {
+          resolvedAll = resolveAllMedia({ render_hash: renderHash, images: doneImages })
         }
-      }, resolvedSourceMedia, controller.signal, (earlyHash) => {
-        // onHash — fires as soon as any SSE event contains a render_hash
-        handleRenderHash(earlyHash)
-      })
-
-      // If WS already handled the done event, skip fetchRenderInfo
-      if (resolvedHash && !doneHandled) {
-        doneHandled = true
-        // Retry fetchRenderInfo until the server actually returns images (render may
-        // still be finalising when the SSE stream closes).
-        let resolved: import('@/api/graydient').ResolvedMedia | null = null
-        for (let attempt = 0; attempt < 6 && !resolved; attempt++) {
-          if (attempt > 0) await new Promise(r => setTimeout(r, 5000))
+        if (!resolvedAll.length) {
           try {
-            const info = await fetchRenderInfo(resolvedHash)
-            resolved = resolveMediaUrl(info)
-          } catch { /* will retry */ }
+            const info = await fetchRenderInfo(renderHash)
+            resolvedAll = resolveAllMedia(info)
+          } catch { /* ignore */ }
         }
+        const first = resolvedAll[0] ?? null
         update({
           status: 'done',
-          resultUrl: resolved?.url ?? null,
-          mediaType: resolved?.mediaType ?? null,
-          thumbnailUrl: resolved?.thumbnailUrl ?? null,
+          resultUrl: first?.url ?? null,
+          resultUrls: resolvedAll.map(r => ({ url: r.url, mediaType: r.mediaType })),
+          mediaType: first?.mediaType ?? null,
+          thumbnailUrl: first?.thumbnailUrl ?? null,
           completedAt: Date.now(),
+          progress: 100,
         })
-      }
-
-      // Re-fetch after a short delay to correct any stale/wrong image URL
-      if (resolvedHash) {
-        setTimeout(async () => {
-          try {
-            const refreshedInfo = await fetchRenderInfo(resolvedHash!)
-            const refreshed = resolveMediaUrl(refreshedInfo)
-            if (refreshed) {
-              update({
-                resultUrl: refreshed.url,
-                mediaType: refreshed.mediaType ?? null,
-                thumbnailUrl: refreshed.thumbnailUrl ?? null,
-              })
-            }
-          } catch {
-            // ignore refresh errors
-          }
-        }, 4000)
-      } else {
-        const current = get().queue.find((r) => r.id === id)
-        if (current && current.status !== 'error') {
-          update({ status: 'done', completedAt: Date.now() })
-        }
       }
     } catch (e) {
       const err = e as Error
@@ -237,8 +206,6 @@ export const useRenderQueueStore = create<RenderQueueState>()(persist((set, get)
     } finally {
       activeAbortControllers.delete(id)
       clearTimeout(timeoutId)
-      // WebSocket is closed via AbortController signal or left open briefly for image_done events
-      // Ensure cleanup after a short grace period
       setTimeout(() => {
         activeWebSockets.get(id)?.()
         activeWebSockets.delete(id)
@@ -286,6 +253,7 @@ export const useRenderQueueStore = create<RenderQueueState>()(persist((set, get)
         progress: 0,
         renderHash: null,
         resultUrl: null,
+        resultUrls: [],
         mediaType: null,
         thumbnailUrl: null,
         error: null,
@@ -308,17 +276,6 @@ export const useRenderQueueStore = create<RenderQueueState>()(persist((set, get)
       if (activeCount >= maxConcurrent) return
       const next = queue.find((r) => r.status === 'queued')
       if (!next) return
-
-      // Stagger render starts to prevent the server from coalescing
-      // concurrent SSE streams into the same job
-      const now = Date.now()
-      const gap = now - lastRenderStartTime
-      if (gap < RENDER_START_GAP_MS) {
-        setTimeout(() => get().processNext(), RENDER_START_GAP_MS - gap)
-        return
-      }
-
-      lastRenderStartTime = now
       runRender(next.id)
     },
 

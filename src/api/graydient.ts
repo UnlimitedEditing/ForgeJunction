@@ -132,11 +132,6 @@ export function parseTelegramPrompt(rawInput: string, fallbackWorkflowSlug?: str
   return { prompt, negative, workflowSlug, optionsDict, optionsText, initImage }
 }
 
-export type SSEEvent =
-  | { rendering_progress: { percent: number } }
-  | { rendering_done: { render_hash: string } }
-  | { rendering_error: { message: string } }
-
 export interface WSRenderEvent {
   event: string
   data: Record<string, unknown>
@@ -149,20 +144,27 @@ export interface WSRenderEvent {
 export function connectRenderWebSocket(
   renderHash: string,
   onEvent: (e: WSRenderEvent) => void,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  onClose?: () => void
 ): () => void {
-  const url = `wss://cached.graydient.ai/render-events/${renderHash}?token=${getApiKey()}`
+  const url = `wss://my.graydient.ai/render-events/${renderHash}?token=${getApiKey()}`
   let ws: WebSocket | null = null
   try {
     ws = new WebSocket(url)
   } catch {
+    onClose?.()
     return () => {}
   }
 
   ws.onmessage = (e) => {
-    try { onEvent(JSON.parse(e.data as string) as WSRenderEvent) } catch { /* ignore */ }
+    try {
+      const parsed = JSON.parse(e.data as string) as WSRenderEvent
+      console.log('WS EVENT:', parsed.event, JSON.stringify(parsed.data).slice(0, 200))
+      onEvent(parsed)
+    } catch { /* ignore */ }
   }
-  ws.onerror = () => { /* silent — fallback to SSE state */ }
+  ws.onerror = () => { /* silent — onclose will fire too */ }
+  ws.onclose = () => { onClose?.() }
 
   const pingTimer = setInterval(() => {
     if (ws?.readyState === WebSocket.OPEN) {
@@ -186,6 +188,7 @@ export interface RenderMedia {
 
 export interface RenderInfo {
   render_hash: string
+  has_been_rendered?: boolean
   images: Array<{ url?: string; media?: RenderMedia[] }>
 }
 
@@ -268,105 +271,142 @@ export async function fetchConcepts(modelFamily?: string, search?: string): Prom
   }
 }
 
+export interface SubmitRenderResult {
+  renderHash: string
+  estimatedRenderTime: number | null
+  estimatedWaitTime: number | null
+  doneImages: Array<{ url?: string; media?: RenderMedia[] }> | null
+}
+
+/**
+ * Submit a render and stream events until rendering_done.
+ * onStreamEvent is called for each event as it arrives, so the UI can show
+ * live progress. Resolves when the stream closes or rendering_done fires.
+ */
 export async function submitRender(
   rawInput: string,
   fallbackWorkflowSlug: string | undefined,
-  onEvent: (event: SSEEvent) => void,
+  onStreamEvent: (name: string, data: Record<string, unknown>) => void,
   sourceMedia?: {
     initImage?: string
     placeholders?: Record<string, string>
     optionPairs?: string[]
   },
-  signal?: AbortSignal,
-  onHash?: (hash: string) => void
-): Promise<void> {
-  // Pass the raw input directly as the prompt — the API accepts the full telegram
-  // command string verbatim (Russ confirmed: /render <concept> prompt works as-is).
-  // Only prepend /run:slug when no command is present and a slug is known.
-  const hasCommand = /\/(?:render|run:|workflow)\b/i.test(rawInput)
-  let effectivePrompt = rawInput.trim()
-  if (!hasCommand && fallbackWorkflowSlug) {
-    effectivePrompt = `/run:${fallbackWorkflowSlug} ${effectivePrompt}`
-  }
+  signal?: AbortSignal
+): Promise<SubmitRenderResult> {
+  // Use parseTelegramPrompt to properly split the raw input:
+  // - /wf prefix stripped
+  // - /run:slug → workflow selection
+  // - /images:N and other /key:value pairs → options field
+  // - [negative] → negative field
+  // - <concept> tokens → options_text
+  const parsed = parseTelegramPrompt(rawInput, fallbackWorkflowSlug)
+
+  // Build options string: /run:slug first, then any extra /key:value pairs from the prompt
+  let options = parsed.workflowSlug ? `/run:${parsed.workflowSlug}` : ''
+  const extraOptions = Object.entries(parsed.optionsDict).map(([k, v]) => `/${k}:${v}`)
+  if (extraOptions.length) options += ' ' + extraOptions.join(' ')
 
   // Append chain-injected option pairs (e.g. /image1:URL for ControlNet nodes)
   if (sourceMedia?.optionPairs?.length) {
-    effectivePrompt += ' ' + sourceMedia.optionPairs.join(' ')
+    options += ' ' + sourceMedia.optionPairs.join(' ')
   }
 
   const bodyObj: Record<string, unknown> = {
-    prompt: effectivePrompt,
+    prompt: parsed.prompt,
     task: 'workflow',
     progressive_return: true,
-    options_text: '',
-    options: '',
-    placeholders: sourceMedia?.placeholders ?? {},
     stream: true,
-    client_request_id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    options_text: parsed.optionsText,
+    options: options.trim(),
+    placeholders: sourceMedia?.placeholders ?? {},
+    session_id: `fj-${Date.now()}-${Math.random().toString(36).slice(2)}`,
   }
 
-  if (sourceMedia?.initImage) {
-    bodyObj.init_image = sourceMedia.initImage
+  // init_image: sourceMedia takes priority (e.g. from input queue), then parsed from prompt
+  const initImage = sourceMedia?.initImage ?? parsed.initImage
+  if (initImage) {
+    bodyObj.init_image = initImage
   }
 
   console.log('RENDER REQUEST BODY:', JSON.stringify(bodyObj, null, 2))
 
-  // Append a nonce to the URL to prevent Chromium / proxies from coalescing
-  // two concurrent POST requests with similar bodies into one response stream.
-  const nonce = `${Date.now()}-${Math.random().toString(36).slice(2)}`
-  const res = await fetch(`${BASE_URL}render/?_r=${nonce}`, {
+  const res = await fetch(`${BASE_URL}render/`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${getApiKey()}`,
-      Accept: 'text/event-stream'
+      Accept: 'application/vnd.api+json',
     },
     body: JSON.stringify(bodyObj),
     signal,
   })
 
   console.log('RENDER RESPONSE STATUS:', res.status)
-  if (!res.ok) { const errText = await res.text(); console.log('RENDER ERROR BODY:', errText); throw new Error(errText) }
-  if (!res.body) throw new Error('No response body for SSE stream')
+  if (!res.ok) {
+    const errText = await res.text()
+    console.log('RENDER ERROR BODY:', errText)
+    throw new Error(errText)
+  }
 
-  const reader = res.body.getReader()
+  // Read the event stream until rendering_done fires or stream closes.
+  // Events arrive as newline-delimited JSON objects (plain or with "data:" prefix).
+  const reader = res.body!.getReader()
   const decoder = new TextDecoder()
   let buffer = ''
-  let hashReported = false
+  let renderHash: string | null = null
+  let estimatedRenderTime: number | null = null
+  let estimatedWaitTime: number | null = null
+  let doneImages: Array<{ url?: string; media?: RenderMedia[] }> | null = null
 
-  // If the signal fires after the response started streaming, cancel the reader
   signal?.addEventListener('abort', () => { reader.cancel() })
 
   while (true) {
     const { done, value } = await reader.read()
     if (done) break
-
     buffer += decoder.decode(value, { stream: true })
     const lines = buffer.split('\n')
     buffer = lines.pop() ?? ''
 
     for (const line of lines) {
-      if (!line.startsWith('data:')) continue
-      const raw = line.slice(5).trim()
+      const raw = line.startsWith('data:') ? line.slice(5).trim() : line.trim()
       if (!raw || raw === '[DONE]') continue
       try {
-        const parsed = JSON.parse(raw) as SSEEvent & Record<string, unknown>
-        onEvent(parsed)
-        // Notify caller as soon as we see a render_hash in any SSE event
-        if (onHash && !hashReported) {
-          const earlyHash =
-            (parsed as Record<string, unknown>).render_hash as string | undefined
-            ?? ((parsed as Record<string, unknown>).rendering_done as Record<string, unknown> | undefined)?.render_hash as string | undefined
-          if (earlyHash) {
-            hashReported = true
-            onHash(earlyHash)
-          }
+        const parsed = JSON.parse(raw) as Record<string, unknown>
+        console.log('STREAM EVENT:', JSON.stringify(parsed).slice(0, 400))
+
+        if (parsed.render_queued) {
+          const q = parsed.render_queued as Record<string, unknown>
+          renderHash = (q.render_hash ?? null) as string | null
+          estimatedRenderTime = (q.estimated_render_time ?? null) as number | null
+          estimatedWaitTime = (q.estimated_wait_time ?? null) as number | null
+          onStreamEvent('render_queued', q)
+        } else if (parsed.rendering_started) {
+          onStreamEvent('rendering_started', parsed.rendering_started as Record<string, unknown>)
+        } else if (parsed.rendering_done) {
+          const d = parsed.rendering_done as Record<string, unknown>
+          if (!renderHash) renderHash = (d.render_hash ?? null) as string | null
+          doneImages = (d.images ?? null) as Array<{ url?: string; media?: RenderMedia[] }> | null
+          onStreamEvent('rendering_done', d)
+          reader.cancel()
+          break
+        } else if (parsed.rendering_error) {
+          const e = parsed.rendering_error as Record<string, unknown>
+          onStreamEvent('rendering_error', e)
+          reader.cancel()
+          break
+        } else {
+          // unknown_event etc. — pass through for debugging
+          const name = Object.keys(parsed)[0] ?? 'unknown'
+          onStreamEvent(name, parsed)
         }
-      } catch {
-        // non-JSON data line — skip
-      }
+      } catch { /* non-JSON line — skip */ }
     }
   }
+
+  if (!renderHash) throw new Error('No render_hash in stream response')
+
+  return { renderHash, estimatedRenderTime, estimatedWaitTime, doneImages }
 }
 
 export async function fetchRenderInfo(renderHash: string): Promise<RenderInfo> {
@@ -385,18 +425,19 @@ export interface ResolvedMedia {
 }
 
 export function resolveMediaUrl(info: RenderInfo): ResolvedMedia | null {
-  const first = info.images?.[0]
-  if (!first) return null
+  return resolveAllMedia(info)[0] ?? null
+}
 
-  const thumbnailUrl = first.url ?? null
-
-  if (first.media && first.media.length > 0) {
-    const m = first.media[0]
-    console.log('RESOLVED MEDIA URL (from media):', m.url, 'type:', m.media_type)
-    return { url: m.url, mediaType: m.media_type ?? null, thumbnailUrl }
-  }
-
-  const url = first.url ?? null
-  console.log('RESOLVED MEDIA URL (fallback):', url)
-  return url ? { url, mediaType: null, thumbnailUrl: null } : null
+export function resolveAllMedia(info: RenderInfo): ResolvedMedia[] {
+  return (info.images ?? []).flatMap(img => {
+    if (img.media && img.media.length > 0) {
+      return img.media.map(m => ({
+        url: m.url,
+        mediaType: m.media_type ?? null,
+        thumbnailUrl: img.url ?? null,
+      }))
+    }
+    if (img.url) return [{ url: img.url, mediaType: null, thumbnailUrl: null }]
+    return []
+  })
 }
