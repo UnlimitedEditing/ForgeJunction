@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
+import SkillStar from '@/components/icons/SkillStar'
 import { useRenderQueueStore } from '@/stores/renderQueue'
 import { useChainGraphStore, findComponents } from '@/stores/chainGraph'
 import WorkflowGalleryPopup from '@/components/WorkflowGalleryPopup'
@@ -81,7 +82,7 @@ export default function StatusBar(): React.ReactElement {
           }`}
           title="Inspiration feed"
         >
-          ✦ Inspiration
+          <SkillStar size={11} className="inline-block align-middle mr-0.5" /> Inspiration
         </button>
         <button
           onClick={() => setGalleryOpen((v) => !v)}
@@ -92,7 +93,7 @@ export default function StatusBar(): React.ReactElement {
           }`}
           title="Workflow gallery"
         >
-          ◫ Gallery
+          ◫ Find More Workflows
         </button>
         {chainRunning && (
           <span className="shrink-0 text-brand/70">

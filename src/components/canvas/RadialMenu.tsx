@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
+import SkillsIcon from '@/components/icons/SkillsIcon'
 
 export interface RadialMenuModifiers {
   alt: boolean
@@ -9,7 +10,7 @@ export interface RadialMenuModifiers {
 interface MenuItem {
   id: string
   label: string
-  icon: string
+  icon: React.ReactNode
   angle: number
 }
 
@@ -44,8 +45,11 @@ function getItems(modifiers: RadialMenuModifiers, context: 'canvas' | 'node'): M
   }
   if (modifiers.ctrl) {
     return [
-      { id: 'add-prompt', label: 'Prompt Node', icon: '✦', angle: 0   },
-      { id: 'add-bin',    label: 'Bin Node',    icon: '⬡', angle: 120 },
+      { id: 'add-skill',         label: 'Skill Node',     icon: <SkillsIcon size={14} />, angle: 0   },
+      { id: 'add-prompt',        label: 'Prompt Node',    icon: '◈', angle: 72  },
+      { id: 'add-bin',           label: 'Bin',            icon: '⬡', angle: 144 },
+      { id: 'add-skills-browser',label: 'Skills Browser', icon: '⬖', angle: 216 },
+      { id: 'add-method',        label: 'Browser',        icon: '⬖', angle: 288 },
     ]
   }
   if (modifiers.shift) {
@@ -56,11 +60,12 @@ function getItems(modifiers: RadialMenuModifiers, context: 'canvas' | 'node'): M
     ]
   }
   return [
-    { id: 'add-prompt',   label: 'Prompt',  icon: '✦',  angle: 0   },
-    { id: 'add-bin',      label: 'Bin',     icon: '⬡',  angle: 72  },
-    { id: 'fit-view',     label: 'Fit',     icon: '⊡',  angle: 144 },
-    { id: 'run-all',      label: 'Run All', icon: '▶▶', angle: 216 },
-    { id: 'clear-canvas', label: 'Clear',   icon: '⊘',  angle: 288 },
+    { id: 'add-skill',    label: 'Skill',   icon: <SkillsIcon size={14} />,  angle: 0   },
+    { id: 'add-bin',      label: 'Bin',     icon: '⬡',  angle: 60  },
+    { id: 'add-method',   label: 'Browser', icon: '⬖',  angle: 120 },
+    { id: 'fit-view',     label: 'Fit',     icon: '⊡',  angle: 180 },
+    { id: 'run-all',      label: 'Run All', icon: '▶▶', angle: 240 },
+    { id: 'clear-canvas', label: 'Clear',   icon: '⊘',  angle: 300 },
   ]
 }
 

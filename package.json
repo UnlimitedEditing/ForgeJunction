@@ -1,7 +1,8 @@
 {
   "name": "forge-junction",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Forge Junction — AI media studio powered by Graydient.ai",
+  "author": "ForgeJunction",
   "main": "dist-electron/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
@@ -55,9 +56,10 @@
       "!dist/assets/*.map"
     ],
     "win": {
+      "icon": "build/icon.ico",
       "target": [
         {
-          "target": "portable",
+          "target": "nsis",
           "arch": [
             "x64"
           ]

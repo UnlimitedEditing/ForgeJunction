@@ -236,7 +236,7 @@ export default function DebugReportDialog({ open, onClose }: Props) {
   const [tab, setTab] = useState<'logs' | 'system'>('logs')
   const [logs, setLogs] = useState<LogEntry[]>([])
   const [sysInfo, setSysInfo] = useState<SystemInfo | null>(null)
-  const [status, setStatus] = useState<{ type: 'ok' | 'err'; msg: string } | null>(null)
+  const [status, setStatus] = useState<{ type: 'ok' | 'err'; msg: string; filePath?: string } | null>(null)
   const [exporting, setExporting] = useState(false)
   const [sending, setSending] = useState(false)
 
@@ -253,7 +253,7 @@ export default function DebugReportDialog({ open, onClose }: Props) {
     try {
       const result = await exportReport()
       if (result.success) {
-        setStatus({ type: 'ok', msg: `Saved — ID: ${result.reportId}` })
+        setStatus({ type: 'ok', msg: `Saved to: ${result.filePath ?? result.reportId}`, filePath: result.filePath })
       } else {
         setStatus({ type: 'err', msg: result.error === 'cancelled' ? 'Export cancelled.' : `Export failed: ${result.error}` })
       }
@@ -321,9 +321,20 @@ export default function DebugReportDialog({ open, onClose }: Props) {
           </button>
           <button style={css.btn('ghost')} onClick={handleClear}>Clear Logs</button>
           {status && (
-            <span style={status.type === 'ok' ? css.statusMsg : css.errorMsg}>
-              {status.msg}
-            </span>
+            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={status.type === 'ok' ? css.statusMsg : css.errorMsg} title={status.filePath}>
+                {status.msg}
+              </span>
+              {status.filePath && (
+                <button
+                  style={css.btn('ghost')}
+                  onClick={() => window.electron.storage.openInExplorer(status.filePath!)}
+                  title="Show file in Explorer"
+                >
+                  📂 Show in Folder
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>

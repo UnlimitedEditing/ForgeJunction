@@ -4,6 +4,41 @@ import { useSourceMediaStore } from '@/stores/sourceMedia'
 import { useVideoEditorStore } from '@/stores/videoEditor'
 import { usePromptStore } from '@/stores/prompt'
 import { useChainGraphStore } from '@/stores/chainGraph'
+import { useSettingsStore } from '@/stores/settings'
+
+// ── Flat tile — one per individual image/video from a batch ───────────────────
+
+interface FlatTile {
+  id: string                   // `${render.id}-${index}`
+  render: QueuedRender
+  url: string
+  mediaType: string | null
+  thumbnailUrl: string | null
+  batchTotal: number           // how many images in this render batch
+  batchIndex: number           // 0-based position within the batch
+}
+
+function buildFlatTiles(queue: QueuedRender[]): FlatTile[] {
+  return [...queue]
+    .filter((r) => r.status === 'done' && ((r.resultUrls?.length ?? 0) > 0 || r.resultUrl || r.thumbnailUrl))
+    .reverse()
+    .flatMap((r) => {
+      const urls = (r.resultUrls?.length ?? 0) > 0
+        ? r.resultUrls
+        : r.resultUrl
+          ? [{ url: r.resultUrl, mediaType: r.mediaType }]
+          : []
+      return urls.map((u, i) => ({
+        id: `${r.id}-${i}`,
+        render: r,
+        url: u.url,
+        mediaType: u.mediaType,
+        thumbnailUrl: r.thumbnailUrl,
+        batchTotal: urls.length,
+        batchIndex: i,
+      }))
+    })
+}
 
 // ── Video tile — scrubs on mousemove via canvas snapshot ──────────────────────
 
@@ -75,64 +110,86 @@ function VideoTile({ src, className }: { src: string; className?: string }): Rea
 // ── Individual tile ────────────────────────────────────────────────────────────
 
 function MediaTile({
-  render,
+  tile,
   sourceSelected,
   batchSelected,
-  batchIndex,
+  batchSelectionIndex,
   compact,
   promptGrabbed,
+  hideNsfw,
   onClick,
   onAddToEditor,
   onGrabPrompt,
   onSendToNodegraph,
+  onToggleNsfw,
 }: {
-  render: QueuedRender
+  tile: FlatTile
   sourceSelected: boolean
   batchSelected: boolean
-  batchIndex: number
+  batchSelectionIndex: number
   compact: boolean
   promptGrabbed: boolean
+  hideNsfw: boolean
   onClick: (e: React.MouseEvent) => void
   onAddToEditor: () => void
   onGrabPrompt: () => void
   onSendToNodegraph: () => void
+  onToggleNsfw: () => void
 }): React.ReactElement {
-  const isVideo = render.mediaType?.startsWith('video') ?? false
-  const isImage = !isVideo && !(render.mediaType?.startsWith('audio') ?? false)
-  const thumb = render.thumbnailUrl ?? render.resultUrl ?? null
-  const canAddToEditor = !!render.resultUrl && (isVideo || isImage)
+  const { url, mediaType, thumbnailUrl, render, batchTotal, batchIndex } = tile
+  const isNsfw = render.isNsfw ?? false
+  const isVideo = mediaType?.startsWith('video') ?? false
+  const isAudio = mediaType?.startsWith('audio') ?? false
+  const isImage = !isVideo && !isAudio
+  const thumb = thumbnailUrl ?? url
+  const canAddToEditor = !!(url && (isVideo || isImage))
   const hasPrompt = !!render.prompt
 
   const ringClass = batchSelected
     ? 'ring-2 ring-orange-400 ring-offset-2 ring-offset-neutral-900'
     : sourceSelected
       ? 'ring-2 ring-brand ring-offset-2 ring-offset-neutral-900'
-      : 'ring-1 ring-white/10 hover:ring-white/30'
+      : isNsfw
+        ? 'ring-1 ring-red-500/40 hover:ring-red-500/70'
+        : 'ring-1 ring-white/10 hover:ring-white/30'
 
   return (
     <div
       className={`relative aspect-square rounded-lg overflow-hidden cursor-pointer group ${ringClass}`}
       onClick={onClick}
     >
-      {/* Media */}
-      {isVideo && render.resultUrl ? (
-        <VideoTile src={render.resultUrl} className="absolute inset-0 w-full h-full bg-neutral-800" />
-      ) : thumb ? (
-        <img
-          src={thumb}
-          alt={render.workflowSlug}
-          className="absolute inset-0 w-full h-full object-cover"
-          draggable={false}
-        />
-      ) : (
-        <div className="absolute inset-0 flex items-center justify-center bg-neutral-800">
-          <span className="text-white/20 text-3xl">{isVideo ? '▶' : '🖼'}</span>
+      {/* Media — blurred if NSFW and hideNsfw is off */}
+      <div className={isNsfw && !hideNsfw ? 'blur-xl scale-110 absolute inset-0 transition-[filter] duration-200 group-hover:blur-none group-hover:scale-100' : 'absolute inset-0'}>
+        {isVideo ? (
+          <VideoTile src={url} className="w-full h-full bg-neutral-800" />
+        ) : isAudio ? (
+          <div className="w-full h-full flex items-center justify-center bg-neutral-800">
+            <span className="text-white/20 text-3xl">🎵</span>
+          </div>
+        ) : thumb ? (
+          <img
+            src={thumb}
+            alt={render.workflowSlug}
+            className="w-full h-full object-cover"
+            draggable={false}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-neutral-800">
+            <span className="text-white/20 text-3xl">🖼</span>
+          </div>
+        )}
+      </div>
+
+      {/* NSFW badge — always visible when tagged */}
+      {isNsfw && (
+        <div className="absolute top-1.5 right-1.5 rounded bg-red-600/80 px-1 py-0.5 text-[9px] text-white font-bold leading-none select-none z-10">
+          NSFW
         </div>
       )}
 
       {/* Hover overlay */}
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent px-1.5 py-1.5
-        translate-y-full group-hover:translate-y-0 transition-transform duration-150">
+        translate-y-full group-hover:translate-y-0 transition-transform duration-150 z-20">
         {!compact && (
           <p className="text-white/80 text-[10px] font-mono truncate leading-tight mb-1">
             {render.workflowSlug}
@@ -165,20 +222,38 @@ function MediaTile({
               {promptGrabbed ? '⧉ To Graph' : '⌕ Prompt'}
             </button>
           )}
+          <button
+            onClick={(e) => { e.stopPropagation(); onToggleNsfw() }}
+            className={`text-[10px] leading-none py-1 px-1.5 rounded transition-colors font-medium ${
+              isNsfw
+                ? 'bg-red-600/60 hover:bg-red-600/80 text-red-200'
+                : 'bg-white/10 hover:bg-red-600/40 text-white/50 hover:text-red-300'
+            }`}
+            title={isNsfw ? 'Remove NSFW tag' : 'Mark as NSFW'}
+          >
+            🔞
+          </button>
         </div>
       </div>
 
       {/* Batch selection badge (top-left) */}
       {batchSelected && (
-        <div className="absolute top-1.5 left-1.5 rounded bg-orange-500 px-1.5 py-0.5 text-xs text-white font-bold leading-none">
-          {batchIndex}
+        <div className="absolute top-1.5 left-1.5 rounded bg-orange-500 px-1.5 py-0.5 text-xs text-white font-bold leading-none z-10">
+          {batchSelectionIndex}
         </div>
       )}
 
-      {/* Source badge (top-right) */}
-      {sourceSelected && !batchSelected && (
-        <div className="absolute top-1.5 right-1.5 rounded bg-brand px-1.5 py-0.5 text-xs text-white font-medium leading-none">
+      {/* Source badge (top-right, below NSFW badge) */}
+      {sourceSelected && !batchSelected && !isNsfw && (
+        <div className="absolute top-1.5 right-1.5 rounded bg-brand px-1.5 py-0.5 text-xs text-white font-medium leading-none z-10">
           ✓
+        </div>
+      )}
+
+      {/* Batch-image index badge */}
+      {batchTotal > 1 && !batchSelected && (
+        <div className="absolute top-1.5 left-1.5 rounded bg-black/60 px-1 py-0.5 text-[9px] text-white/60 leading-none font-mono z-10">
+          {batchIndex + 1}/{batchTotal}
         </div>
       )}
     </div>
@@ -209,15 +284,15 @@ function EmptyState(): React.ReactElement {
 
 // ── MediaLibraryGrid ───────────────────────────────────────────────────────────
 
-export default function MediaLibraryGrid({ cols, search }: { cols: number; search: string }): React.ReactElement {
-  const { queue } = useRenderQueueStore()
+export default function MediaLibraryGrid({ cols, search, animateIn = true }: { cols: number; search: string; animateIn?: boolean }): React.ReactElement {
+  const { queue, markNsfw } = useRenderQueueStore()
   const { setFromRender } = useSourceMediaStore()
   const { addClip } = useVideoEditorStore()
+  const { hideNsfw } = useSettingsStore()
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [batchIds, setBatchIds] = useState<string[]>([])
   const lastClickedIdxRef = useRef<number | null>(null)
-  // Which tile's prompt has been grabbed (shows "To Graph" button)
   const [grabbedId, setGrabbedId] = useState<string | null>(null)
 
   // ── Rubber-band overscroll ─────────────────────────────────────────────────
@@ -237,7 +312,7 @@ export default function MediaLibraryGrid({ cols, search }: { cols: number; searc
       const dur = 420
       function frame(now: number) {
         const t = Math.min(1, (now - start) / dur)
-        const eased = 1 - Math.pow(1 - t, 3) // cubic ease-out
+        const eased = 1 - Math.pow(1 - t, 3)
         overscrollRef.current = from * (1 - eased)
         setOverscroll(overscrollRef.current)
         if (t < 1) {
@@ -273,14 +348,13 @@ export default function MediaLibraryGrid({ cols, search }: { cols: number; searc
     }
   }, [])
 
-  const completed = [...queue]
-    .filter((r) => r.status === 'done' && (r.resultUrl || r.thumbnailUrl))
-    .reverse()
+  // Flatten all done renders into one tile per image, filter NSFW when hidden
+  const allTiles = buildFlatTiles(queue)
 
   const searchTerm = search.trim().toLowerCase()
-  const filtered = searchTerm
-    ? completed.filter(r => r.prompt?.toLowerCase().includes(searchTerm))
-    : completed
+  const filtered = allTiles
+    .filter(t => !(hideNsfw && (t.render.isNsfw ?? false)))
+    .filter(t => !searchTerm || t.render.prompt?.toLowerCase().includes(searchTerm))
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -293,13 +367,13 @@ export default function MediaLibraryGrid({ cols, search }: { cols: number; searc
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  function handleTileClick(render: QueuedRender, idx: number, e: React.MouseEvent) {
+  function handleTileClick(tile: FlatTile, idx: number, e: React.MouseEvent) {
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault()
       setBatchIds(prev =>
-        prev.includes(render.id)
-          ? prev.filter(id => id !== render.id)
-          : [...prev, render.id]
+        prev.includes(tile.id)
+          ? prev.filter(id => id !== tile.id)
+          : [...prev, tile.id]
       )
       lastClickedIdxRef.current = idx
       return
@@ -309,7 +383,7 @@ export default function MediaLibraryGrid({ cols, search }: { cols: number; searc
       e.preventDefault()
       const from = Math.min(lastClickedIdxRef.current, idx)
       const to   = Math.max(lastClickedIdxRef.current, idx)
-      const rangeIds = filtered.slice(from, to + 1).map(r => r.id)
+      const rangeIds = filtered.slice(from, to + 1).map(t => t.id)
       setBatchIds(prev => {
         const merged = [...prev]
         for (const id of rangeIds) {
@@ -324,54 +398,51 @@ export default function MediaLibraryGrid({ cols, search }: { cols: number; searc
     setBatchIds([])
     lastClickedIdxRef.current = idx
 
-    if (selectedId === render.id) {
+    if (selectedId === tile.id) {
       setSelectedId(null)
       return
     }
-    setSelectedId(render.id)
-    if (render.resultUrl) {
-      setFromRender(render.resultUrl, render.mediaType ?? 'image')
-    }
+    setSelectedId(tile.id)
+    setFromRender(tile.url, tile.mediaType ?? 'image')
   }
 
-  function addSingleToEditor(render: QueuedRender) {
-    if (!render.resultUrl) return
-    const mt = render.mediaType?.startsWith('video') ? 'video' : 'image'
-    addClip(render.resultUrl, render.prompt ?? '', render.workflowSlug, mt)
+  function addSingleToEditor(tile: FlatTile) {
+    const mt = tile.mediaType?.startsWith('video') ? 'video' : 'image'
+    addClip(tile.url, tile.render.prompt ?? '', tile.render.workflowSlug, mt)
   }
 
-  function grabPrompt(render: QueuedRender) {
-    if (!render.prompt) return
-    usePromptStore.getState().setRawPrompt(render.prompt)
-    setGrabbedId(render.id)
+  function grabPrompt(tile: FlatTile) {
+    if (!tile.render.prompt) return
+    usePromptStore.getState().setRawPrompt(tile.render.prompt)
+    setGrabbedId(tile.id)
   }
 
-  function sendToNodegraph(render: QueuedRender) {
-    if (!render.resultUrl) return
+  function sendToNodegraph(tile: FlatTile) {
     useChainGraphStore.getState().addMediaNode(
-      render.resultUrl,
-      render.mediaType ?? 'image',
-      render.prompt ?? '',
+      tile.url,
+      tile.mediaType ?? 'image',
+      tile.render.prompt ?? '',
     )
     setGrabbedId(null)
   }
 
   function sendBatchToEditor() {
-    const clips = batchIds
-      .map(id => completed.find(r => r.id === id))
-      .filter((r): r is QueuedRender => !!r && !(r.mediaType?.startsWith('audio') ?? false) && !!r.resultUrl)
-    for (const r of clips) {
-      addClip(r.resultUrl!, r.prompt ?? '', r.workflowSlug, r.mediaType?.startsWith('video') ? 'video' : 'image')
+    const tiles = batchIds
+      .map(id => filtered.find(t => t.id === id))
+      .filter((t): t is FlatTile => !!t && !(t.mediaType?.startsWith('audio') ?? false))
+    for (const t of tiles) {
+      const mt = t.mediaType?.startsWith('video') ? 'video' : 'image'
+      addClip(t.url, t.render.prompt ?? '', t.render.workflowSlug, mt)
     }
     setBatchIds([])
   }
 
   const batchEditorCount = batchIds
-    .map(id => completed.find(r => r.id === id))
-    .filter((r): r is QueuedRender => !!r && !(r.mediaType?.startsWith('audio') ?? false) && !!r.resultUrl)
+    .map(id => filtered.find(t => t.id === id))
+    .filter((t): t is FlatTile => !!t && !(t.mediaType?.startsWith('audio') ?? false))
     .length
 
-  if (completed.length === 0) {
+  if (allTiles.length === 0) {
     return (
       <div className="flex flex-col h-full">
         <EmptyState />
@@ -422,22 +493,32 @@ export default function MediaLibraryGrid({ cols, search }: { cols: number; searc
           className={`grid ${gridClass} gap-1.5`}
           style={{ transform: overscroll !== 0 ? `translateY(${overscroll}px)` : undefined }}
         >
-          {filtered.map((render, idx) => {
-            const batchIdx = batchIds.indexOf(render.id)
+          {filtered.map((tile, idx) => {
+            const batchSelIdx = batchIds.indexOf(tile.id)
+            // Pseudo-random staggered delay based on index (0–800ms spread)
+            const flickerDelay = animateIn ? `${(idx * 137) % 820}ms` : '0ms'
             return (
+              <div
+                key={tile.id}
+                className={animateIn ? 'animate-tile-in' : ''}
+                style={animateIn ? { animationDelay: flickerDelay } : {}}
+              >
               <MediaTile
-                key={render.id}
-                render={render}
-                sourceSelected={render.id === selectedId}
-                batchSelected={batchIdx !== -1}
-                batchIndex={batchIdx + 1}
+                key={tile.id}
+                tile={tile}
+                sourceSelected={tile.id === selectedId}
+                batchSelected={batchSelIdx !== -1}
+                batchSelectionIndex={batchSelIdx + 1}
                 compact={cols >= 4}
-                promptGrabbed={grabbedId === render.id}
-                onClick={(e) => handleTileClick(render, idx, e)}
-                onAddToEditor={() => addSingleToEditor(render)}
-                onGrabPrompt={() => grabPrompt(render)}
-                onSendToNodegraph={() => sendToNodegraph(render)}
+                promptGrabbed={grabbedId === tile.id}
+                hideNsfw={hideNsfw}
+                onClick={(e) => handleTileClick(tile, idx, e)}
+                onAddToEditor={() => addSingleToEditor(tile)}
+                onGrabPrompt={() => grabPrompt(tile)}
+                onSendToNodegraph={() => sendToNodegraph(tile)}
+                onToggleNsfw={() => markNsfw(tile.render.id, !(tile.render.isNsfw ?? false))}
               />
+              </div>
             )
           })}
         </div>

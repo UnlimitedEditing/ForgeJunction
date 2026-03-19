@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
+import SkillStar from '@/components/icons/SkillStar'
 import { kbChat, SAGE_DOMAIN } from '@/api/knowledge'
 
 // ── Feed types (mirrors Launcher.tsx) ────────────────────────────────────────
@@ -272,7 +273,7 @@ export default function SagePane(): React.ReactElement {
                 color: S.text,
               }}
             >
-              ✦
+              <SkillStar size={15} />
             </div>
 
             <span
@@ -387,7 +388,7 @@ export default function SagePane(): React.ReactElement {
                           color: S.text,
                         }}
                       >
-                        ✦
+                        <SkillStar size={13} />
                       </div>
                     )}
 
@@ -476,7 +477,7 @@ export default function SagePane(): React.ReactElement {
           if (!open) (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none'
         }}
       >
-        ✦
+        <SkillStar size={18} />
         {/* Unread badge */}
         {!open && unreadCount > 0 && (
           <span

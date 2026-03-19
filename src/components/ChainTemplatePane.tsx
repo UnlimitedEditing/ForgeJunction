@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useChainTemplateStore, type ChainTemplate } from '@/stores/chainTemplate'
 import { useChainGraphStore } from '@/stores/chainGraph'
+import { useCanvasStore } from '@/stores/canvasStore'
 
 export default function ChainTemplatePane(): React.ReactElement {
   const {
@@ -203,6 +204,13 @@ export default function ChainTemplatePane(): React.ReactElement {
                   addField(template.id, id, label)
                   setAddFieldState(s => ({ ...s, [template.id]: { id: '', label: '' } }))
                 }}
+                onSpawnCanvas={() => {
+                  const { viewport } = useCanvasStore.getState()
+                  // Place near canvas center in world space
+                  const cx = -viewport.x / viewport.zoom + 300
+                  const cy = -viewport.y / viewport.zoom + 200
+                  useCanvasStore.getState().addChainNode(template.id, { x: cx, y: cy })
+                }}
               />
             ))}
           </div>
@@ -232,6 +240,7 @@ interface TemplateCardProps {
   onUpdateFieldLabel: (fieldId: string, label: string) => void
   onRemoveField: (fieldId: string) => void
   onAddField: (id: string, label: string) => void
+  onSpawnCanvas: () => void
 }
 
 function TemplateCard({
@@ -247,6 +256,7 @@ function TemplateCard({
   onUpdateFieldLabel,
   onRemoveField,
   onAddField,
+  onSpawnCanvas,
 }: TemplateCardProps): React.ReactElement {
   const [renameValue, setRenameValue] = useState(template.name)
 
@@ -271,6 +281,13 @@ function TemplateCard({
             {template.nodes.length} node{template.nodes.length !== 1 ? 's' : ''} · {template.forms.length} field{template.forms.length !== 1 ? 's' : ''}
           </p>
         </div>
+        <button
+          onClick={onSpawnCanvas}
+          className="text-xs rounded bg-purple-500/15 border border-purple-500/25 px-1.5 py-0.5 text-purple-400 hover:bg-purple-500/25 transition-colors flex-shrink-0"
+          title="Spawn as compound node on Canvas"
+        >
+          ↗
+        </button>
         <button
           onClick={onLoad}
           className="text-xs rounded bg-brand/15 border border-brand/25 px-1.5 py-0.5 text-brand hover:bg-brand/25 transition-colors flex-shrink-0"

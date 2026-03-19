@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
+import SkillStar from '@/components/icons/SkillStar'
 import { useVideoEditorStore, type VideoClip, type ClipAnimation } from '@/stores/videoEditor'
 import { useProjectsStore, type ProjectRender } from '@/stores/projects'
 
@@ -179,7 +180,7 @@ function ClipCard({ clip, index, total, isSelected }: {
           <p className="text-white/80 text-xs font-mono truncate" title={clip.label}>{clip.label}</p>
           <p className="text-white/40 text-xs">
             {isImage ? `${clip.imageDuration}s` : (clip.duration > 0 ? formatDuration(clip.duration) : '…')}
-            {isImage && clip.animation !== 'none' && <span className="text-brand/60 ml-1">✦</span>}
+            {isImage && clip.animation !== 'none' && <SkillStar size={10} className="inline-block align-middle text-brand/60 ml-1" />}
           </p>
         </div>
 

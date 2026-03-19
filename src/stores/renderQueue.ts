@@ -1,18 +1,24 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { submitRender, cancelRender, fetchRenderInfo, resolveMediaUrl, resolveAllMedia, connectRenderWebSocket } from '@/api/graydient'
+import { submitRender, submitSkill, cancelRender, fetchRenderInfo, resolveMediaUrl, resolveAllMedia, connectRenderWebSocket } from '@/api/graydient'
 import { useProjectsStore } from './projects'
 
 // Per-render abort controllers keyed by render id
 const activeAbortControllers = new Map<string, AbortController>()
 // Per-render WebSocket cleanup functions
 const activeWebSockets = new Map<string, () => void>()
+// IDs of renders the user explicitly cancelled (vs stream drop / timeout)
+const userCancelledIds = new Set<string>()
+// Active late-result recovery poll timers keyed by render id
+const activeRecoveryPollers = new Map<string, ReturnType<typeof setTimeout>>()
 
 
 export interface QueuedRender {
   id: string
   prompt: string
   workflowSlug: string
+  isSkill: boolean
+  skillSlug: string | null
   sourceMedia: { initImage?: string; placeholders?: Record<string, string>; optionPairs?: string[] } | undefined
   status: 'queued' | 'active' | 'streaming' | 'done' | 'error'
   progress: number
@@ -21,6 +27,7 @@ export interface QueuedRender {
   resultUrls: Array<{ url: string; mediaType: string | null }>
   mediaType: string | null
   thumbnailUrl: string | null
+  isNsfw: boolean
   error: string | null
   submittedAt: number
   startedAt: number | null
@@ -35,6 +42,8 @@ interface RenderQueueState {
   totalRendersThisSession: number
   selectedRenderId: string | null
   enqueue: (prompt: string, workflowSlug: string, sourceMedia?: { initImage?: string; placeholders?: Record<string, string>; optionPairs?: string[] }) => string
+  enqueueSkill: (prompt: string, skillSlug?: string, sourceMedia?: { initImage?: string }) => string
+  markNsfw: (id: string, nsfw: boolean) => void
   processNext: () => void
   cancelById: (id: string) => void
   cancelActive: () => void
@@ -47,6 +56,71 @@ interface RenderQueueState {
 }
 
 export const useRenderQueueStore = create<RenderQueueState>()(persist((set, get) => {
+  /**
+   * Poll fetchRenderInfo every 30 s for a render that errored due to a stream
+   * drop, timeout, or server-side transient failure.  Stops automatically when
+   * the result arrives or 20 minutes have elapsed since submission.
+   * Only started for non-user-initiated errors (stream drops, timeouts, etc.).
+   */
+  function startLateResultPoller(id: string, renderHash: string, submittedAt: number) {
+    const POLL_INTERVAL_MS = 30_000
+    const CUTOFF_MS = 20 * 60_000
+
+    function poll() {
+      activeRecoveryPollers.delete(id)
+      if (Date.now() - submittedAt > CUTOFF_MS) return
+      const render = get().queue.find((r) => r.id === id)
+      if (!render || render.status === 'done') return
+
+      fetchRenderInfo(renderHash)
+        .then((info) => {
+          const resolved = resolveAllMedia(info)
+          if (resolved.length > 0) {
+            const first = resolved[0]
+            set((s) => ({
+              queue: s.queue.map((r) =>
+                r.id === id
+                  ? {
+                      ...r,
+                      status: 'done' as const,
+                      resultUrl: first.url,
+                      resultUrls: resolved.map((m) => ({ url: m.url, mediaType: m.mediaType })),
+                      mediaType: first.mediaType,
+                      thumbnailUrl: first.thumbnailUrl,
+                      completedAt: Date.now(),
+                      progress: 100,
+                      error: null,
+                    }
+                  : r
+              ),
+            }))
+            const completedRender = get().queue.find((r) => r.id === id)
+            if (completedRender?.status === 'done' && completedRender.resultUrl) {
+              useProjectsStore.getState().notifyRenderComplete({
+                id: completedRender.id,
+                workflowSlug: completedRender.workflowSlug,
+                prompt: completedRender.prompt,
+                resultUrl: completedRender.resultUrl,
+                thumbnailUrl: completedRender.thumbnailUrl,
+                mediaType: completedRender.mediaType ?? 'image',
+                completedAt: completedRender.completedAt ?? Date.now(),
+              })
+            }
+          } else {
+            const timer = setTimeout(poll, POLL_INTERVAL_MS)
+            activeRecoveryPollers.set(id, timer)
+          }
+        })
+        .catch(() => {
+          const timer = setTimeout(poll, POLL_INTERVAL_MS)
+          activeRecoveryPollers.set(id, timer)
+        })
+    }
+
+    const timer = setTimeout(poll, POLL_INTERVAL_MS)
+    activeRecoveryPollers.set(id, timer)
+  }
+
   /** Poll until the referenced render is done; returns its resultUrl or null on failure. */
   function waitForPendingRender(pendingId: string): Promise<string | null> {
     return new Promise<string | null>((resolve) => {
@@ -116,10 +190,7 @@ export const useRenderQueueStore = create<RenderQueueState>()(persist((set, get)
       let doneImages: Array<{ url?: string; media?: Array<{ url: string; media_type?: string }> }> | null = null
       let streamError: string | null = null
 
-      const { renderHash: hash, estimatedRenderTime, estimatedWaitTime, doneImages: streamDoneImages } = await submitRender(
-        item.prompt,
-        item.workflowSlug,
-        (eventName, data) => {
+      const streamEventHandler = (eventName: string, data: Record<string, unknown>) => {
           const ts = Date.now()
           if (eventName === 'render_queued') {
             renderHash = (data.render_hash as string | undefined) ?? renderHash
@@ -157,10 +228,26 @@ export const useRenderQueueStore = create<RenderQueueState>()(persist((set, get)
             streamError = (data.message as string | undefined) ?? 'Render failed'
             appendLog({ timestamp: ts, type: 'error', data: streamError })
           }
-        },
-        resolvedSourceMedia,
-        controller.signal
-      )
+      }
+
+      let hash: string, streamDoneImages: typeof doneImages
+      if (item.isSkill) {
+        ;({ renderHash: hash, doneImages: streamDoneImages } = await submitSkill(
+          item.prompt,
+          streamEventHandler,
+          item.skillSlug ?? undefined,
+          resolvedSourceMedia ? { initImage: resolvedSourceMedia.initImage } : undefined,
+          controller.signal
+        ))
+      } else {
+        ;({ renderHash: hash, doneImages: streamDoneImages } = await submitRender(
+          item.prompt,
+          item.workflowSlug,
+          streamEventHandler,
+          resolvedSourceMedia,
+          controller.signal
+        ))
+      }
 
       // Use values from the resolved result if the event callback didn't set them
       if (!renderHash) renderHash = hash
@@ -226,6 +313,15 @@ export const useRenderQueueStore = create<RenderQueueState>()(persist((set, get)
       })
     }
 
+    // If the render errored for a non-user reason (stream drop, timeout, rendering_error)
+    // and the backend received the request (we have a renderHash), start a recovery poller
+    // that checks for a late result every 30 s up to the 20-minute hard cutoff.
+    const wasUserCancelled = userCancelledIds.has(id)
+    userCancelledIds.delete(id)
+    if (completedRender?.status === 'error' && renderHash && !wasUserCancelled) {
+      startLateResultPoller(id, renderHash, item.submittedAt)
+    }
+
     // Kick off the next queued render
     get().processNext()
   }
@@ -248,6 +344,8 @@ export const useRenderQueueStore = create<RenderQueueState>()(persist((set, get)
         id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
         prompt: effectivePrompt,
         workflowSlug,
+        isSkill: false,
+        skillSlug: null,
         sourceMedia,
         status: 'queued',
         progress: 0,
@@ -256,6 +354,7 @@ export const useRenderQueueStore = create<RenderQueueState>()(persist((set, get)
         resultUrls: [],
         mediaType: null,
         thumbnailUrl: null,
+        isNsfw: false,
         error: null,
         submittedAt: Date.now(),
         startedAt: null,
@@ -266,6 +365,41 @@ export const useRenderQueueStore = create<RenderQueueState>()(persist((set, get)
       set((s) => ({ queue: [...s.queue, newRender] }))
       setTimeout(() => get().processNext(), 0)
       return newRender.id
+    },
+
+    enqueueSkill: (prompt, skillSlug, sourceMedia): string => {
+      const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`
+      const newRender: QueuedRender = {
+        id,
+        prompt,
+        workflowSlug: 'skill',
+        isSkill: true,
+        skillSlug: skillSlug ?? null,
+        sourceMedia,
+        status: 'queued',
+        progress: 0,
+        renderHash: null,
+        resultUrl: null,
+        resultUrls: [],
+        mediaType: null,
+        thumbnailUrl: null,
+        isNsfw: false,
+        error: null,
+        submittedAt: Date.now(),
+        startedAt: null,
+        completedAt: null,
+        eta: null,
+        serverLog: [],
+      }
+      set((s) => ({ queue: [...s.queue, newRender] }))
+      setTimeout(() => get().processNext(), 0)
+      return id
+    },
+
+    markNsfw: (id, nsfw) => {
+      set((s) => ({
+        queue: s.queue.map((r) => r.id === id ? { ...r, isNsfw: nsfw } : r),
+      }))
     },
 
     processNext: () => {
@@ -282,6 +416,12 @@ export const useRenderQueueStore = create<RenderQueueState>()(persist((set, get)
     cancelById: (id: string) => {
       const target = get().queue.find((r) => r.id === id)
       if (!target) return
+
+      // Mark as user-initiated so runRender's catch block won't start recovery polling
+      userCancelledIds.add(id)
+      // Stop any in-progress recovery poller for this render
+      const pollerTimer = activeRecoveryPollers.get(id)
+      if (pollerTimer !== undefined) { clearTimeout(pollerTimer); activeRecoveryPollers.delete(id) }
 
       const controller = activeAbortControllers.get(id)
       controller?.abort()
@@ -306,6 +446,10 @@ export const useRenderQueueStore = create<RenderQueueState>()(persist((set, get)
       const active = get().queue.find((r) => r.status === 'active' || r.status === 'streaming')
       if (!active) return
 
+      userCancelledIds.add(active.id)
+      const pollerTimer = activeRecoveryPollers.get(active.id)
+      if (pollerTimer !== undefined) { clearTimeout(pollerTimer); activeRecoveryPollers.delete(active.id) }
+
       // Abort the in-flight SSE stream for this specific render
       const controller = activeAbortControllers.get(active.id)
       controller?.abort()
@@ -329,6 +473,15 @@ export const useRenderQueueStore = create<RenderQueueState>()(persist((set, get)
     },
 
     cancelAll: () => {
+      // Mark all in-flight renders as user-cancelled and stop recovery pollers
+      get().queue.forEach((r) => {
+        if (r.status === 'queued' || r.status === 'active' || r.status === 'streaming') {
+          userCancelledIds.add(r.id)
+        }
+      })
+      activeRecoveryPollers.forEach((timer) => clearTimeout(timer))
+      activeRecoveryPollers.clear()
+
       // Abort all active renders
       activeAbortControllers.forEach((controller) => controller.abort())
       activeAbortControllers.clear()

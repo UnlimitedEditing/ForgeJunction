@@ -27,13 +27,19 @@ PROJECT_FILES = {
     'postcss.config.js',
     'electron.vite.config.ts',
     'index.html',
+    'launcher.html',   # Vite entry point for the Electron launcher window
     '.env',
     '.env.example',
     '.gitignore',
     'CLAUDE.md',
 
-    # Data files used by the app at runtime
+    # Data / feed files used by the app
     'pirate-diffusion-workflow-knowledge.json',
+    'feed.json',       # Launcher news feed (local dev copy)
+
+    # Launch scripts
+    'launch.bat',
+    'launch.sh',
 }
 
 PROJECT_DIRS = {

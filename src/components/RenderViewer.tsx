@@ -4,6 +4,7 @@ import { useSourceMediaStore, type MediaSlotValue } from '@/stores/sourceMedia'
 import { useWorkflowStore } from '@/stores/workflows'
 import { getWorkflowInputSlots } from '@/utils/workflowInputs'
 import { getErrorHelp } from '@/utils/workflowKnowledge'
+import { useSettingsStore } from '@/stores/settings'
 
 function normalizeMediaType(type: string): 'image' | 'video' | 'audio' {
   if (type === 'video') return 'video'
@@ -168,7 +169,13 @@ function UseAsSourceButton({ url, mediaType }: { url: string; mediaType: string 
 }
 
 function RenderCard({ render }: { render: QueuedRender }): React.ReactElement {
+  const { markNsfw } = useRenderQueueStore()
   const logEndRef = useRef<HTMLDivElement>(null)
+  const [viewIdx, setViewIdx] = useState(0)
+  const isNsfw = render.isNsfw ?? false
+
+  // Reset view index when render changes
+  useEffect(() => { setViewIdx(0) }, [render.id])
 
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -182,6 +189,15 @@ function RenderCard({ render }: { render: QueuedRender }): React.ReactElement {
         : null
 
   const help = render.error ? getErrorHelp(render.error) : null
+
+  // Build the list of viewable media items
+  const mediaItems = (render.resultUrls?.length ?? 0) > 0
+    ? render.resultUrls
+    : render.resultUrl
+      ? [{ url: render.resultUrl, mediaType: render.mediaType }]
+      : []
+  const safeIdx = Math.min(viewIdx, Math.max(0, mediaItems.length - 1))
+  const currentItem = mediaItems[safeIdx] ?? null
 
   return (
     <div className="flex flex-col gap-3">
@@ -222,26 +238,59 @@ function RenderCard({ render }: { render: QueuedRender }): React.ReactElement {
       )}
 
       {/* Media result */}
-      {render.status === 'done' && render.resultUrl && (
+      {render.status === 'done' && currentItem && (
         <div className="flex flex-col gap-2">
+          {/* Image navigator — arrows + counter when batch > 1 */}
+          {mediaItems.length > 1 && (
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => setViewIdx(i => Math.max(0, i - 1))}
+                disabled={safeIdx === 0}
+                className="rounded px-2 py-0.5 text-xs text-white/50 hover:text-white/90 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+              >
+                ‹ Prev
+              </button>
+              <span className="text-xs text-white/40 font-mono">
+                {safeIdx + 1} / {mediaItems.length}
+              </span>
+              <button
+                onClick={() => setViewIdx(i => Math.min(mediaItems.length - 1, i + 1))}
+                disabled={safeIdx === mediaItems.length - 1}
+                className="rounded px-2 py-0.5 text-xs text-white/50 hover:text-white/90 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+              >
+                Next ›
+              </button>
+            </div>
+          )}
+
           <MediaPreview
-            url={render.resultUrl}
-            mediaTypeHint={render.mediaType}
+            url={currentItem.url}
+            mediaTypeHint={currentItem.mediaType}
             thumbnailUrl={render.thumbnailUrl}
           />
           <a
-            href={render.resultUrl}
+            href={currentItem.url}
             target="_blank"
             rel="noreferrer"
             className="truncate text-xs text-brand hover:underline"
           >
-            {render.resultUrl}
+            {currentItem.url}
           </a>
-          <UseAsSourceButton url={render.resultUrl} mediaType={render.mediaType} />
+          <UseAsSourceButton url={currentItem.url} mediaType={currentItem.mediaType} />
+          <button
+            onClick={() => markNsfw(render.id, !isNsfw)}
+            className={`rounded px-3 py-1.5 text-xs font-medium transition-colors ${
+              isNsfw
+                ? 'bg-red-900/40 text-red-400 hover:bg-red-900/60'
+                : 'bg-neutral-700 text-white/50 hover:bg-neutral-600 hover:text-white/80'
+            }`}
+          >
+            {isNsfw ? '🔞 Remove NSFW tag' : '🔞 Mark as NSFW'}
+          </button>
         </div>
       )}
 
-      {render.status === 'done' && !render.resultUrl && (
+      {render.status === 'done' && !currentItem && (
         <div className="rounded border border-white/10 p-4">
           <p className="text-sm text-white/50">Render complete — no media URL returned.</p>
         </div>
@@ -322,15 +371,39 @@ function CollapsedCard({ render }: { render: QueuedRender }): React.ReactElement
       ? render.completedAt - render.startedAt
       : null
 
+  const { hideNsfw } = useSettingsStore()
+  const isNsfw = render.isNsfw ?? false
+  const batchCount = (render.resultUrls?.length ?? 0) > 1 ? render.resultUrls.length : 0
+  const thumbSrc = render.thumbnailUrl ?? render.resultUrl ?? null
+  const blurThumb = isNsfw && hideNsfw
+
   return (
     <div className="flex items-center gap-3 px-3 py-2">
-      {/* Thumbnail / placeholder */}
-      {render.resultUrl && render.status === 'done' ? (
-        <img
-          src={render.thumbnailUrl ?? render.resultUrl}
-          alt=""
-          className="h-10 w-10 rounded object-cover shrink-0 bg-white/5"
-        />
+      {/* Thumbnail / placeholder — stacked effect for batches */}
+      {thumbSrc && render.status === 'done' ? (
+        <div className="relative h-10 w-10 shrink-0">
+          {batchCount > 1 && (
+            <div className="absolute inset-0 rounded bg-white/10 translate-x-[3px] translate-y-[3px]" />
+          )}
+          {batchCount > 2 && (
+            <div className="absolute inset-0 rounded bg-white/6 translate-x-[6px] translate-y-[6px]" />
+          )}
+          <img
+            src={thumbSrc}
+            alt=""
+            className={`absolute inset-0 h-10 w-10 rounded object-cover bg-white/5 transition-[filter] ${blurThumb ? 'blur-md' : ''}`}
+          />
+          {isNsfw && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-[8px] text-red-400 font-bold bg-black/60 rounded px-0.5 leading-tight">NSFW</span>
+            </div>
+          )}
+          {batchCount > 1 && (
+            <div className="absolute -top-1 -right-1 rounded-full bg-neutral-700 border border-white/20 px-1 min-w-[16px] h-4 flex items-center justify-center text-[9px] text-white/80 font-bold leading-none">
+              {batchCount}
+            </div>
+          )}
+        </div>
       ) : (
         <div className="h-10 w-10 rounded bg-white/5 shrink-0 flex items-center justify-center">
           {(render.status === 'active' || render.status === 'streaming') && (

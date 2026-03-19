@@ -1,130 +1,11 @@
 import React, { useEffect, useState } from 'react'
+import SkillsIcon from '@/components/icons/SkillsIcon'
 import { useWorkflowStore } from '@/stores/workflows'
 import { usePromptStore } from '@/stores/prompt'
 import { useSourceMediaStore } from '@/stores/sourceMedia'
 import { categorizeWorkflow, type WorkflowCategory } from '@/utils/workflowCategories'
 import { getWorkflowInputSlots } from '@/utils/workflowInputs'
 import { fetchConcepts, type Concept, type Workflow } from '@/api/graydient'
-
-// ── Simple Mode ───────────────────────────────────────────────────────────────
-
-interface SimpleType {
-  label: string
-  icon: string
-  description: string
-  /** Slug must contain ALL of these substrings (lowercased) to match */
-  slugKeywords: string[]
-  note?: string
-}
-
-const SIMPLE_TYPES: SimpleType[] = [
-  {
-    label: 'Text → Image',
-    icon: '🖼',
-    description: 'Generate images from a text prompt',
-    slugKeywords: ['zimage-turbo'],
-  },
-  {
-    label: 'Image → Image',
-    icon: '🔄',
-    description: 'Transform or edit an existing image',
-    slugKeywords: ['edit', 'flux'],
-  },
-  {
-    label: 'Text → Video',
-    icon: '🎬',
-    description: 'Create a video clip from a text prompt',
-    slugKeywords: ['smoothwan'],
-  },
-  {
-    label: 'Image → Video',
-    icon: '🎞',
-    description: 'Animate a still image into video',
-    slugKeywords: ['animate', 'smoothwan'],
-  },
-  {
-    label: 'Image → Video + Sound',
-    icon: '🔊',
-    description: 'Animate an image and add generated audio',
-    slugKeywords: ['animate', 'ltx'],
-  },
-  {
-    label: 'Video → Video',
-    icon: '♻',
-    description: 'Extend or restyle an existing video',
-    slugKeywords: ['extend', 'smoothwan'],
-  },
-  {
-    label: 'Video → Video + Sound',
-    icon: '🎙',
-    description: 'Restyle a video and add audio',
-    slugKeywords: ['audio', 'ltx'],
-  },
-  {
-    label: 'Text → Video + Sound',
-    icon: '🎥',
-    description: 'Generate a video with audio from text',
-    slugKeywords: ['ltx'],
-  },
-  {
-    label: 'Text → Music',
-    icon: '🎵',
-    description: 'Generate music or ambient sound from text',
-    slugKeywords: ['musicace'],
-  },
-  {
-    label: 'Text → Speech',
-    icon: '🗣',
-    description: 'Generate spoken audio — requires a face image',
-    slugKeywords: ['infinitetalk'],
-    note: 'This workflow needs a face image. Generate one first if your library is empty.',
-  },
-]
-
-function findWorkflowForType(type: SimpleType, workflows: Workflow[]): Workflow | null {
-  const kw = type.slugKeywords
-  return (
-    workflows.find((w) => kw.every((k) => w.slug.toLowerCase().includes(k))) ?? null
-  )
-}
-
-function SimpleModeView({
-  workflows,
-  onSelect,
-}: {
-  workflows: Workflow[]
-  onSelect: (wf: Workflow, note?: string) => void
-}): React.ReactElement {
-  const available = SIMPLE_TYPES.map((t) => ({ type: t, wf: findWorkflowForType(t, workflows) }))
-    .filter(({ wf }) => wf !== null) as { type: SimpleType; wf: Workflow }[]
-
-  return (
-    <div className="flex flex-col gap-2 px-2 py-3 overflow-y-auto flex-1 min-h-0">
-      {available.map(({ type, wf }) => (
-        <button
-          key={type.label}
-          onClick={() => onSelect(wf, type.note)}
-          className="w-full text-left rounded-md px-3 py-2.5 bg-neutral-800 hover:bg-neutral-700 border border-white/5 hover:border-brand/30 transition-colors group"
-        >
-          <div className="flex items-center gap-2.5">
-            <span className="text-xl flex-shrink-0">{type.icon}</span>
-            <div className="min-w-0">
-              <p className="text-xs font-semibold text-white/80 group-hover:text-white transition-colors">
-                {type.label}
-              </p>
-              <p className="text-[11px] text-white/35 leading-snug mt-0.5">
-                {type.description}
-              </p>
-            </div>
-          </div>
-        </button>
-      ))}
-      {available.length === 0 && (
-        <p className="text-xs text-white/25 text-center py-6">Loading workflows…</p>
-      )}
-    </div>
-  )
-}
 
 function isCompatibleWithMedia(wf: Workflow, mediaType: 'image' | 'video' | 'audio'): boolean {
   if (mediaType === 'image') {
@@ -336,7 +217,7 @@ function ConceptsPanel({
 
 type DetailTab = 'concepts' | 'details'
 
-const SIMPLE_MODE_KEY = 'fj-simple-mode'
+const GREETING_DISMISSED_KEY = 'fj-greeting-dismissed'
 
 export default function WorkflowSelector(): React.ReactElement {
   const { workflows, selectedWorkflow, loading, error, loadWorkflows, selectWorkflow } =
@@ -345,12 +226,9 @@ export default function WorkflowSelector(): React.ReactElement {
   const { media, clear: clearSourceMedia } = useSourceMediaStore()
   const sourceMediaType = media?.mediaType ?? null
 
-  // Default to simple mode for new users (persisted)
-  const [simpleMode, setSimpleMode] = useState<boolean>(() => {
-    const stored = localStorage.getItem(SIMPLE_MODE_KEY)
-    return stored === null ? true : stored === 'true'
-  })
-  const [simpleNote, setSimpleNote] = useState<string | null>(null)
+  const [greetingDismissed, setGreetingDismissed] = useState<boolean>(() =>
+    localStorage.getItem(GREETING_DISMISSED_KEY) === 'true'
+  )
   const [view, setView] = useState<'workflows' | 'detail'>('workflows')
   const [detailTab, setDetailTab] = useState<DetailTab>('details')
   const [lastConcept, setLastConcept] = useState<Concept | null>(null)
@@ -358,23 +236,15 @@ export default function WorkflowSelector(): React.ReactElement {
   const [activeCategory, setActiveCategory] = useState<WorkflowCategory | null>(null)
   const [filtersOpen, setFiltersOpen] = useState(false)
 
-  function toggleSimpleMode() {
-    setSimpleMode((v) => {
-      const next = !v
-      localStorage.setItem(SIMPLE_MODE_KEY, String(next))
-      return next
-    })
+  function dismissGreeting() {
+    localStorage.setItem(GREETING_DISMISSED_KEY, 'true')
+    setGreetingDismissed(true)
   }
 
   function handleSelectWorkflow(slug: string) {
     selectWorkflow(slug)
     setWorkflowSlug(slug)
     setView('detail')
-  }
-
-  function handleSimpleSelect(wf: Workflow, note?: string) {
-    setSimpleNote(note ?? null)
-    handleSelectWorkflow(wf.slug)
   }
 
   useEffect(() => {
@@ -438,20 +308,13 @@ export default function WorkflowSelector(): React.ReactElement {
             {selectedWorkflow.name}
           </span>
           <button
-            onClick={toggleSimpleMode}
+            onClick={() => setView('workflows')}
             className="text-[11px] text-white/25 hover:text-brand transition-colors flex-shrink-0"
-            title={simpleMode ? 'Switch to Advanced' : 'Switch to Simple'}
+            title="All Workflows"
           >
-            {simpleMode ? 'Advanced →' : '← Simple'}
+            All →
           </button>
         </div>
-        {/* Simple mode note (e.g. for text-to-speech requiring a face image) */}
-        {simpleNote && (
-          <div className="flex-shrink-0 px-3 py-2 bg-amber-500/10 border-b border-amber-500/20 text-[11px] text-amber-300/80 leading-snug">
-            ⚠ {simpleNote}
-          </div>
-        )}
-
         {/* Tab bar */}
         <div className="flex-shrink-0 flex border-b border-white/10">
           {hasConcepts && (
@@ -532,44 +395,50 @@ export default function WorkflowSelector(): React.ReactElement {
     )
   }
 
-  // ── Simple mode ────────────────────────────────────────────────────────────
-  if (simpleMode && view === 'workflows') {
-    return (
-      <div className="flex flex-col h-full">
-        {/* Mode toggle */}
-        <div className="flex-shrink-0 flex items-center justify-between px-3 py-2 border-b border-white/10">
-          <span className="text-[11px] text-white/30 uppercase tracking-widest">Quick Start</span>
-          <button
-            onClick={toggleSimpleMode}
-            className="text-[11px] text-white/30 hover:text-brand transition-colors"
-          >
-            Advanced →
-          </button>
-        </div>
-        {loading ? (
-          <div className="flex h-32 items-center justify-center">
-            <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white" />
-          </div>
-        ) : (
-          <SimpleModeView workflows={workflows} onSelect={handleSimpleSelect} />
-        )}
-      </div>
-    )
-  }
-
   // ── Workflows list view ────────────────────────────────────────────────────
   return (
     <div className="flex flex-col h-full">
-      {/* Sticky header */}
-      <div className="flex-shrink-0 border-b border-white/10">
-        <div className="flex items-center justify-between px-3 pt-2 pb-1">
-          <span className="text-[11px] text-white/25 uppercase tracking-widest">All Workflows</span>
+      {/* Greeting card — shown until dismissed */}
+      {!greetingDismissed && (
+        <div className="flex-shrink-0 mx-2 mt-2 mb-0 rounded-lg bg-brand/10 border border-brand/20 overflow-hidden">
+          <div className="px-3 pt-2.5 pb-1">
+            <div className="flex items-start justify-between gap-2 mb-1.5">
+              <span className="text-brand text-xs font-semibold">Welcome to Forge Junction</span>
+              <button
+                onClick={dismissGreeting}
+                className="text-white/20 hover:text-white/60 text-[10px] flex-shrink-0 leading-none mt-0.5"
+                title="Dismiss"
+              >✕</button>
+            </div>
+            <p className="text-[11px] text-white/50 leading-relaxed">
+              Type a prompt and press <span className="text-white/70 font-mono">Enter</span> to generate.
+              Use <span className="text-white/70 inline-flex items-center gap-0.5"><SkillsIcon size={10} /> Skills</span> to let AI pick the best workflow automatically,
+              or select a workflow here for precise control.
+              Double-click the canvas to add a Skill node. Drag wires between nodes to chain outputs.
+            </p>
+          </div>
           <button
-            onClick={toggleSimpleMode}
-            className="text-[11px] text-white/30 hover:text-brand transition-colors"
+            onClick={dismissGreeting}
+            className="w-full py-1.5 text-[10px] text-brand/60 hover:text-brand hover:bg-brand/10 transition-colors border-t border-brand/15"
           >
-            ← Simple
+            Got it — hide this
           </button>
+        </div>
+      )}
+
+      {/* Sticky header */}
+      <div className="flex-shrink-0 border-b border-white/10 mt-2">
+        <div className="flex items-center justify-between px-3 pt-2 pb-1">
+          <span className="text-[11px] text-white/25 uppercase tracking-widest">Workflows</span>
+          {greetingDismissed && (
+            <button
+              onClick={() => setGreetingDismissed(false)}
+              className="text-[10px] text-white/20 hover:text-brand transition-colors"
+              title="Show guide"
+            >
+              ? Guide
+            </button>
+          )}
         </div>
         {sourceMediaType && (
           <div className="flex items-center gap-2 px-3 py-2 bg-brand/10 border-b border-brand/20 text-xs">

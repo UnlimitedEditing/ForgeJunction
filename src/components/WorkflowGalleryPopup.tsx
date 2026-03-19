@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import SkillStar from '@/components/icons/SkillStar'
 import { useWorkflowStore } from '@/stores/workflows'
 import { usePromptStore } from '@/stores/prompt'
 import { fetchConcepts, type Concept, type Workflow } from '@/api/graydient'
@@ -20,15 +21,30 @@ function WorkflowCard({
   workflow: Workflow
   onClick: () => void
 }): React.ReactElement {
+  const [hovered, setHovered] = useState(false)
+  const thumb = workflow.thumbnail_url ?? workflow.image_url
+
+  function onDragStart(e: React.DragEvent) {
+    e.dataTransfer.setData(
+      'application/fj-workflow',
+      JSON.stringify({ slug: workflow.slug, name: workflow.name }),
+    )
+    e.dataTransfer.effectAllowed = 'copy'
+  }
+
   return (
     <button
+      draggable
       onClick={onClick}
-      className="flex-shrink-0 flex flex-col items-center gap-1.5 w-24 group"
+      onDragStart={onDragStart}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className="flex-shrink-0 flex flex-col items-center gap-1.5 w-24 group relative"
     >
-      <div className="w-24 h-20 rounded-lg overflow-hidden bg-neutral-700 flex items-center justify-center ring-1 ring-white/10 group-hover:ring-brand/60 transition-all">
-        {workflow.thumbnail_url ? (
+      <div className="w-24 h-20 rounded-lg overflow-hidden bg-neutral-800 flex items-center justify-center ring-1 ring-white/10 group-hover:ring-brand/60 transition-all relative">
+        {thumb ? (
           <img
-            src={workflow.thumbnail_url}
+            src={thumb}
             alt={workflow.name}
             className="w-full h-full object-cover"
             draggable={false}
@@ -36,7 +52,20 @@ function WorkflowCard({
         ) : (
           <span className="text-3xl">{workflowIcon(workflow)}</span>
         )}
+
+        {/* Description tooltip overlay */}
+        {hovered && workflow.description && (
+          <div className="absolute inset-0 bg-black/85 flex flex-col items-start justify-end p-1.5 rounded-lg pointer-events-none">
+            <p className="text-[9px] text-white/80 text-left leading-tight line-clamp-4">
+              {workflow.description}
+            </p>
+            {!workflow.supports_dynamic_concepts && (
+              <span className="mt-1 text-[8px] text-white/30 italic">no LoRA support</span>
+            )}
+          </div>
+        )}
       </div>
+
       <span className="text-xs text-white/60 group-hover:text-white/90 text-center leading-tight line-clamp-2 transition-colors w-full">
         {workflow.name}
       </span>
@@ -55,14 +84,24 @@ function ConceptCard({
 }): React.ReactElement {
   const [hovered, setHovered] = useState(false)
 
+  function onDragStart(e: React.DragEvent) {
+    e.dataTransfer.setData(
+      'application/fj-concept',
+      JSON.stringify({ token: concept.token, name: concept.name }),
+    )
+    e.dataTransfer.effectAllowed = 'copy'
+  }
+
   return (
     <button
+      draggable
       onClick={onClick}
+      onDragStart={onDragStart}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       className="flex-shrink-0 flex flex-col items-center gap-1.5 w-24 group relative"
     >
-      <div className="w-24 h-20 rounded-lg overflow-hidden bg-neutral-700 flex items-center justify-center ring-1 ring-white/10 group-hover:ring-brand/60 transition-all relative">
+      <div className="w-24 h-20 rounded-lg overflow-hidden bg-neutral-800 flex items-center justify-center ring-1 ring-white/10 group-hover:ring-brand/60 transition-all relative">
         {concept.example_url ? (
           <img
             src={concept.example_url}
@@ -71,18 +110,26 @@ function ConceptCard({
             draggable={false}
           />
         ) : (
-          <span className="text-2xl">✦</span>
+          <SkillStar size={24} />
         )}
 
-        {/* Token tooltip */}
-        {hovered && concept.token && (
-          <div className="absolute inset-0 bg-black/80 flex items-center justify-center p-1.5 rounded-lg">
-            <p className="text-xs text-white/80 text-center leading-tight font-mono">
-              {concept.token}
-            </p>
+        {/* Description + token overlay on hover */}
+        {hovered && (
+          <div className="absolute inset-0 bg-black/85 flex flex-col items-start justify-end p-1.5 rounded-lg pointer-events-none gap-1">
+            {concept.description && (
+              <p className="text-[9px] text-white/75 text-left leading-tight line-clamp-3">
+                {concept.description}
+              </p>
+            )}
+            {concept.token && (
+              <p className="text-[8px] text-brand/80 font-mono truncate w-full">
+                &lt;{concept.token}&gt;
+              </p>
+            )}
           </div>
         )}
       </div>
+
       <span className="text-xs text-white/60 group-hover:text-white/90 text-center leading-tight line-clamp-2 transition-colors w-full">
         {concept.name}
       </span>
@@ -97,8 +144,8 @@ function SkeletonCards(): React.ReactElement {
     <>
       {[...Array(6)].map((_, i) => (
         <div key={i} className="flex-shrink-0 flex flex-col items-center gap-1.5 w-24">
-          <div className="w-24 h-20 rounded-lg bg-neutral-700 animate-pulse" />
-          <div className="h-3 w-16 rounded bg-neutral-700 animate-pulse" />
+          <div className="w-24 h-20 rounded-lg bg-neutral-800 animate-pulse" />
+          <div className="h-3 w-16 rounded bg-neutral-800 animate-pulse" />
         </div>
       ))}
     </>
@@ -130,13 +177,20 @@ export default function WorkflowGalleryPopup({
         setView('workflows')
         setActiveWorkflow(null)
         setConcepts([])
-      }, 200) // after slide-down completes
+      }, 200)
     }
   }, [open])
 
   function handleSelectWorkflow(wf: Workflow) {
     selectWorkflow(wf.slug)
     setWorkflowSlug(wf.slug)
+
+    // Only enter the LoRA browser if this workflow supports dynamic concepts
+    if (!wf.supports_dynamic_concepts) {
+      onClose()
+      return
+    }
+
     setActiveWorkflow(wf)
     setView('loras')
     setConcepts([])
@@ -257,6 +311,15 @@ export default function WorkflowGalleryPopup({
             )}
 
           </div>
+        </div>
+
+        {/* Drag hint */}
+        <div className="px-4 pb-2 flex-shrink-0">
+          <p className="text-[9px] text-white/15 select-none">
+            {view === 'workflows'
+              ? 'Click to select · Drag onto canvas to create a node'
+              : 'Click to insert into prompt · Drag onto a canvas node to append'}
+          </p>
         </div>
       </div>
     </div>

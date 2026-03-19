@@ -18,20 +18,25 @@ interface Props {
   node: CanvasNode
   isSelected: boolean
   isSnapTarget?: boolean
+  isNearInputPort?: boolean
+  isNearOutputPort?: boolean
   animationClass?: string
   onStartEdge: (fromNodeId: string, fromWorldPos: { x: number; y: number }, fromType: 'prompt' | 'media', fromItemIndex?: number) => void
   onContextMenu: (e: React.MouseEvent) => void
+  onOpenLightbox?: (item: { url: string; mediaType: string }) => void
 }
 
-export default function PromptNode({ node, isSelected, isSnapTarget = false, animationClass = '', onStartEdge, onContextMenu }: Props): React.ReactElement {
+export default function PromptNode({ node, isSelected, isSnapTarget = false, isNearInputPort = false, isNearOutputPort = false, animationClass = '', onStartEdge, onContextMenu, onOpenLightbox }: Props): React.ReactElement {
   const {
     updateNode, setSelectedNode, moveNodes, runNode, cancelNode,
     addInputMedia, toggleOutputCollapsed,
     setSelectedOutputIndex,
   } = useCanvasStore()
   const { workflows } = useWorkflowStore()
-  const dragState = useRef<{ sx: number; sy: number; startPos: Record<string, { x: number; y: number }>; ids: string[] } | null>(null)
+  const dragState       = useRef<{ sx: number; sy: number; startPos: Record<string, { x: number; y: number }>; ids: string[] } | null>(null)
   const bodyResizeState = useRef<{ sx: number; sy: number; sw: number; sh: number } | null>(null)
+  const galleryScrollRef = useRef<HTMLDivElement>(null)
+  const [galleryScroll, setGalleryScroll] = useState(0)
 
   // Workflow compat check
   const runMatch = node.prompt.match(/\/run:(\S+)/)
@@ -148,9 +153,13 @@ export default function PromptNode({ node, isSelected, isSnapTarget = false, ani
   function onDrop(e: React.DragEvent) {
     e.preventDefault()
     e.stopPropagation()
-    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/') || f.type.startsWith('video/'))
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/') || f.type.startsWith('video/') || f.type.startsWith('audio/'))
     if (!files.length) return
-    addInputMedia(node.id, files.map(f => ({ url: URL.createObjectURL(f), mediaType: f.type.startsWith('video/') ? 'video' : 'image', name: f.name })))
+    addInputMedia(node.id, files.map(f => ({
+      url: URL.createObjectURL(f),
+      mediaType: f.type.startsWith('video/') ? 'video' : f.type.startsWith('audio/') ? 'audio' : 'image',
+      name: f.name,
+    })))
   }
 
   const isRunning = node.status === 'queued' || node.status === 'active'
@@ -243,12 +252,14 @@ export default function PromptNode({ node, isSelected, isSnapTarget = false, ani
       {inputPortMounted && (
         <div
           data-input-port={node.id}
-          className={`absolute left-0 -translate-x-1/2 w-3 h-3 rounded-full z-10 pointer-events-none ${
+          className={`absolute left-0 -translate-x-1/2 w-3 h-3 rounded-full z-10 pointer-events-none transition-all ${
             inputPortExiting
               ? 'animate-port-out bg-amber-500/40 border border-amber-500/60'
               : isSnapTarget
                 ? 'animate-port-in bg-violet-400 border border-violet-300 scale-150 shadow-[0_0_8px_rgba(192,100,255,0.8)]'
-                : 'animate-port-in bg-amber-500/40 border border-amber-500/60'
+                : isNearInputPort
+                  ? 'animate-port-in bg-amber-400/90 border border-amber-300 scale-[1.8] shadow-[0_0_6px_rgba(251,191,36,0.7)]'
+                  : 'animate-port-in bg-amber-500/40 border border-amber-500/60'
           }`}
           style={{ top: node.size.h / 2 - PORT_R }}
         />
@@ -287,7 +298,11 @@ export default function PromptNode({ node, isSelected, isSnapTarget = false, ani
       {/* ── Output port (idle, no results yet) ── */}
       {!hasOutput && !isRunning && (
         <div
-          className="absolute right-0 translate-x-1/2 w-3 h-3 rounded-full bg-brand/40 border border-brand/60 cursor-crosshair hover:bg-brand hover:scale-125 transition-all z-10"
+          className={`absolute right-0 translate-x-1/2 w-3 h-3 rounded-full cursor-crosshair transition-all z-10 ${
+            isNearOutputPort
+              ? 'bg-brand border border-brand/80 scale-[1.8] shadow-[0_0_8px_rgba(108,71,255,0.8)]'
+              : 'bg-brand/40 border border-brand/60 hover:bg-brand hover:scale-125'
+          }`}
           style={{ top: node.size.h / 2 - PORT_R }}
           onMouseDown={(e) => { if (e.button !== 0) return; e.stopPropagation(); onStartEdge(node.id, { x: node.position.x + node.size.w, y: node.position.y + node.size.h / 2 }, 'prompt', undefined) }}
           title="Output — drag to connect"
@@ -310,8 +325,13 @@ export default function PromptNode({ node, isSelected, isSnapTarget = false, ani
           </div>
 
           {!node.outputCollapsed && (
-            <div className="overflow-y-auto" style={{ maxHeight: ITEM_ROW_H * 4 }}>
-              {/* Completed items */}
+            <div
+              ref={galleryScrollRef}
+              className="overflow-y-auto"
+              style={{ maxHeight: ITEM_ROW_H * 4 }}
+              onScroll={e => setGalleryScroll((e.currentTarget as HTMLDivElement).scrollTop)}
+            >
+              {/* Completed items — NO port inside here; ports rendered outside scroll container below */}
               {allItems.map((item, i) => {
                 const isActive = node.selectedOutputIndex === i
                 return (
@@ -333,6 +353,7 @@ export default function PromptNode({ node, isSelected, isSnapTarget = false, ani
                         e.dataTransfer.effectAllowed = 'copy'
                       }}
                       onClick={(e) => { e.stopPropagation(); setSelectedOutputIndex(node.id, isActive ? null : i) }}
+                      onDoubleClick={(e) => { e.stopPropagation(); onOpenLightbox?.({ url: item.url, mediaType: item.mediaType }) }}
                     >
                       {item.mediaType.includes('video') ? (
                         <video src={item.url} className="w-full h-full object-cover" />
@@ -340,22 +361,11 @@ export default function PromptNode({ node, isSelected, isSnapTarget = false, ani
                         <img src={item.url} className="w-full h-full object-cover" draggable={false} />
                       )}
                     </div>
-                    {/* Per-item output port on right edge */}
-                    <div
-                      className={`absolute right-0 translate-x-1/2 w-3 h-3 rounded-full border cursor-crosshair hover:scale-125 transition-all z-10 animate-port-in ${
-                        isActive
-                          ? 'bg-orange-400 border-orange-300 shadow-[0_0_6px_rgba(251,146,60,0.8)]'
-                          : 'bg-brand/60 border-brand hover:bg-brand'
-                      }`}
-                      style={{ top: ITEM_ROW_H / 2 - PORT_R }}
-                      onMouseDown={startEdgeFromItem(i)}
-                      title={`Output ${i + 1} — drag to connect`}
-                    />
                   </div>
                 )
               })}
 
-              {/* Buffer item — in-progress render */}
+              {/* Buffer item — in-progress render, NO port inside */}
               {isRunning && (
                 <div
                   className="relative flex items-center gap-1.5 pl-2 pr-5"
@@ -378,18 +388,58 @@ export default function PromptNode({ node, isSelected, isSnapTarget = false, ani
                     </div>
                     <span className="text-[9px] text-white/20 tabular-nums">{renderProgress}%</span>
                   </div>
-                  {/* Reserved port — not yet connectable */}
-                  <div
-                    className="absolute right-0 translate-x-1/2 w-3 h-3 rounded-full bg-white/10 border border-white/20 z-10"
-                    style={{ top: ITEM_ROW_H / 2 - PORT_R }}
-                    title="Awaiting render…"
-                  />
                 </div>
               )}
             </div>
           )}
         </div>
       )}
+      {/* ── Per-item output ports — rendered outside overflow-y-auto so they're never clipped ── */}
+      {(hasOutput || isRunning) && !node.outputCollapsed && (() => {
+        const HEADER_H_NODE = 36
+        // Y of first item port relative to the node root (accounts for header + body + output header)
+        const galleryTop   = node.size.h + OUTPUT_HEADER_H
+        const maxVisible   = ITEM_ROW_H * 4
+
+        return (
+          <>
+            {allItems.map((item, i) => {
+              const isActive = node.selectedOutputIndex === i
+              // Port centre within the gallery scroll area (scroll-adjusted)
+              const portCentreInGallery = i * ITEM_ROW_H + ITEM_ROW_H / 2 - galleryScroll
+              // Clip to visible gallery window
+              if (portCentreInGallery < 0 || portCentreInGallery > maxVisible) return null
+              return (
+                <div
+                  key={`port-${i}`}
+                  className={`absolute right-0 translate-x-1/2 w-3 h-3 rounded-full border cursor-crosshair hover:scale-125 transition-all z-20 animate-port-in ${
+                    isActive
+                      ? 'bg-orange-400 border-orange-300 shadow-[0_0_6px_rgba(251,146,60,0.8)]'
+                      : 'bg-brand/60 border-brand hover:bg-brand'
+                  }`}
+                  style={{ top: galleryTop + portCentreInGallery - PORT_R }}
+                  onMouseDown={startEdgeFromItem(i)}
+                  title={`Output ${i + 1} — drag to connect`}
+                />
+              )
+            })}
+
+            {/* Buffer port — reserved, non-interactive */}
+            {isRunning && (() => {
+              const portCentreInGallery = allItems.length * ITEM_ROW_H + ITEM_ROW_H / 2 - galleryScroll
+              if (portCentreInGallery < 0 || portCentreInGallery > maxVisible) return null
+              return (
+                <div
+                  key="port-buffer"
+                  className="absolute right-0 translate-x-1/2 w-3 h-3 rounded-full bg-white/10 border border-white/20 z-20 pointer-events-none"
+                  style={{ top: galleryTop + portCentreInGallery - PORT_R }}
+                  title="Awaiting render…"
+                />
+              )
+            })()}
+          </>
+        )
+      })()}
     </div>
   )
 }

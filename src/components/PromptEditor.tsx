@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
+import SkillsIcon from '@/components/icons/SkillsIcon'
 import { useWorkflowStore } from '@/stores/workflows'
 import { usePromptStore } from '@/stores/prompt'
 import { useRenderQueueStore } from '@/stores/renderQueue'
@@ -14,7 +15,7 @@ import type { Workflow } from '@/api/graydient'
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 function getPlaceholder(workflow: Workflow | null): string {
-  if (!workflow) return 'Describe what you want to generate…'
+  if (!workflow) return 'Describe Anything.'
   if (workflow.supports_txt2vid) return '[camera movement] [subject] [scene] [style]'
   if (workflow.supports_txt2wav) return '[verse] lyrics here [chorus] chorus here…'
   if (workflow.supports_img2img || workflow.supports_img2vid) return 'Describe the motion or changes to apply…'
@@ -65,14 +66,33 @@ function RawPromptView({ onClose }: { onClose: () => void }): React.ReactElement
   )
 }
 
+// ── Simple type quick-picks (migrated from WorkflowSelector Quick Start) ───────
+
+interface SimpleType { label: string; icon: string; slugKeywords: string[] }
+
+const QUICK_TYPES: SimpleType[] = [
+  { label: 'Text → Image',          icon: '🖼',  slugKeywords: ['zimage-turbo'] },
+  { label: 'Image → Image',         icon: '🔄',  slugKeywords: ['edit', 'flux'] },
+  { label: 'Text → Video',          icon: '🎬',  slugKeywords: ['smoothwan'] },
+  { label: 'Image → Video',         icon: '🎞',  slugKeywords: ['animate', 'smoothwan'] },
+  { label: 'Text → Music',          icon: '🎵',  slugKeywords: ['musicace'] },
+  { label: 'Text → Speech',         icon: '🗣',  slugKeywords: ['infinitetalk'] },
+]
+
+function findWfForType(type: SimpleType, workflows: Workflow[]): Workflow | null {
+  return workflows.find(w => type.slugKeywords.every(k => w.slug.toLowerCase().includes(k))) ?? null
+}
+
 // ── WorkflowChip ───────────────────────────────────────────────────────────────
 
 function WorkflowChip(): React.ReactElement {
-  const { selectedWorkflow, workflows, selectWorkflow } = useWorkflowStore()
+  const { selectedWorkflow, workflows, selectWorkflow, clearWorkflow } = useWorkflowStore()
   const { setWorkflowSlug } = usePromptStore()
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
   const dropRef = useRef<HTMLDivElement>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const dragFromRef = useRef(false)
 
   useEffect(() => {
     if (!open) return
@@ -82,6 +102,21 @@ function WorkflowChip(): React.ReactElement {
     document.addEventListener('mousedown', onDown)
     return () => document.removeEventListener('mousedown', onDown)
   }, [open])
+
+  // Drag-off-to-clear: mousedown on chip → drag off → release = clear selection
+  useEffect(() => {
+    function onUp(e: MouseEvent) {
+      if (!dragFromRef.current) return
+      dragFromRef.current = false
+      if (btnRef.current && !btnRef.current.contains(e.target as Node)) {
+        clearWorkflow()
+        setWorkflowSlug('')
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mouseup', onUp)
+    return () => document.removeEventListener('mouseup', onUp)
+  }, [clearWorkflow, setWorkflowSlug])
 
   const filtered = workflows.filter((wf) =>
     wf.name.toLowerCase().includes(search.toLowerCase())
@@ -94,25 +129,67 @@ function WorkflowChip(): React.ReactElement {
     setSearch('')
   }
 
+  const quickPicks = React.useMemo(
+    () => QUICK_TYPES.map(t => ({ type: t, wf: findWfForType(t, workflows) })).filter(x => x.wf !== null) as { type: SimpleType; wf: Workflow }[],
+    [workflows]
+  )
+
   return (
     <div className="relative flex-shrink-0" ref={dropRef}>
       <button
+        ref={btnRef}
+        onMouseDown={() => { dragFromRef.current = true }}
         onClick={() => { setOpen((v) => !v); setSearch('') }}
-        title={selectedWorkflow?.name ?? 'Select workflow'}
-        className={`flex items-center gap-1 rounded-md px-2 py-1.5 text-xs transition-colors max-w-[140px] ${
+        title={selectedWorkflow ? `${selectedWorkflow.name} — drag off to clear` : 'Skills auto-select — AI picks the best workflow'}
+        className={`flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs transition-colors max-w-[160px] ${
           selectedWorkflow
             ? 'bg-white/8 text-white/70 hover:bg-white/12 hover:text-white'
-            : 'bg-brand/20 text-brand hover:bg-brand/30'
+            : 'bg-brand/15 text-brand/80 hover:bg-brand/25 hover:text-brand'
         }`}
       >
-        <span className="truncate font-medium">
-          {selectedWorkflow?.name ?? 'Select workflow'}
-        </span>
+        {selectedWorkflow ? (
+          <span className="truncate font-medium">{selectedWorkflow.name}</span>
+        ) : (
+          <>
+            <SkillsIcon size={12} className="flex-shrink-0" />
+            <span className="font-medium">Skills</span>
+          </>
+        )}
         <span className="text-white/30 flex-shrink-0 text-[10px]">▼</span>
       </button>
 
       {open && (
-        <div className="absolute left-0 bottom-full mb-2 w-64 rounded-lg bg-neutral-800 border border-white/10 shadow-2xl z-50 overflow-hidden">
+        <div className="absolute left-0 bottom-full mb-2 w-72 rounded-lg bg-neutral-800 border border-white/10 shadow-2xl z-50 overflow-hidden">
+          {/* Clear selection */}
+          {selectedWorkflow && !search && (
+            <div className="border-b border-white/8 px-2 py-1.5">
+              <button
+                onClick={() => { clearWorkflow(); setWorkflowSlug(''); setOpen(false) }}
+                className="w-full text-left px-2 py-1 rounded text-xs text-white/40 hover:text-white/70 hover:bg-white/5 transition-colors"
+              >
+                ✕ Clear selection
+              </button>
+            </div>
+          )}
+          {/* Quick-start picks */}
+          {!search && quickPicks.length > 0 && (
+            <div className="border-b border-white/8">
+              <div className="px-3 pt-2 pb-1 text-[10px] text-white/25 uppercase tracking-widest">Quick Start</div>
+              <div className="grid grid-cols-3 gap-1 px-2 pb-2">
+                {quickPicks.map(({ type, wf }) => (
+                  <button
+                    key={type.label}
+                    onClick={() => pick(wf.slug)}
+                    className="flex flex-col items-center gap-0.5 rounded-md px-1 py-2 bg-neutral-700/50 hover:bg-brand/15 hover:border-brand/30 border border-transparent transition-colors text-center"
+                    title={type.label}
+                  >
+                    <span className="text-lg leading-none">{type.icon}</span>
+                    <span className="text-[9px] text-white/50 leading-tight">{type.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="p-2 border-b border-white/10">
             <input
               autoFocus
@@ -161,7 +238,7 @@ export default function PromptEditor(): React.ReactElement {
     buildRawPrompt, copyToClipboard, setWorkflowSlug,
   } = usePromptStore()
   const { selectWorkflow } = useWorkflowStore()
-  const { enqueue } = useRenderQueueStore()
+  const { enqueue, enqueueSkill } = useRenderQueueStore()
   const sourceMediaStore = useSourceMediaStore()
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -217,7 +294,19 @@ export default function PromptEditor(): React.ReactElement {
 
   function handleSubmit() {
     const slug = selectedWorkflow?.slug || usePromptStore.getState().workflowSlug
-    if (!slug) return
+    const { initImage, placeholders, optionPairs } = sourceMediaStore.buildRequestFields()
+    const safeInitImage = initImage && !initImage.startsWith('data:') ? initImage : undefined
+
+    if (!slug) {
+      // No workflow selected — Skills auto-select mode
+      const promptText = descriptiveText?.trim()
+      if (!promptText) return
+      enqueueSkill(promptText, undefined, safeInitImage ? { initImage: safeInitImage } : undefined)
+      setQueued(true)
+      setTimeout(() => setQueued(false), 2000)
+      return
+    }
+
     if (!usePromptStore.getState().workflowSlug) setWorkflowSlug(slug)
     const raw = buildRawPrompt()
     if (!raw.trim()) return
@@ -231,8 +320,6 @@ export default function PromptEditor(): React.ReactElement {
     }
     setMissingSlots([])
 
-    const { initImage, placeholders, optionPairs } = sourceMediaStore.buildRequestFields()
-    const safeInitImage = initImage && !initImage.startsWith('data:') ? initImage : undefined
     enqueue(raw, slug, { initImage: safeInitImage, placeholders, optionPairs })
     setQueued(true)
     setTimeout(() => setQueued(false), 2000)

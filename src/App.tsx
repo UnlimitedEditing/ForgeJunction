@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
+import SkillsIcon from '@/components/icons/SkillsIcon'
+import SplashScreen from '@/components/SplashScreen'
 import WorkflowSelector from '@/components/WorkflowSelector'
 import PromptEditor from '@/components/PromptEditor'
 import MediaLibraryGrid from '@/components/MediaLibraryGrid'
@@ -14,6 +16,7 @@ import ChainTemplatePane from '@/components/ChainTemplatePane'
 import VideoEditor from '@/components/VideoEditor'
 import StorageManager from '@/components/StorageManager'
 import ProjectManager from '@/components/ProjectManager'
+import SkillsPanel from '@/components/SkillsPanel'
 import InfiniteCanvas from '@/components/canvas/InfiniteCanvas'
 import { useProjectsStore } from '@/stores/projects'
 import SagePane from '@/components/SagePane'
@@ -36,7 +39,7 @@ function LoadingScreen(): React.ReactElement {
   )
 }
 
-function MainLayout(): React.ReactElement {
+function MainLayout({ loaded }: { loaded: boolean }): React.ReactElement {
   const { open: openDebug } = useDebugProtocolStore()
   const { setTheme } = useThemeStore()
   const [showSettings, setShowSettings] = useState(false)
@@ -45,6 +48,7 @@ function MainLayout(): React.ReactElement {
   const [showVideoEditor, setShowVideoEditor] = useState(false)
   const [showStorage, setShowStorage] = useState(false)
   const [showProjects, setShowProjects] = useState(false)
+  const [showSkills, setShowSkills] = useState(false)
   const [showCanvas, setShowCanvas] = useState(false)
   const [chainPaneView, setChainPaneView] = useState<'workflows' | 'chain'>('workflows')
   const { activeProjectId, getActiveProject, setActiveProject } = useProjectsStore()
@@ -114,14 +118,14 @@ function MainLayout(): React.ReactElement {
   const [mediaLibCols, setMediaLibCols] = useState(2)
   const [mediaLibSearch, setMediaLibSearch] = useState('')
   const mediaLibSearchTerm = mediaLibSearch.trim().toLowerCase()
-  const showMediaLib = !showVideoEditor && !showStorage && !showProjects && !showChain
+  const showMediaLib = !showVideoEditor && !showStorage && !showProjects && !showChain && !showSkills
 
   return (
-    <div className="flex h-full flex-col bg-neutral-950 text-white">
+    <div className="flex h-full flex-col bg-neutral-950 text-white overflow-hidden">
 
       {/* ── Unified top bar (home view only) ── */}
       {!showVideoEditor && (
-        <div className="flex items-stretch h-10 border-b border-white/10 bg-neutral-950 flex-shrink-0">
+        <div className={`flex items-stretch h-10 border-b border-white/10 bg-neutral-950 flex-shrink-0 splash-slide-top ${loaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
 
           {/* Left section — Home label + shortcut icons */}
           <div className="flex items-center gap-0.5 px-3 w-[220px] flex-shrink-0 border-r border-white/8">
@@ -154,10 +158,10 @@ function MainLayout(): React.ReactElement {
               title="Chain Builder"
             >⛓</button>
             <button
-              onClick={() => setShowProjects(v => !v)}
-              className={`w-6 h-6 flex items-center justify-center rounded text-sm transition-colors ${showProjects ? 'text-emerald-400 bg-emerald-900/20' : 'text-white/35 hover:text-white hover:bg-white/8'}`}
-              title="Projects"
-            >◫</button>
+              onClick={() => setShowSkills(v => !v)}
+              className={`w-6 h-6 flex items-center justify-center rounded text-sm transition-colors ${showSkills ? 'text-brand bg-brand/10' : 'text-white/35 hover:text-white hover:bg-white/8'}`}
+              title="Skills"
+            ><SkillsIcon size={13} /></button>
             <button
               onClick={() => setShowSettings(v => !v)}
               className={`w-6 h-6 flex items-center justify-center rounded text-sm transition-colors ${showSettings ? 'text-white/80 bg-white/8' : 'text-white/35 hover:text-white hover:bg-white/8'}`}
@@ -216,7 +220,7 @@ function MainLayout(): React.ReactElement {
               </>
             ) : (
               <span className="text-[10px] font-semibold uppercase tracking-widest text-white/25 select-none">
-                {showStorage ? 'Storage' : showProjects ? 'Projects' : showChain ? 'Chain Builder' : ''}
+                {showStorage ? 'Storage' : showProjects ? 'Projects' : showSkills ? 'Skills' : showChain ? 'Chain Builder' : ''}
               </span>
             )}
           </div>
@@ -250,16 +254,18 @@ function MainLayout(): React.ReactElement {
         </div>
       )}
 
-      <div className={`flex flex-1 min-h-0 pb-7 ${showCanvas ? 'hidden' : ''}`}>
+      <div className={`flex flex-1 min-h-0 pb-7 overflow-hidden ${showCanvas ? 'hidden' : ''}`}>
         {/* Left — workflow selector (hidden when video editor is open) */}
         {!showVideoEditor && (
-          <aside className="flex w-[220px] flex-shrink-0 flex-col border-r border-white/10 bg-panel">
+          <aside className={`flex w-[220px] flex-shrink-0 flex-col border-r border-white/10 bg-panel splash-slide-left ${loaded ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-full'}`}>
             <div className="flex-1 overflow-hidden min-h-0">
               {showSettings
                 ? <div className="p-3"><Settings onClose={() => setShowSettings(false)} /></div>
-                : showChain && chainPaneView === 'chain'
-                  ? <ChainTemplatePane />
-                  : <WorkflowSelector />
+                : showSkills
+                  ? <SkillsPanel onClose={() => setShowSkills(false)} />
+                  : showChain && chainPaneView === 'chain'
+                    ? <ChainTemplatePane />
+                    : <WorkflowSelector />
               }
             </div>
           </aside>
@@ -278,9 +284,11 @@ function MainLayout(): React.ReactElement {
                 ? <StorageManager onClose={() => setShowStorage(false)} />
                 : showProjects
                   ? <ProjectManager onClose={() => setShowProjects(false)} />
-                  : showChain
-                    ? <ChainGraphEditor onClose={() => setShowChain(false)} />
-                    : <MediaLibraryGrid cols={mediaLibCols} search={mediaLibSearch} />
+                  : showSkills
+                    ? <div className="p-3"><SkillsPanel onClose={() => setShowSkills(false)} /></div>
+                    : showChain
+                      ? <ChainGraphEditor onClose={() => setShowChain(false)} />
+                      : <MediaLibraryGrid cols={mediaLibCols} search={mediaLibSearch} animateIn={loaded} />
               }
               {!showStorage && (
                 <div className="absolute bottom-0 left-0 right-0 z-10">
@@ -290,7 +298,7 @@ function MainLayout(): React.ReactElement {
             </main>
 
             {/* Right — Render Viewer */}
-            <aside className="flex w-96 flex-shrink-0 flex-col bg-neutral-900">
+            <aside className={`flex w-96 flex-shrink-0 flex-col bg-neutral-900 splash-slide-right ${loaded ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-full'}`}>
               <div className="flex-1 overflow-y-auto p-4">
                 <RenderViewer />
               </div>
@@ -299,7 +307,9 @@ function MainLayout(): React.ReactElement {
         )}
       </div>
 
-      <StatusBar />
+      <div className={`splash-slide-bot ${loaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <StatusBar />
+      </div>
       <SagePane />
       <DebugProtocol />
       <DebugReportDialog open={showDebugReport} onClose={() => setShowDebugReport(false)} />
@@ -311,6 +321,8 @@ function MainLayout(): React.ReactElement {
 export default function App(): React.ReactElement {
   const { isAuthenticated, isLoading, checkExistingKey } = useAuthStore()
   const { initTheme } = useThemeStore()
+  const [showSplash, setShowSplash] = useState(true)
+  const [loaded,     setLoaded    ] = useState(false)
 
   useEffect(() => {
     initTheme()
@@ -319,5 +331,16 @@ export default function App(): React.ReactElement {
 
   if (isLoading) return <LoadingScreen />
   if (!isAuthenticated) return <Onboarding />
-  return <MainLayout />
+
+  return (
+    <>
+      <MainLayout loaded={loaded} />
+      {showSplash && (
+        <SplashScreen
+          onPreDone={() => setLoaded(true)}
+          onDone={() => setShowSplash(false)}
+        />
+      )}
+    </>
+  )
 }

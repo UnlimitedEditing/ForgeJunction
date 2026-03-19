@@ -8,6 +8,7 @@ interface WorkflowState {
   error: string | null
   loadWorkflows: () => Promise<void>
   selectWorkflow: (slug: string) => void
+  clearWorkflow: () => void
 }
 
 export const useWorkflowStore = create<WorkflowState>((set, get) => ({
@@ -30,5 +31,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   selectWorkflow: (slug) => {
     const found = get().workflows.find((w) => w.slug === slug) ?? null
     set({ selectedWorkflow: found })
-  }
+  },
+
+  clearWorkflow: () => set({ selectedWorkflow: null }),
 }))

@@ -4,14 +4,16 @@ import { useCanvasStore, type CanvasNode } from '@/stores/canvasStore'
 interface Props {
   node: CanvasNode
   isSelected: boolean
+  isNearOutputPort?: boolean
   animationClass?: string
   onStartEdge: (fromNodeId: string, fromWorldPos: { x: number; y: number }, fromType: 'prompt' | 'media') => void
   onContextMenu: (e: React.MouseEvent) => void
+  onOpenLightbox?: (item: { url: string; mediaType: string }) => void
 }
 
-export default function MediaNode({ node, isSelected, animationClass = '', onStartEdge, onContextMenu }: Props): React.ReactElement {
+export default function MediaNode({ node, isSelected, isNearOutputPort = false, animationClass = '', onStartEdge, onContextMenu, onOpenLightbox }: Props): React.ReactElement {
   const { updateNode, setSelectedNode, moveNodes, removeNode } = useCanvasStore()
-  const dragState = useRef<{ sx: number; sy: number; startPos: Record<string, { x: number; y: number }>; ids: string[] } | null>(null)
+  const dragState   = useRef<{ sx: number; sy: number; startPos: Record<string, { x: number; y: number }>; ids: string[] } | null>(null)
   const resizeState = useRef<{ sx: number; sy: number; sw: number; sh: number } | null>(null)
 
   function onHeaderMouseDown(e: React.MouseEvent) {
@@ -81,66 +83,87 @@ export default function MediaNode({ node, isSelected, animationClass = '', onSta
   }
 
   const HEADER_H = 28
-  const mediaH = node.size.h - HEADER_H
+  const mediaH   = node.size.h - HEADER_H
 
   return (
+    // Outer wrapper: overflow-visible so the output port extends freely
     <div
       data-node={node.id}
-      className={`absolute rounded-xl border overflow-hidden transition-colors ${
-        isSelected
-          ? 'border-amber-400/60 shadow-[0_0_0_1px_rgba(251,191,36,0.2),0_4px_32px_rgba(0,0,0,0.6)]'
-          : 'border-white/10 shadow-[0_2px_16px_rgba(0,0,0,0.5)]'
-      } bg-[#141410] ${animationClass}`}
+      className={`absolute overflow-visible ${animationClass}`}
       style={{ left: node.position.x, top: node.position.y, width: node.size.w, height: node.size.h }}
       onClick={(e) => { e.stopPropagation(); setSelectedNode(node.id) }}
       onContextMenu={onContextMenu}
     >
-      {/* Header */}
-      <div
-        className="flex items-center gap-1.5 px-2 bg-[#1c1c14] border-b border-white/8 cursor-grab active:cursor-grabbing"
-        style={{ height: HEADER_H }}
-        onMouseDown={onHeaderMouseDown}
-      >
-        <span className="text-amber-400/50 text-[10px] select-none flex-shrink-0">◻</span>
-        <span className="text-[10px] text-white/30 truncate flex-1 select-none font-mono" title={node.mediaName}>
-          {node.mediaName}
-        </span>
-        <button
-          className="w-4 h-4 flex items-center justify-center rounded text-[9px] text-white/20 hover:text-white/60 hover:bg-white/8 transition-colors flex-shrink-0"
-          onMouseDown={e => e.stopPropagation()}
-          onClick={(e) => { e.stopPropagation(); removeNode(node.id) }}
-          title="Remove"
-        >✕</button>
+      {/* Inner content box — handles border, background, rounded corners, overflow clipping */}
+      <div className={`absolute inset-0 rounded-xl overflow-hidden border transition-colors ${
+        isSelected
+          ? 'border-amber-400/60 shadow-[0_0_0_1px_rgba(251,191,36,0.2),0_4px_32px_rgba(0,0,0,0.6)]'
+          : 'border-white/10 shadow-[0_2px_16px_rgba(0,0,0,0.5)]'
+      } bg-[#141410]`}>
+
+        {/* Header */}
+        <div
+          className="flex items-center gap-1.5 px-2 bg-[#1c1c14] border-b border-white/8 cursor-grab active:cursor-grabbing"
+          style={{ height: HEADER_H }}
+          onMouseDown={onHeaderMouseDown}
+        >
+          <span className="text-amber-400/50 text-[10px] select-none flex-shrink-0">◻</span>
+          <span className="text-[10px] text-white/30 truncate flex-1 select-none font-mono" title={node.mediaName}>
+            {node.mediaName}
+          </span>
+          <button
+            className="w-4 h-4 flex items-center justify-center rounded text-[9px] text-white/20 hover:text-white/60 hover:bg-white/8 transition-colors flex-shrink-0"
+            onMouseDown={e => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); removeNode(node.id) }}
+            title="Remove"
+          >✕</button>
+        </div>
+
+        {/* Media preview */}
+        <div style={{ height: mediaH }} className="overflow-hidden flex items-center justify-center bg-[#0e0e0c]">
+          {node.resultMediaType?.includes('audio') ? (
+            <div className="flex flex-col items-center justify-center gap-2 w-full px-3">
+              <span className="text-2xl select-none">🎵</span>
+              <audio
+                src={node.mediaUrl}
+                controls
+                className="w-full"
+                onMouseDown={e => e.stopPropagation()}
+              />
+            </div>
+          ) : node.resultMediaType?.includes('video') ? (
+            <video
+              src={node.mediaUrl}
+              className="w-full h-full object-cover cursor-zoom-in"
+              onMouseDown={e => e.stopPropagation()}
+              onDoubleClick={(e) => { e.stopPropagation(); onOpenLightbox?.({ url: node.mediaUrl!, mediaType: node.resultMediaType! }) }}
+            />
+          ) : (
+            <img
+              src={node.mediaUrl}
+              className="w-full h-full object-cover cursor-zoom-in"
+              draggable={false}
+              onMouseDown={e => e.stopPropagation()}
+              onDoubleClick={(e) => { e.stopPropagation(); onOpenLightbox?.({ url: node.mediaUrl!, mediaType: node.resultMediaType ?? 'image' }) }}
+            />
+          )}
+        </div>
       </div>
 
-      {/* Media preview */}
-      <div style={{ height: mediaH }} className="overflow-hidden">
-        {node.resultMediaType?.includes('video') ? (
-          <video
-            src={node.mediaUrl}
-            className="w-full h-full object-cover"
-            onMouseDown={e => e.stopPropagation()}
-          />
-        ) : (
-          <img
-            src={node.mediaUrl}
-            className="w-full h-full object-cover"
-            draggable={false}
-            onMouseDown={e => e.stopPropagation()}
-          />
-        )}
-      </div>
-
-      {/* Output port */}
+      {/* Output port — outside inner overflow-hidden, always fully visible and clickable */}
       <div
-        className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-3 h-3 rounded-full bg-amber-500/60 border border-amber-400 cursor-crosshair hover:bg-amber-400 hover:scale-125 transition-all z-10"
+        className={`absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-3 h-3 rounded-full border cursor-crosshair transition-all z-10 ${
+          isNearOutputPort
+            ? 'bg-amber-400 border-amber-300 scale-[1.8] shadow-[0_0_8px_rgba(251,191,36,0.8)]'
+            : 'bg-amber-500/60 border-amber-400 hover:bg-amber-400 hover:scale-125'
+        }`}
         onMouseDown={onOutputPortMouseDown}
         title="Drag to connect as input to a prompt node"
       />
 
-      {/* Resize handle */}
+      {/* Resize handle — outside inner overflow-hidden */}
       <div
-        className="absolute bottom-0 right-0 w-5 h-5 cursor-se-resize opacity-20 hover:opacity-50 transition-opacity"
+        className="absolute bottom-0 right-0 w-5 h-5 cursor-se-resize opacity-20 hover:opacity-50 transition-opacity z-10"
         onMouseDown={onResizeMouseDown}
         style={{
           backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.5) 1px, transparent 1px)',
