@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react'
 import { useCanvasStore, type CanvasNode, OUTPUT_HEADER_H, outputPortRelY } from '@/stores/canvasStore'
+import { useRenderQueueStore } from '@/stores/renderQueue'
 import PromptNode from './PromptNode'
 import SkillNode from './SkillNode'
 import SkillsBrowserNode from './SkillsBrowserNode'
@@ -116,6 +117,103 @@ function isEdgeHighlighted(edge: { fromItemIndex: number | null }, fromNode: Can
   return fromNode.selectedOutputIndex === edge.fromItemIndex
 }
 
+// ── Canvas Output History HUD ───────────────────────────────────────────────
+
+function CanvasHistoryHUD(): React.ReactElement {
+  const queue = useRenderQueueStore(s => s.queue)
+  const [open, setOpen] = useState(false)
+
+  // Last 5 renders: active/streaming first, then most-recent by submittedAt
+  const recent = [...queue]
+    .sort((a, b) => {
+      const activeOrder = (r: typeof a) => (r.status === 'active' || r.status === 'streaming') ? 0 : 1
+      return activeOrder(a) - activeOrder(b) || b.submittedAt - a.submittedAt
+    })
+    .slice(0, 5)
+
+  const activeCount = queue.filter(r => r.status === 'active' || r.status === 'streaming' || r.status === 'queued').length
+
+  return (
+    <div
+      className="absolute top-3 right-3 z-30 flex flex-col items-end gap-1.5 pointer-events-none"
+    >
+      {/* Label / trigger */}
+      <div
+        className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-black/30 border border-white/8 cursor-default select-none backdrop-blur-sm pointer-events-auto"
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+      >
+        {activeCount > 0 && <div className="w-1.5 h-1.5 rounded-full bg-brand animate-pulse flex-shrink-0" />}
+        <span className="text-[10px] text-white/30 font-mono">Output History</span>
+        {queue.length > 0 && (
+          <span className="text-[9px] text-white/20 tabular-nums">{queue.length}</span>
+        )}
+      </div>
+
+      {/* Feed panel */}
+      {open && recent.length > 0 && (
+        <div
+          className="flex flex-col gap-1 w-52 bg-black/70 border border-white/10 rounded-lg p-1.5 backdrop-blur-sm shadow-2xl pointer-events-auto"
+          onMouseEnter={() => setOpen(true)}
+          onMouseLeave={() => setOpen(false)}
+        >
+          {recent.map(r => {
+            const isActive = r.status === 'active' || r.status === 'streaming'
+            const isQueued = r.status === 'queued'
+            const isDone   = r.status === 'done'
+            const isError  = r.status === 'error'
+            const thumb    = r.resultUrls?.[0]?.url ?? r.resultUrl ?? null
+            const mediaType = r.resultUrls?.[0]?.mediaType ?? r.mediaType
+
+            return (
+              <div key={r.id} className="flex items-center gap-2 px-1.5 py-1 rounded-md hover:bg-white/5 transition-colors">
+                {/* Thumbnail / status indicator */}
+                <div className="w-9 h-9 rounded flex-shrink-0 overflow-hidden bg-white/5 flex items-center justify-center">
+                  {isDone && thumb && (mediaType === 'video' ? (
+                    <video src={thumb} className="w-full h-full object-cover" muted />
+                  ) : mediaType === 'audio' ? (
+                    <span className="text-[14px]">🎵</span>
+                  ) : (
+                    <img src={thumb} className="w-full h-full object-cover" draggable={false} />
+                  ))}
+                  {(isActive || isQueued) && (
+                    <div className="w-full h-full flex items-center justify-center">
+                      {isActive ? (
+                        <div className="w-2 h-2 rounded-full bg-brand animate-pulse" />
+                      ) : (
+                        <div className="w-2 h-2 rounded-full bg-amber-400/60" />
+                      )}
+                    </div>
+                  )}
+                  {isError && <span className="text-[10px]">✕</span>}
+                </div>
+
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <div className="text-[10px] text-white/60 truncate font-mono">{r.workflowSlug}</div>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    {isActive && (
+                      <>
+                        <div className="h-0.5 flex-1 rounded-full bg-white/10 overflow-hidden">
+                          <div className="h-full rounded-full bg-brand/70 transition-all duration-500" style={{ width: `${r.progress}%` }} />
+                        </div>
+                        <span className="text-[8px] text-white/25 tabular-nums flex-shrink-0">{r.progress}%</span>
+                      </>
+                    )}
+                    {isQueued  && <span className="text-[9px] text-amber-400/50">queued</span>}
+                    {isDone    && <span className="text-[9px] text-emerald-400/60">done</span>}
+                    {isError   && <span className="text-[9px] text-red-400/60 truncate">{r.error ?? 'error'}</span>}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Component ──────────────────────────────────────────────────────────────
 
 export default function InfiniteCanvas({ onOpenSettings }: Props): React.ReactElement {
@@ -160,13 +258,12 @@ export default function InfiniteCanvas({ onOpenSettings }: Props): React.ReactEl
   // Wire physics — max distance ever reached during current pending drag
   const pendingMaxReachRef = useRef<number>(0)
 
-  // Mirror pendingEdge into a ref so the mousemove/mouseup handlers can read
-  // current values without being included in the useEffect dependency array.
-  // This prevents the effect from re-subscribing (and briefly losing listeners)
-  // on every mouse-move state update — which was causing wires to drop.
+  // Ref mirror of pendingEdge so listener closures always read current state
   const pendingEdgeRef = useRef<PendingEdge | null>(null)
   pendingEdgeRef.current = pendingEdge
-  const isDraggingEdge = pendingEdge !== null
+
+  // Cleanup fn for active wire-drag window listeners (set by startEdge, cleared on mouseup/escape)
+  const wireCleanupRef = useRef<(() => void) | null>(null)
 
   // Connection pulse — track newly-added edges
   const [pulsingEdgeIds, setPulsingEdgeIds] = useState<Set<string>>(new Set())
@@ -297,7 +394,7 @@ export default function InfiniteCanvas({ onOpenSettings }: Props): React.ReactEl
         const zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Math.min(rect.width / ww, rect.height / wh)))
         setViewport({ zoom, x: (rect.width - ww * zoom) / 2 - (minX - pad) * zoom, y: (rect.height - wh * zoom) / 2 - (minY - pad) * zoom })
       }
-      if (e.code === 'Escape') { setRadialMenu(null); setPendingEdge(null) }
+      if (e.code === 'Escape') { setRadialMenu(null); wireCleanupRef.current?.(); wireCleanupRef.current = null; setPendingEdge(null) }
       if (e.code === 'Enter' && e.ctrlKey) {
         const { selectedNodeIds: ids, runNode: run } = useCanvasStore.getState()
         ids.forEach(id => run(id))
@@ -320,47 +417,8 @@ export default function InfiniteCanvas({ onOpenSettings }: Props): React.ReactEl
     return () => { window.removeEventListener('keydown', onKeyDown); window.removeEventListener('keyup', onKeyUp) }
   }, [])
 
-  // Global edge drag tracking.
-  // Depends only on isDraggingEdge (a boolean), NOT on pendingEdge itself.
-  // This means listeners are registered once when dragging starts and removed
-  // once when it ends — never torn down and re-added on every mouse-move update.
-  // All live data is read from pendingEdgeRef (always current) to avoid stale closures.
-  useEffect(() => {
-    if (!isDraggingEdge) return
-    function onMove(e: MouseEvent) {
-      const pe = pendingEdgeRef.current
-      if (!pe) return
-      const world = screenToWorld(e.clientX, e.clientY)
-      const dist = Math.hypot(world.x - pe.fromPos.x, world.y - pe.fromPos.y)
-      if (dist > pendingMaxReachRef.current) pendingMaxReachRef.current = dist
-      const ns = nodesRef.current; const vp = viewportRef.current
-      let snapToNodeId: string | null = null
-      for (const n of ns) {
-        const snapDist = 44 / vp.zoom
-        const px = n.position.x; const py = n.position.y + n.size.h / 2
-        const isPromptLike = pe.fromNodeType === 'prompt'
-        if (isPromptLike && n.type === 'bin') {
-          if (Math.hypot(world.x - px, world.y - py) < snapDist) { snapToNodeId = n.id; break }
-        }
-        if (isPromptLike && (n.type === 'prompt' || n.type === 'skill') && n.id !== pe.fromNodeId) {
-          if (Math.hypot(world.x - px, world.y - py) < snapDist) { snapToNodeId = n.id; break }
-        }
-        if (pe.fromNodeType === 'media' && (n.type === 'prompt' || n.type === 'skill')) {
-          if (Math.hypot(world.x - px, world.y - py) < snapDist) { snapToNodeId = n.id; break }
-        }
-      }
-      setPendingEdge(prev => prev ? { ...prev, currentPos: world, snapToNodeId } : null)
-    }
-    function onUp() {
-      const pe = pendingEdgeRef.current
-      if (pe?.snapToNodeId) addEdge(pe.fromNodeId, pe.snapToNodeId, pe.fromItemIndex)
-      setPendingEdge(null)
-      pendingMaxReachRef.current = 0
-    }
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup',   onUp)
-    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
-  }, [isDraggingEdge, addEdge, screenToWorld])
+  // Wire drag listeners are attached synchronously in startEdge() to avoid
+  // the one-frame async delay of useEffect. wireCleanupRef holds the teardown.
 
   // Capture-phase handler — fires before node stopPropagation
   function onMouseDownCapture(e: React.MouseEvent) {
@@ -471,7 +529,7 @@ export default function InfiniteCanvas({ onOpenSettings }: Props): React.ReactEl
   function onDoubleClick(e: React.MouseEvent) {
     if ((e.target as HTMLElement).closest('[data-node]')) return
     const world = screenToWorld(e.clientX, e.clientY)
-    addSkillNode({ x: world.x - 140, y: world.y - 90 })
+    addPromptNode({ x: world.x - 140, y: world.y - 90 })
   }
 
   function onCanvasClick(e: React.MouseEvent) {
@@ -612,8 +670,57 @@ export default function InfiniteCanvas({ onOpenSettings }: Props): React.ReactEl
   }
 
   function startEdge(fromNodeId: string, fromWorldPos: { x: number; y: number }, fromType: 'prompt' | 'media', fromItemIndex?: number) {
+    // Cancel any existing drag first
+    wireCleanupRef.current?.()
+
     pendingMaxReachRef.current = 0
-    setPendingEdge({ fromNodeId, fromNodeType: fromType, fromPos: fromWorldPos, currentPos: fromWorldPos, snapToNodeId: null, fromItemIndex: fromItemIndex ?? null })
+    const pe: PendingEdge = { fromNodeId, fromNodeType: fromType, fromPos: fromWorldPos, currentPos: fromWorldPos, snapToNodeId: null, fromItemIndex: fromItemIndex ?? null }
+    pendingEdgeRef.current = pe  // set immediately so listeners can read it before first render
+    setPendingEdge(pe)
+
+    function onMove(e: MouseEvent) {
+      const pe = pendingEdgeRef.current
+      if (!pe) return
+      const world = screenToWorld(e.clientX, e.clientY)
+      const dist = Math.hypot(world.x - pe.fromPos.x, world.y - pe.fromPos.y)
+      if (dist > pendingMaxReachRef.current) pendingMaxReachRef.current = dist
+      const ns = nodesRef.current; const vp = viewportRef.current
+      let snapToNodeId: string | null = null
+      for (const n of ns) {
+        const snapDist = 44 / vp.zoom
+        const px = n.position.x; const py = n.position.y + n.size.h / 2
+        const isPromptLike = pe.fromNodeType === 'prompt'
+        if (isPromptLike && n.type === 'bin') {
+          if (Math.hypot(world.x - px, world.y - py) < snapDist) { snapToNodeId = n.id; break }
+        }
+        if (isPromptLike && (n.type === 'prompt' || n.type === 'skill') && n.id !== pe.fromNodeId) {
+          if (Math.hypot(world.x - px, world.y - py) < snapDist) { snapToNodeId = n.id; break }
+        }
+        if (pe.fromNodeType === 'media' && (n.type === 'prompt' || n.type === 'skill')) {
+          if (Math.hypot(world.x - px, world.y - py) < snapDist) { snapToNodeId = n.id; break }
+        }
+      }
+      setPendingEdge(prev => prev ? { ...prev, currentPos: world, snapToNodeId } : null)
+    }
+
+    function onUp() {
+      cleanup()
+      const pe = pendingEdgeRef.current
+      if (pe?.snapToNodeId) useCanvasStore.getState().addEdge(pe.fromNodeId, pe.snapToNodeId, pe.fromItemIndex)
+      pendingEdgeRef.current = null
+      setPendingEdge(null)
+      pendingMaxReachRef.current = 0
+    }
+
+    function cleanup() {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      wireCleanupRef.current = null
+    }
+
+    wireCleanupRef.current = cleanup
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
   }
 
   // Compute wire slack for physics droop (how much wire has been reeled out beyond current reach)
@@ -850,6 +957,8 @@ export default function InfiniteCanvas({ onOpenSettings }: Props): React.ReactEl
       <div className="absolute bottom-3 right-3 text-[10px] text-white/15 pointer-events-none font-mono tabular-nums">
         {Math.round(viewport.zoom * 100)}%
       </div>
+
+      <CanvasHistoryHUD />
 
       {nodes.some(n => n.status === 'active' || n.status === 'queued') && (
         <div className="absolute bottom-3 left-3 flex items-center gap-1.5 pointer-events-none">

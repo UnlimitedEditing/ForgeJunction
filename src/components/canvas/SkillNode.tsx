@@ -225,6 +225,20 @@ export default function SkillNode({
         style={{ top: node.size.h / 2 - PORT_R }}
       />
 
+      {/* ── Idle output port (no results yet) ── */}
+      {!hasOutput && !isRunning && (
+        <div
+          className={`absolute right-0 translate-x-1/2 w-3 h-3 rounded-full cursor-crosshair transition-all z-10 ${
+            isNearOutputPort
+              ? 'bg-brand border border-brand/80 scale-[1.8] shadow-[0_0_8px_rgba(108,71,255,0.8)]'
+              : 'bg-brand/40 border border-brand/60 hover:bg-brand hover:scale-125'
+          }`}
+          style={{ top: node.size.h / 2 - PORT_R }}
+          onMouseDown={(e) => { if (e.button !== 0) return; e.stopPropagation(); onStartEdge(node.id, { x: node.position.x + node.size.w, y: node.position.y + node.size.h / 2 }, 'prompt', undefined) }}
+          title="Output — drag to connect"
+        />
+      )}
+
       {/* ── Output section ── */}
       {hasOutput && (
         <div
@@ -285,13 +299,14 @@ export default function SkillNode({
                     </div>
                     {/* Per-item output port */}
                     <div
-                      className={`absolute right-0 translate-x-1/2 w-3 h-3 rounded-full z-10 pointer-events-none transition-all ${
+                      className={`absolute right-0 translate-x-1/2 w-3 h-3 rounded-full z-20 cursor-crosshair hover:scale-125 transition-all ${
                         isNearOutputPort
-                          ? 'bg-emerald-400/90 border border-emerald-300 scale-[1.8]'
-                          : 'bg-white/15 border border-white/25'
+                          ? 'bg-brand border border-brand/80 scale-[1.8] shadow-[0_0_8px_rgba(108,71,255,0.8)]'
+                          : 'bg-brand/60 border border-brand hover:bg-brand'
                       }`}
                       style={{ top: node.size.h + OUTPUT_HEADER_H + idx * ITEM_ROW_H + ITEM_ROW_H / 2 - PORT_R }}
                       onMouseDown={startEdgeFromItem(idx)}
+                      title={`Output ${idx + 1} — drag to connect`}
                     />
                   </div>
                 )

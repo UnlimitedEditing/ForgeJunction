@@ -1,6 +1,6 @@
 {
   "name": "forge-junction",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Forge Junction — AI media studio powered by Graydient.ai",
   "author": "ForgeJunction",
   "main": "dist-electron/main/index.js",
@@ -9,7 +9,8 @@
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "package": "npm run build && electron-packager . \"Forge Junction\" --platform=win32 --arch=x64 --out=release --overwrite --asar --ignore=\"^/(src|electron|dev-journal|\\.env|\\.gitignore|tsconfig|tailwind|postcss|electron\\.vite\\.config|launch\\.bat|README|claude-code)\"",
-    "package:installer": "cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder",
+    "build:tooscut": "cd video-editor && pnpm --filter @tooscut/ui build",
+    "package:installer": "npm run build:tooscut && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder",
     "publish": "electron-builder --publish always"
   },
   "dependencies": {
@@ -54,6 +55,13 @@
       "dist-electron/**",
       "dist/**",
       "!dist/assets/*.map"
+    ],
+    "extraResources": [
+      {
+        "from": "video-editor/apps/ui/.output",
+        "to": "tooscut",
+        "filter": ["**/*"]
+      }
     ],
     "win": {
       "icon": "build/icon.ico",

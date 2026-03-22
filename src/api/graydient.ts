@@ -147,7 +147,7 @@ export function connectRenderWebSocket(
   signal?: AbortSignal,
   onClose?: () => void
 ): () => void {
-  const url = `wss://my.graydient.ai/render-events/${renderHash}?token=${getApiKey()}`
+  const url = `wss://app.graydient.ai/render-events/${renderHash}?token=${getApiKey()}`
   let ws: WebSocket | null = null
   try {
     ws = new WebSocket(url)
@@ -426,30 +426,52 @@ export async function submitRender(
         const parsed = JSON.parse(raw) as Record<string, unknown>
         console.log('STREAM EVENT:', JSON.stringify(parsed).slice(0, 400))
 
-        if (parsed.render_queued) {
-          const q = parsed.render_queued as Record<string, unknown>
-          renderHash = (q.render_hash ?? null) as string | null
-          estimatedRenderTime = (q.estimated_render_time ?? null) as number | null
-          estimatedWaitTime = (q.estimated_wait_time ?? null) as number | null
-          onStreamEvent('render_queued', q)
+        // Support both flat format  {"render_queued": {...}}
+        // and envelope format {"event": "render_queued", "data": {...}}.
+        // Flat format uses explicit property checks (original behaviour — do not use
+        // Object.keys ordering, which is fragile when objects have multiple keys).
+        let evtName: string
+        let evtData: Record<string, unknown>
+        if (typeof parsed.event === 'string') {
+          // Envelope format (WS-style / skills endpoint)
+          evtName = parsed.event
+          evtData = (parsed.data as Record<string, unknown>) ?? {}
+        } else if (parsed.render_queued) {
+          evtName = 'render_queued'
+          evtData = parsed.render_queued as Record<string, unknown>
         } else if (parsed.rendering_started) {
-          onStreamEvent('rendering_started', parsed.rendering_started as Record<string, unknown>)
+          evtName = 'rendering_started'
+          evtData = parsed.rendering_started as Record<string, unknown>
         } else if (parsed.rendering_done) {
-          const d = parsed.rendering_done as Record<string, unknown>
-          if (!renderHash) renderHash = (d.render_hash ?? null) as string | null
-          doneImages = (d.images ?? null) as Array<{ url?: string; media?: RenderMedia[] }> | null
-          onStreamEvent('rendering_done', d)
+          evtName = 'rendering_done'
+          evtData = parsed.rendering_done as Record<string, unknown>
+        } else if (parsed.rendering_error) {
+          evtName = 'rendering_error'
+          evtData = parsed.rendering_error as Record<string, unknown>
+        } else {
+          evtName = Object.keys(parsed)[0] ?? 'unknown'
+          evtData = {}
+        }
+
+        if (evtName === 'render_queued') {
+          renderHash = (evtData.render_hash ?? null) as string | null
+          estimatedRenderTime = (evtData.estimated_render_time ?? null) as number | null
+          estimatedWaitTime = (evtData.estimated_wait_time ?? null) as number | null
+          onStreamEvent('render_queued', evtData)
+        } else if (evtName === 'rendering_started' || evtName === 'started') {
+          onStreamEvent('rendering_started', evtData)
+        } else if (evtName === 'rendering_done' || evtName === 'done') {
+          if (!renderHash) renderHash = (evtData.render_hash ?? null) as string | null
+          doneImages = (evtData.images ?? null) as Array<{ url?: string; media?: RenderMedia[] }> | null
+          onStreamEvent('rendering_done', evtData)
           reader.cancel()
           break
-        } else if (parsed.rendering_error) {
-          const e = parsed.rendering_error as Record<string, unknown>
-          onStreamEvent('rendering_error', e)
+        } else if (evtName === 'rendering_error' || evtName === 'error') {
+          onStreamEvent('rendering_error', evtData)
           reader.cancel()
           break
         } else {
-          // unknown_event etc. — pass through for debugging
-          const name = Object.keys(parsed)[0] ?? 'unknown'
-          onStreamEvent(name, parsed)
+          onStreamEvent(evtName, evtData)
         }
       } catch { /* non-JSON line — skip */ }
     }

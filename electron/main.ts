@@ -1,6 +1,8 @@
 import { app, BrowserWindow, shell, Menu, ipcMain } from 'electron'
 import { join } from 'path'
 import { writeFileSync, readFileSync, existsSync, mkdirSync, readdirSync } from 'fs'
+import { createServer } from 'net'
+import { spawn, type ChildProcess } from 'child_process'
 import { isApiKeyStored, storeApiKey, retrieveApiKey, deleteApiKey } from './services/keystore'
 import { patchMainConsole, registerIpcHandlers } from './debugReporter'
 import { autoUpdater } from 'electron-updater'
@@ -12,6 +14,48 @@ import { registerStorageIpc } from './storageManager'
 app.commandLine.appendSwitch('disable-gpu-shader-disk-cache')
 
 const isDev = !app.isPackaged
+
+// ── Tooscut embedded server ────────────────────────────────────────────────────
+
+let tooscutUrl = 'http://localhost:4200' // dev default
+let tooscutProcess: ChildProcess | null = null
+
+function getFreePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const srv = createServer()
+    srv.listen(0, '127.0.0.1', () => {
+      const addr = srv.address()
+      srv.close(() => resolve(typeof addr === 'object' && addr ? addr.port : 0))
+    })
+    srv.on('error', reject)
+  })
+}
+
+async function startTooscutServer(): Promise<void> {
+  if (isDev) return // dev uses the pnpm dev server
+  const serverEntry = join(process.resourcesPath, 'tooscut', 'server', 'index.mjs')
+  if (!existsSync(serverEntry)) {
+    console.warn('[Tooscut] server entry not found:', serverEntry)
+    return
+  }
+  const port = await getFreePort()
+  tooscutUrl = `http://127.0.0.1:${port}`
+  tooscutProcess = spawn(process.execPath, [serverEntry], {
+    env: { ...process.env, PORT: String(port), HOST: '127.0.0.1' },
+    stdio: 'pipe',
+  })
+  tooscutProcess.stdout?.on('data', (d) => console.log('[Tooscut]', String(d).trim()))
+  tooscutProcess.stderr?.on('data', (d) => console.error('[Tooscut]', String(d).trim()))
+  tooscutProcess.on('error', (e) => console.error('[Tooscut] process error:', e))
+  console.log(`[Tooscut] server started on ${tooscutUrl}`)
+}
+
+app.on('will-quit', () => {
+  if (tooscutProcess) {
+    tooscutProcess.kill()
+    tooscutProcess = null
+  }
+})
 
 let currentTheme = 'default'
 let launcherWin: BrowserWindow | null = null
@@ -299,6 +343,8 @@ function setupIpc(): void {
 
   ipcMain.handle('app:get-version', () => app.getVersion())
 
+  ipcMain.handle('tooscut:get-url', () => tooscutUrl)
+
   // Suppress unused import warning — isApiKeyStored used for future extensibility
   void isApiKeyStored
 
@@ -365,6 +411,7 @@ function setupAutoUpdater(win: BrowserWindow): void {
 // ── App Lifecycle ─────────────────────────────────────────────────────────────
 
 app.whenReady().then(async () => {
+  await startTooscutServer()
   await initInstanceTracker()
   pingTracker('launch')
   patchMainConsole()

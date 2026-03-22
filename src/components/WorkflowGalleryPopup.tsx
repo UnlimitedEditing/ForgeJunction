@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import ReactDOM from 'react-dom'
 import SkillStar from '@/components/icons/SkillStar'
 import { useWorkflowStore } from '@/stores/workflows'
 import { usePromptStore } from '@/stores/prompt'
@@ -209,7 +210,7 @@ export default function WorkflowGalleryPopup({
     onClose()
   }
 
-  return (
+  const popup = (
     <div
       className={`fixed bottom-7 left-0 right-0 z-40 transition-transform duration-200 ease-in-out ${
         open ? 'translate-y-0' : 'translate-y-full'
@@ -324,4 +325,6 @@ export default function WorkflowGalleryPopup({
       </div>
     </div>
   )
+
+  return ReactDOM.createPortal(popup, document.body)
 }

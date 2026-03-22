@@ -180,8 +180,9 @@ export const useRenderQueueStore = create<RenderQueueState>()(persist((set, get)
         appendLog({ timestamp: Date.now(), type: 'progress', data: 'Source render ready — submitting…' })
       }
 
-      // Stream the render — events arrive inline until rendering_done.
-      // The HTTP stream IS the real-time feed; no WebSocket or polling needed.
+      // Submit the render via SSE stream. A WebSocket is opened in parallel as
+      // soon as render_queued fires — it's the reliable completion path if the
+      // server closes the SSE connection before rendering_done is delivered.
       console.log(`[RQ] SUBMIT id=${id} prompt="${item.prompt}"`)
 
       let renderHash = ''
@@ -189,6 +190,11 @@ export const useRenderQueueStore = create<RenderQueueState>()(persist((set, get)
       let progressTimer: ReturnType<typeof setInterval> | null = null
       let doneImages: Array<{ url?: string; media?: Array<{ url: string; media_type?: string }> }> | null = null
       let streamError: string | null = null
+
+      // WebSocket parallel monitor — captures images if SSE stream closes before rendering_done
+      let wsImages: Array<{ url?: string; media?: Array<{ url: string; media_type?: string }> }> | null = null
+      let resolveWsPromise: (() => void) | null = null
+      const wsPromise = new Promise<void>(resolve => { resolveWsPromise = resolve })
 
       const streamEventHandler = (eventName: string, data: Record<string, unknown>) => {
           const ts = Date.now()
@@ -204,6 +210,25 @@ export const useRenderQueueStore = create<RenderQueueState>()(persist((set, get)
               progress: 2,
             })
             appendLog({ timestamp: ts, type: 'progress', data: `Queued — hash: ${renderHash} | ETA ~${etaSec}s` })
+
+            // Open WebSocket now that we have a render hash.
+            // This is the reliable completion path — if the SSE stream closes before
+            // rendering_done fires (server may close the SSE connection early), the
+            // WS will still deliver the done event with image URLs.
+            const wsCleanup = connectRenderWebSocket(renderHash, (wsEvent) => {
+              if (wsEvent.event === 'done') {
+                wsImages = (wsEvent.data.images as typeof wsImages) ?? null
+                resolveWsPromise?.()
+              } else if (wsEvent.event === 'error') {
+                resolveWsPromise?.()
+              }
+            }, controller.signal, () => {
+              // WS closed for any reason (auth failure, network drop, etc.) —
+              // resolve immediately so we fall through to fetchRenderInfo rather
+              // than blocking for the full 5-minute timeout.
+              resolveWsPromise?.()
+            })
+            activeWebSockets.set(id, wsCleanup)
 
             // Start time-based progress simulation now that we have ETA
             const etaMs = etaSec > 0 ? etaSec * 1000 : 60_000
@@ -256,6 +281,21 @@ export const useRenderQueueStore = create<RenderQueueState>()(persist((set, get)
       if (progressTimer) clearInterval(progressTimer)
       if (controller.signal.aborted) return
 
+      // SSE ended. If it didn't deliver images and the render didn't explicitly error,
+      // wait for the WebSocket to deliver the done event (up to 5 minutes).
+      // The WS is already connected — it was opened when render_queued fired.
+      if (!doneImages?.length && !streamError && renderHash) {
+        appendLog({ timestamp: Date.now(), type: 'progress', data: 'SSE closed — awaiting WebSocket completion' })
+        await Promise.race([
+          wsPromise,
+          new Promise<void>(resolve => setTimeout(resolve, 5 * 60_000)),
+        ])
+        if (wsImages?.length) {
+          doneImages = wsImages
+          appendLog({ timestamp: Date.now(), type: 'done', data: 'Render complete via WebSocket' })
+        }
+      }
+
       if (streamError) {
         update({ status: 'error', error: streamError, completedAt: Date.now() })
       } else {
@@ -272,15 +312,22 @@ export const useRenderQueueStore = create<RenderQueueState>()(persist((set, get)
           } catch { /* ignore */ }
         }
         const first = resolvedAll[0] ?? null
-        update({
-          status: 'done',
-          resultUrl: first?.url ?? null,
-          resultUrls: resolvedAll.map(r => ({ url: r.url, mediaType: r.mediaType })),
-          mediaType: first?.mediaType ?? null,
-          thumbnailUrl: first?.thumbnailUrl ?? null,
-          completedAt: Date.now(),
-          progress: 100,
-        })
+        if (first) {
+          update({
+            status: 'done',
+            resultUrl: first.url,
+            resultUrls: resolvedAll.map(r => ({ url: r.url, mediaType: r.mediaType })),
+            mediaType: first.mediaType,
+            thumbnailUrl: first.thumbnailUrl,
+            completedAt: Date.now(),
+            progress: 100,
+          })
+        } else {
+          // No images from SSE, WS, or REST — mark as error so the late-result
+          // recovery poller (startLateResultPoller) watches for the backend result.
+          // This avoids silently completing with no output and no recovery path.
+          update({ status: 'error', error: 'No result received yet — recovering…', completedAt: Date.now() })
+        }
       }
     } catch (e) {
       const err = e as Error
@@ -525,11 +572,37 @@ export const useRenderQueueStore = create<RenderQueueState>()(persist((set, get)
   partialize: (state) => ({ queue: state.queue, selectedRenderId: state.selectedRenderId }),
   onRehydrateStorage: () => (state) => {
     if (!state) return
-    // Any renders that were active/streaming/queued when the app closed can't resume — mark as error
-    state.queue = state.queue.map((r) =>
-      r.status === 'active' || r.status === 'streaming' || r.status === 'queued'
-        ? { ...r, status: 'error' as const, error: 'Interrupted — app was closed', completedAt: r.completedAt ?? Date.now() }
-        : r
-    )
+    // Guard: queue may be undefined in very old persisted state
+    if (!Array.isArray(state.queue)) { state.queue = []; return }
+    // Normalize old renders that may be missing fields added after initial release
+    state.queue = state.queue.map((r) => {
+      const normalized: QueuedRender = {
+        // Defaults for fields that didn't exist in older versions
+        isSkill: false,
+        skillSlug: null,
+        isNsfw: false,
+        startedAt: null,
+        completedAt: null,
+        eta: null,
+        thumbnailUrl: null,
+        error: null,
+        sourceMedia: undefined,
+        renderHash: null,
+        // Persisted values override defaults
+        ...r,
+        // Array fields must always be arrays regardless of persisted value
+        resultUrls: Array.isArray(r.resultUrls)
+          ? r.resultUrls
+          : r.resultUrl
+            ? [{ url: r.resultUrl, mediaType: r.mediaType ?? null }]
+            : [],
+        serverLog: Array.isArray(r.serverLog) ? r.serverLog : [],
+      }
+      // Any renders that were active/streaming/queued when the app closed can't resume — mark as error
+      if (normalized.status === 'active' || normalized.status === 'streaming' || normalized.status === 'queued') {
+        return { ...normalized, status: 'error' as const, error: 'Interrupted — app was closed', completedAt: normalized.completedAt ?? Date.now() }
+      }
+      return normalized
+    })
   },
 }))

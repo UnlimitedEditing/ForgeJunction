@@ -13,7 +13,7 @@ import Onboarding from '@/components/Onboarding'
 import Settings from '@/components/Settings'
 import ChainGraphEditor from '@/components/ChainGraphEditor'
 import ChainTemplatePane from '@/components/ChainTemplatePane'
-import VideoEditor from '@/components/VideoEditor'
+import TooscutEditor from '@/components/TooscutEditor'
 import StorageManager from '@/components/StorageManager'
 import ProjectManager from '@/components/ProjectManager'
 import SkillsPanel from '@/components/SkillsPanel'
@@ -274,7 +274,7 @@ function MainLayout({ loaded }: { loaded: boolean }): React.ReactElement {
         {/* Video editor — full width when open */}
         {showVideoEditor ? (
           <div className="flex flex-1 min-w-0 min-h-0">
-            <VideoEditor onClose={() => setShowVideoEditor(false)} />
+            <TooscutEditor onClose={() => setShowVideoEditor(false)} />
           </div>
         ) : (
           <>

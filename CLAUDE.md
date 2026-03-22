@@ -99,6 +99,24 @@ src/
 - Main/preload output: `dist-electron/main/index.js`, `dist-electron/preload/index.js`
 - Renderer output: `dist/`
 
+## Video Editor Integration
+
+The `video-editor/` subdirectory contains Tooscut, an open-source NLE with a
+GPU-accelerated Rust/WASM render engine. See `video-editor/CLAUDE.md` for its
+full architecture.
+
+### Integration approach
+- Tooscut runs as a secondary BrowserWindow, loaded from `dist-editor/`
+- IPC channel: `video-editor:*` — handlers in `electron/videoEditorBridge.ts`
+- Assets passed from canvas to editor via `video-editor:import-asset` with a
+  local file path
+- Editor exports back to ForgeJunction via `video-editor:export-complete`
+
+### Build
+- `npm run build:editor` compiles Tooscut (runs `pnpm build` in `video-editor/`)
+- Output goes to `dist-editor/` and is copied into the Electron app package
+- WASM build requires Rust toolchain — see `video-editor/CLAUDE.md`
+
 ## Things to test before beta
 - Wire connections end-to-end after the `pendingEdgeRef` fix
 - Batch renders (`/images:6`) — all tiles appear in media library, arrows work in output history

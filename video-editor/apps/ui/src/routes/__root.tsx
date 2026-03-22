@@ -1,0 +1,60 @@
+import { HeadContent, Outlet, Scripts, createRootRoute } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { initFjBridge } from "../fj-bridge";
+
+import appCss from "../styles.css?url";
+
+export const Route = createRootRoute({
+  head: () => ({
+    meta: [
+      {
+        charSet: "utf-8",
+      },
+      {
+        name: "viewport",
+        content: "width=device-width, initial-scale=1",
+      },
+      {
+        title: "Tooscut - Video Editor",
+      },
+    ],
+    links: [
+      {
+        rel: "stylesheet",
+        href: appCss,
+      },
+    ],
+    scripts: [
+      {
+        defer: true,
+        src: "https://cloud.umami.is/script.js",
+        "data-website-id": "7776ab6b-d097-4eb4-ad02-a4e6e4adbd3d",
+      },
+    ],
+  }),
+
+  component: RootComponent,
+  shellComponent: RootDocument,
+});
+
+function RootComponent() {
+  useEffect(() => {
+    initFjBridge();
+  }, []);
+
+  return <Outlet />;
+}
+
+function RootDocument({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en" className="dark">
+      <head>
+        <HeadContent />
+      </head>
+      <body>
+        {children}
+        <Scripts />
+      </body>
+    </html>
+  );
+}

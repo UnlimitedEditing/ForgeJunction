@@ -54,20 +54,7 @@ export default function PromptNode({ node, isSelected, isSnapTarget = false, isN
   const imageSlotKeys = getImageSlotKeys(node.prompt)       // e.g. ['image1', 'image2']
   const hasSlotPorts  = imageSlotKeys.length > 0
   const showInputPort = !hasSlotPorts && promptAcceptsImageInput(node.prompt)
-
-  // Animate input port in/out — keep it mounted through the exit animation
-  const [inputPortMounted, setInputPortMounted] = useState(showInputPort)
-  const [inputPortExiting, setInputPortExiting] = useState(false)
-  useEffect(() => {
-    if (showInputPort) {
-      setInputPortExiting(false)
-      setInputPortMounted(true)
-    } else if (inputPortMounted) {
-      setInputPortExiting(true)
-      const t = setTimeout(() => { setInputPortMounted(false); setInputPortExiting(false) }, 260)
-      return () => clearTimeout(t)
-    }
-  }, [showInputPort])
+  // Input port is always shown (media-input colour when img2img, pipe colour otherwise)
 
   // Track which slug port keys are exiting so they glitch out before unmounting
   const [exitingSlotKeys, setExitingSlotKeys] = useState<Set<string>>(new Set())
@@ -227,6 +214,7 @@ export default function PromptNode({ node, isSelected, isSnapTarget = false, isN
             placeholder={"Enter your prompt…\n/run:workflow-slug to pick a workflow"}
             value={node.prompt}
             onChange={e => updateNode(node.id, { prompt: e.target.value })}
+            onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); e.stopPropagation(); if (!isRunning) runNode(node.id) } }}
             onMouseDown={e => e.stopPropagation()}
             onClick={e => e.stopPropagation()}
             spellCheck={false}
@@ -248,18 +236,18 @@ export default function PromptNode({ node, isSelected, isSnapTarget = false, isN
         onMouseDown={onBodyResizeMouseDown}
       />
 
-      {/* ── Standard input port (media / pipe) — only when whitelist allows ── */}
-      {inputPortMounted && (
+      {/* ── Input port — always visible (amber = media/img2img, dim brand = pipe) ── */}
+      {!hasSlotPorts && (
         <div
           data-input-port={node.id}
           className={`absolute left-0 -translate-x-1/2 w-3 h-3 rounded-full z-10 pointer-events-none transition-all ${
-            inputPortExiting
-              ? 'animate-port-out bg-amber-500/40 border border-amber-500/60'
-              : isSnapTarget
-                ? 'animate-port-in bg-violet-400 border border-violet-300 scale-150 shadow-[0_0_8px_rgba(192,100,255,0.8)]'
-                : isNearInputPort
-                  ? 'animate-port-in bg-amber-400/90 border border-amber-300 scale-[1.8] shadow-[0_0_6px_rgba(251,191,36,0.7)]'
-                  : 'animate-port-in bg-amber-500/40 border border-amber-500/60'
+            isSnapTarget
+              ? 'bg-violet-400 border border-violet-300 scale-150 shadow-[0_0_8px_rgba(192,100,255,0.8)]'
+              : isNearInputPort
+                ? 'bg-amber-400/90 border border-amber-300 scale-[1.8] shadow-[0_0_6px_rgba(251,191,36,0.7)]'
+                : showInputPort
+                  ? 'bg-amber-500/40 border border-amber-500/60'
+                  : 'bg-brand/20 border border-brand/35'
           }`}
           style={{ top: node.size.h / 2 - PORT_R }}
         />

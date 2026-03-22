@@ -115,6 +115,11 @@ contextBridge.exposeInMainWorld('electron', {
     },
   },
 
+  // Tooscut embedded editor URL
+  tooscut: {
+    getUrl: (): Promise<string> => ipcRenderer.invoke('tooscut:get-url'),
+  },
+
   // Storage manager
   storage: {
     getDrives: (): Promise<Array<{ path: string; label: string; total: number; free: number; used: number }>> =>
