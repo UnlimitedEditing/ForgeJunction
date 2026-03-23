@@ -101,9 +101,9 @@ export default function Onboarding(): React.ReactElement {
           {status === 'error' && displayError && (
             <p className="text-xs text-red-400">✗ {displayError}</p>
           )}
-          {status === 'error' && storeError && (
+          {(status === 'error' || status === 'idle') && storeError && (
             <button
-              onClick={() => { setStatus('idle'); checkExistingKey() }}
+              onClick={() => { setStatus('idle'); setLocalError(null); checkExistingKey() }}
               className="mt-2 text-xs text-neutral-400 underline hover:text-white"
             >
               Try again with existing key

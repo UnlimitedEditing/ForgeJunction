@@ -5,6 +5,7 @@ import { useVideoEditorStore } from '@/stores/videoEditor'
 import { usePromptStore } from '@/stores/prompt'
 import { useChainGraphStore } from '@/stores/chainGraph'
 import { useSettingsStore } from '@/stores/settings'
+import { useTagsStore, TAG_COLORS, type Tag } from '@/stores/tags'
 
 // ── Flat tile — one per individual image/video from a batch ───────────────────
 
@@ -107,6 +108,70 @@ function VideoTile({ src, className }: { src: string; className?: string }): Rea
   )
 }
 
+// ── Tag popover ────────────────────────────────────────────────────────────────
+
+function TagPopover({ tileId, onClose }: { tileId: string; onClose: () => void }): React.ReactElement {
+  const { tags, getTileTags, assignTag, unassignTag, createTag } = useTagsStore()
+  const tileTags = getTileTags(tileId)
+  const tileTagIds = new Set(tileTags.map(t => t.id))
+  const [newName, setNewName] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => { inputRef.current?.focus() }, [])
+
+  function handleCreate(e: React.FormEvent) {
+    e.preventDefault()
+    if (!newName.trim()) return
+    const tag = createTag(newName.trim())
+    assignTag(tileId, tag.id)
+    setNewName('')
+  }
+
+  return (
+    <div
+      className="absolute bottom-full left-0 mb-1 z-50 w-44 rounded-lg border border-white/15 bg-neutral-900 shadow-xl text-white"
+      onClick={e => e.stopPropagation()}
+    >
+      <div className="px-2.5 py-2 border-b border-white/8">
+        <p className="text-[9px] uppercase tracking-widest text-white/30 font-semibold">Tags</p>
+      </div>
+
+      {/* Existing tags */}
+      <div className="max-h-40 overflow-y-auto py-1">
+        {tags.length === 0 && (
+          <p className="text-[10px] text-white/25 px-2.5 py-1">No tags yet</p>
+        )}
+        {tags.map(tag => {
+          const assigned = tileTagIds.has(tag.id)
+          return (
+            <button
+              key={tag.id}
+              onClick={() => assigned ? unassignTag(tileId, tag.id) : assignTag(tileId, tag.id)}
+              className="w-full flex items-center gap-2 px-2.5 py-1 hover:bg-white/5 transition-colors text-left"
+            >
+              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: tag.color }} />
+              <span className="text-[11px] flex-1 truncate text-white/80">{tag.name}</span>
+              {assigned && <span className="text-[10px] text-white/40">✓</span>}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Create new tag */}
+      <form onSubmit={handleCreate} className="px-2 pb-2 pt-1 border-t border-white/8">
+        <input
+          ref={inputRef}
+          value={newName}
+          onChange={e => setNewName(e.target.value)}
+          onKeyDown={e => e.key === 'Escape' && onClose()}
+          placeholder="New tag…"
+          className="w-full rounded bg-white/8 px-2 py-1 text-[11px] text-white placeholder-white/20 outline-none focus:bg-white/12 transition-colors"
+        />
+      </form>
+    </div>
+  )
+}
+
 // ── Individual tile ────────────────────────────────────────────────────────────
 
 function MediaTile({
@@ -117,6 +182,7 @@ function MediaTile({
   compact,
   promptGrabbed,
   hideNsfw,
+  tileTags,
   onClick,
   onAddToEditor,
   onGrabPrompt,
@@ -130,12 +196,14 @@ function MediaTile({
   compact: boolean
   promptGrabbed: boolean
   hideNsfw: boolean
+  tileTags: Tag[]
   onClick: (e: React.MouseEvent) => void
   onAddToEditor: () => void
   onGrabPrompt: () => void
   onSendToNodegraph: () => void
   onToggleNsfw: () => void
 }): React.ReactElement {
+  const [showTagPopover, setShowTagPopover] = useState(false)
   const { url, mediaType, thumbnailUrl, render, batchTotal, batchIndex } = tile
   const isNsfw = render.isNsfw ?? false
   const isVideo = mediaType?.startsWith('video') ?? false
@@ -233,8 +301,46 @@ function MediaTile({
           >
             🔞
           </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); setShowTagPopover(v => !v) }}
+            className={`text-[10px] leading-none py-1 px-1.5 rounded transition-colors font-medium ${
+              tileTags.length > 0
+                ? 'bg-brand/40 hover:bg-brand/60 text-brand-light'
+                : 'bg-white/10 hover:bg-white/20 text-white/50'
+            }`}
+            title="Assign tags"
+          >
+            🏷
+          </button>
         </div>
       </div>
+
+      {/* Tag popover */}
+      {showTagPopover && (
+        <div className="absolute inset-x-0 bottom-0 z-50">
+          <TagPopover tileId={tile.id} onClose={() => setShowTagPopover(false)} />
+        </div>
+      )}
+
+      {/* Tag badges — visible when tile has tags */}
+      {tileTags.length > 0 && !batchSelected && (
+        <div className="absolute bottom-1 left-1 flex gap-0.5 flex-wrap z-10 pointer-events-none">
+          {tileTags.slice(0, 3).map(tag => (
+            <span
+              key={tag.id}
+              className="rounded-sm px-1 py-0.5 text-[8px] font-bold leading-none text-white/90 select-none"
+              style={{ background: tag.color + 'cc' }}
+            >
+              {tag.name}
+            </span>
+          ))}
+          {tileTags.length > 3 && (
+            <span className="rounded-sm px-1 py-0.5 text-[8px] font-bold leading-none text-white/60 bg-black/50 select-none">
+              +{tileTags.length - 3}
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Batch selection badge (top-left) */}
       {batchSelected && (
@@ -289,6 +395,7 @@ export default function MediaLibraryGrid({ cols, search, animateIn = true }: { c
   const { setFromRender } = useSourceMediaStore()
   const { addClip } = useVideoEditorStore()
   const { hideNsfw } = useSettingsStore()
+  const getTileTags = useTagsStore(s => s.getTileTags)
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [batchIds, setBatchIds] = useState<string[]>([])
@@ -512,6 +619,7 @@ export default function MediaLibraryGrid({ cols, search, animateIn = true }: { c
                 compact={cols >= 4}
                 promptGrabbed={grabbedId === tile.id}
                 hideNsfw={hideNsfw}
+                tileTags={getTileTags(tile.id)}
                 onClick={(e) => handleTileClick(tile, idx, e)}
                 onAddToEditor={() => addSingleToEditor(tile)}
                 onGrabPrompt={() => grabPrompt(tile)}

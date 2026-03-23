@@ -318,6 +318,8 @@ export function TimelineStage({
   const scrollX = useVideoEditorStore((s) => s.scrollX);
   const scrollY = useVideoEditorStore((s) => s.scrollY);
   const currentTime = useVideoEditorStore((s) => s.currentTime);
+  const markers = useVideoEditorStore((s) => s.markers);
+  const removeMarker = useVideoEditorStore((s) => s.removeMarker);
   const duration = useVideoEditorStore((s) => s.duration);
   const tracks = useVideoEditorStore((s) => s.tracks);
   const clips = useVideoEditorStore((s) => s.clips);
@@ -2612,6 +2614,41 @@ export function TimelineStage({
           height={RULER_HEIGHT}
           fill={COLORS.headerBackground}
         />
+
+        {/* Timeline markers */}
+        {markers.map((marker) => {
+          const mx = timeToX(marker.time);
+          if (mx < TRACK_HEADER_WIDTH || mx > width) return null;
+          return (
+            <Group key={marker.id}>
+              {/* Dashed vertical line through tracks */}
+              <Line
+                points={[mx, RULER_HEIGHT, mx, height]}
+                stroke="#f59e0b"
+                strokeWidth={1}
+                opacity={0.35}
+                dash={[4, 4]}
+                listening={false}
+              />
+              {/* Diamond marker head on ruler — clickable to remove */}
+              <Line
+                points={[
+                  mx, RULER_HEIGHT - 14,
+                  mx + 5, RULER_HEIGHT - 7,
+                  mx, RULER_HEIGHT,
+                  mx - 5, RULER_HEIGHT - 7,
+                ]}
+                closed
+                fill="#f59e0b"
+                stroke="#f59e0b"
+                strokeWidth={1}
+                onClick={() => removeMarker(marker.id)}
+                onTap={() => removeMarker(marker.id)}
+                style={{ cursor: "pointer" }}
+              />
+            </Group>
+          );
+        })}
 
         {/* Playhead */}
         {playheadX >= TRACK_HEADER_WIDTH && playheadX <= width && (

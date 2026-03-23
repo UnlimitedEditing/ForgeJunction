@@ -321,6 +321,12 @@ interface VideoEditorState {
   addAssets: (assets: MediaAsset[]) => void;
   removeAsset: (assetId: string) => void;
 
+  // Markers
+  markers: Array<{ id: string; time: number; label?: string }>;
+  addMarker: (time: number, label?: string) => void;
+  removeMarker: (markerId: string) => void;
+  clearMarkers: () => void;
+
   // Computed - Get clips and tracks for rendering
   getTracksForRender: () => RenderTrack[];
   getClipsForRender: () => RenderTimelineClip[];
@@ -656,6 +662,7 @@ export const useVideoEditorStore = create<VideoEditorState>()(
         previewMode: "transform" as const,
 
         assets: [],
+        markers: [],
 
         // Project actions
         loadProject: (data) =>
@@ -1888,6 +1895,22 @@ export const useVideoEditorStore = create<VideoEditorState>()(
           set((state) => ({
             assets: state.assets.filter((a) => a.id !== assetId),
           })),
+
+        // Markers
+        addMarker: (time, label) =>
+          set((state) => ({
+            markers: [
+              ...state.markers,
+              { id: generateId(), time, label },
+            ].sort((a, b) => a.time - b.time),
+          })),
+
+        removeMarker: (markerId) =>
+          set((state) => ({
+            markers: state.markers.filter((m) => m.id !== markerId),
+          })),
+
+        clearMarkers: () => set({ markers: [] }),
 
         // Computed getters for rendering
         getTracksForRender: () => {

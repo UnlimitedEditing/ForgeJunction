@@ -119,7 +119,43 @@ async function injectAsset(msg: FjAssetMsg): Promise<void> {
 
 type FjMessage =
   | { type: "fj:sync-library"; assets: FjAssetMsg[] }
-  | { type: "fj:add-asset"; asset: FjAssetMsg };
+  | { type: "fj:add-asset"; asset: FjAssetMsg }
+  | { type: "fj:import-tag"; assets: FjAssetMsg[]; tagName: string };
+
+/**
+ * Import a tag's ordered assets onto the timeline at successive marker positions.
+ * Asset at index 0 → marker at index 0 (earliest), asset at index 1 → marker at index 1, etc.
+ * Assets without a corresponding marker are still injected into the asset store but not placed.
+ */
+async function importTagToMarkers(assets: FjAssetMsg[]): Promise<void> {
+  // Inject all assets in parallel (probes metadata, adds to stores)
+  await Promise.all(assets.map(injectAsset));
+
+  const store = useVideoEditorStore.getState();
+  const sortedMarkers = [...store.markers].sort((a, b) => a.time - b.time);
+  if (sortedMarkers.length === 0) return;
+
+  for (let i = 0; i < assets.length && i < sortedMarkers.length; i++) {
+    const msg = assets[i];
+    const marker = sortedMarkers[i];
+
+    // Look up the probed asset to get duration/type
+    const asset = useAssetStore.getState().assets.find((a) => a.id === msg.id);
+    if (!asset) continue;
+
+    const clipType = asset.type === "video" ? "video" : asset.type === "audio" ? "audio" : "image";
+
+    store.addClipToTrack({
+      type: clipType,
+      assetId: asset.id,
+      startTime: marker.time,
+      duration: asset.duration > 0 ? asset.duration : 5,
+      speed: 1,
+      name: asset.name,
+      assetDuration: asset.duration > 0 ? asset.duration : undefined,
+    });
+  }
+}
 
 function handleMessage(event: MessageEvent) {
   // Only accept messages from the parent FJ window
@@ -133,6 +169,8 @@ function handleMessage(event: MessageEvent) {
     void Promise.all(data.assets.map(injectAsset));
   } else if (data.type === "fj:add-asset") {
     void injectAsset(data.asset);
+  } else if (data.type === "fj:import-tag") {
+    void importTagToMarkers(data.assets);
   }
 }
 

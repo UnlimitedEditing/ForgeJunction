@@ -81,6 +81,8 @@ export function CanvasTimeline() {
   const removeCrossTransitionById = useVideoEditorStore((s) => s.removeCrossTransitionById);
   const copySelectedClips = useVideoEditorStore((s) => s.copySelectedClips);
   const pasteClipsAtPlayhead = useVideoEditorStore((s) => s.pasteClipsAtPlayhead);
+  const markers = useVideoEditorStore((s) => s.markers);
+  const addMarker = useVideoEditorStore((s) => s.addMarker);
   const undo = useTemporalStore((s) => s.undo);
   const redo = useTemporalStore((s) => s.redo);
 
@@ -229,6 +231,33 @@ export function CanvasTimeline() {
         e.preventDefault();
         seekTo(duration);
       }
+
+      // M: Add marker at playhead (no modifiers)
+      if ((e.key === "m" || e.key === "M") && !e.metaKey && !e.ctrlKey && !e.shiftKey) {
+        e.preventDefault();
+        addMarker(currentTime);
+        return;
+      }
+
+      // Ctrl+M: Jump to next marker
+      if ((e.metaKey || e.ctrlKey) && (e.key === "m" || e.key === "M") && !e.shiftKey) {
+        e.preventDefault();
+        const next = markers
+          .filter((m) => m.time > currentTime + 0.01)
+          .sort((a, b) => a.time - b.time)[0];
+        if (next) seekTo(next.time);
+        return;
+      }
+
+      // Shift+M: Jump to previous marker
+      if (e.shiftKey && (e.key === "m" || e.key === "M") && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        const prev = markers
+          .filter((m) => m.time < currentTime - 0.01)
+          .sort((a, b) => b.time - a.time)[0];
+        if (prev) seekTo(prev.time);
+        return;
+      }
     };
 
     document.addEventListener("keydown", handleKeyDown);
@@ -253,6 +282,8 @@ export function CanvasTimeline() {
     setClipTransitionOut,
     selectedCrossTransition,
     removeCrossTransitionById,
+    markers,
+    addMarker,
   ]);
 
   // Combine tracks with full IDs for drop target calculation

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react'
 import { useRenderQueueStore } from '@/stores/renderQueue'
 import { useProjectsStore } from '@/stores/projects'
 import { useSettingsStore } from '@/stores/settings'
+import { useTagsStore } from '@/stores/tags'
 
 // In dev, use VITE_TOOSCUT_URL or the pnpm dev server.
 // In production, the Electron main process starts the bundled Nitro server on a
@@ -117,6 +118,11 @@ export default function TooscutEditor({ onClose }: { onClose: () => void }) {
   const queue = useRenderQueueStore(s => s.queue)
   const activeProject = useProjectsStore(s => s.getActiveProject())
   const hideNsfw = useSettingsStore(s => s.hideNsfw)
+  const tags = useTagsStore(s => s.tags)
+  const getTagItems = useTagsStore(s => s.getTagItems)
+
+  const [selectedTagId, setSelectedTagId] = useState<string | null>(null)
+  const [importStatus, setImportStatus] = useState<'idle' | 'importing' | 'done'>('idle')
 
   const searchTerm = search.trim().toLowerCase()
 
@@ -170,6 +176,23 @@ export default function TooscutEditor({ onClose }: { onClose: () => void }) {
 
   // Keep ref current so the message handler always sees the latest items
   binItemsRef.current = binItems
+
+  const handleImportTag = useCallback(() => {
+    if (!selectedTagId) return
+    const tagItems = getTagItems(selectedTagId)
+    if (tagItems.length === 0) return
+    const assets: FjAsset[] = tagItems
+      .map(a => binItems.find(b => b.id === a.tileId))
+      .filter((b): b is FjAsset => !!b)
+    if (assets.length === 0) return
+    setImportStatus('importing')
+    iframeRef.current?.contentWindow?.postMessage(
+      { type: 'fj:import-tag', assets, tagName: tags.find(t => t.id === selectedTagId)?.name ?? '' },
+      '*',
+    )
+    setTimeout(() => setImportStatus('done'), 600)
+    setTimeout(() => setImportStatus('idle'), 2200)
+  }, [selectedTagId, getTagItems, binItems, iframeRef, tags])
 
   // Post all current bin items to Tooscut's iframe
   const syncLibrary = useCallback((items: FjAsset[]) => {
@@ -256,6 +279,43 @@ export default function TooscutEditor({ onClose }: { onClose: () => void }) {
               )}
             </div>
           </div>
+
+          {/* Tag → Marker import panel */}
+          {tags.length > 0 && (
+            <div className="px-2 py-1.5 border-b border-white/8 flex-shrink-0">
+              <p className="text-[9px] uppercase tracking-widest text-white/25 font-semibold mb-1.5">Tag Import</p>
+              <select
+                value={selectedTagId ?? ''}
+                onChange={e => setSelectedTagId(e.target.value || null)}
+                className="w-full rounded bg-white/5 text-[11px] text-white/70 py-1 px-1.5 outline-none mb-1.5 cursor-pointer"
+              >
+                <option value="">Select a tag…</option>
+                {tags.map(t => {
+                  const count = getTagItems(t.id).length
+                  return (
+                    <option key={t.id} value={t.id}>
+                      {t.name} ({count} clip{count !== 1 ? 's' : ''})
+                    </option>
+                  )
+                })}
+              </select>
+              <button
+                onClick={handleImportTag}
+                disabled={!selectedTagId || importStatus === 'importing'}
+                className={`w-full rounded py-1 text-[11px] font-medium transition-colors ${
+                  importStatus === 'done'
+                    ? 'bg-emerald-600/60 text-emerald-200'
+                    : selectedTagId
+                      ? 'bg-brand/70 hover:bg-brand text-white'
+                      : 'bg-white/5 text-white/20 cursor-not-allowed'
+                }`}
+                title="Places each tagged clip at successive timeline markers (M to add markers)"
+              >
+                {importStatus === 'importing' ? '⟳ Importing…' : importStatus === 'done' ? '✓ Imported' : '⬇ Import to Markers'}
+              </button>
+              <p className="text-[9px] text-white/15 mt-1 leading-tight">Press M on timeline to set markers</p>
+            </div>
+          )}
 
           {/* Bin items */}
           <div className="flex-1 overflow-y-auto min-h-0 p-1.5">
