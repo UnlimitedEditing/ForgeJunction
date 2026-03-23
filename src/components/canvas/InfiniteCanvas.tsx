@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react'
+import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react'
 import { useCanvasStore, type CanvasNode, OUTPUT_HEADER_H, outputPortRelY } from '@/stores/canvasStore'
 import { useRenderQueueStore } from '@/stores/renderQueue'
 import PromptNode from './PromptNode'
@@ -8,8 +8,15 @@ import BinNode from './BinNode'
 import MediaNode from './MediaNode'
 import MethodBrowserNode from './MethodBrowserNode'
 import ChainCanvasNode from './ChainCanvasNode'
+import VideoEditorOutNode from './VideoEditorOutNode'
 import RadialMenu, { type RadialMenuModifiers } from './RadialMenu'
 import MediaLightbox from './MediaLightbox'
+import DrawingLayer from './DrawingLayer'
+import PaletteDock from './PaletteDock'
+import ArtNode from './ArtNode'
+import { usePaletteStore } from '@/stores/palette'
+import { useAnnotationStore } from '@/stores/annotations'
+import { useUndoHistory } from '@/stores/undoHistory'
 
 const MIN_ZOOM = 0.08
 const MAX_ZOOM = 5
@@ -219,12 +226,31 @@ function CanvasHistoryHUD(): React.ReactElement {
 export default function InfiniteCanvas({ onOpenSettings }: Props): React.ReactElement {
   const {
     nodes, edges, viewport, setViewport,
-    addPromptNode, addSkillNode, addSkillsBrowserNode, addBinNode, addMediaNode, addMethodNode, addChainNode, addInputMedia,
+    addPromptNode, addSkillNode, addSkillsBrowserNode, addBinNode, addMediaNode, addMethodNode, addChainNode, addInputMedia, addVideoEditorOutNode,
+    addArtNode, skinNode,
     updateNode, removeNode, duplicateNode, addEdge,
     setSelectedNode, setSelectedNodes, selectedNodeIds,
     runNode, runSkillNode, cancelNode, runAllNodes, cancelAllNodes,
     clearCanvas,
   } = useCanvasStore()
+
+  const { isOpen: paletteOpen, activeTool, color: drawColor, strokeWidth, fillEnabled, fontSize, toggle: togglePalette, setTool } = usePaletteStore()
+  const { addStroke, addShape, addText: addAnnotationText, getInBounds } = useAnnotationStore()
+
+  // Live drawing state
+  const [livePoints, setLivePoints] = useState<number[]>([])
+  const [liveShape, setLiveShape] = useState<{ x: number; y: number; w: number; h: number; startX: number; startY: number } | null>(null)
+  const [liveTextPos, setLiveTextPos] = useState<{ x: number; y: number } | null>(null)
+  const [liveText, setLiveText] = useState('')
+  const [annotationMarquee, setAnnotationMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
+
+  const liveDrawRef = useRef(false)
+  const drawStartRef = useRef<{ x: number; y: number } | null>(null)
+  const livePointsRef = useRef<number[]>([])
+  const textInputRef = useRef<HTMLInputElement>(null)
+  // Proximity detection — rAF throttled
+  const proxRafRef   = useRef<number | null>(null)
+  const lastMouseRef = useRef({ x: 0, y: 0 })
 
   const containerRef  = useRef<HTMLDivElement>(null)
   const viewportRef   = useRef(viewport)
@@ -355,6 +381,24 @@ export default function InfiniteCanvas({ onOpenSettings }: Props): React.ReactEl
     return { x: (sx - rect.left - vp.x) / vp.zoom, y: (sy - rect.top - vp.y) / vp.zoom }
   }, [])
 
+  function toWorld(clientX: number, clientY: number) {
+    const rect = containerRef.current?.getBoundingClientRect()
+    if (!rect) return { x: 0, y: 0 }
+    return {
+      x: (clientX - rect.left - viewport.x) / viewport.zoom,
+      y: (clientY - rect.top - viewport.y) / viewport.zoom,
+    }
+  }
+
+  const isDrawingActive = paletteOpen && (activeTool === 'pen' || activeTool === 'rect' || activeTool === 'ellipse' || activeTool === 'line' || activeTool === 'text')
+  const isSelectAnnotation = paletteOpen && activeTool === 'select'
+  const isSkinActive = paletteOpen && activeTool === 'skin'
+
+  // Focus text input when text annotation placement is triggered
+  useEffect(() => {
+    if (liveTextPos) setTimeout(() => textInputRef.current?.focus(), 16)
+  }, [liveTextPos])
+
   // Non-passive wheel
   useEffect(() => {
     const el = containerRef.current
@@ -395,6 +439,7 @@ export default function InfiniteCanvas({ onOpenSettings }: Props): React.ReactEl
         setViewport({ zoom, x: (rect.width - ww * zoom) / 2 - (minX - pad) * zoom, y: (rect.height - wh * zoom) / 2 - (minY - pad) * zoom })
       }
       if (e.code === 'Escape') { setRadialMenu(null); wireCleanupRef.current?.(); wireCleanupRef.current = null; setPendingEdge(null) }
+      if (e.code === 'KeyZ' && (e.ctrlKey || e.metaKey) && !e.shiftKey) { e.preventDefault(); useUndoHistory.getState().undo() }
       if (e.code === 'Enter' && e.ctrlKey) {
         const { selectedNodeIds: ids, runNode: run } = useCanvasStore.getState()
         ids.forEach(id => run(id))
@@ -433,6 +478,54 @@ export default function InfiniteCanvas({ onOpenSettings }: Props): React.ReactEl
   }
 
   function onMouseDown(e: React.MouseEvent) {
+    // Text tool placement
+    if (isDrawingActive && activeTool === 'text' && e.button === 0) {
+      const wp = toWorld(e.clientX, e.clientY)
+      setLiveTextPos(wp)
+      setLiveText('')
+      return
+    }
+
+    // Skin tool: check if clicking a skinnable image node
+    if (isSkinActive && e.button === 0) {
+      const target = (e.target as HTMLElement).closest('[data-node]')
+      if (target) {
+        const nodeId = target.getAttribute('data-node')
+        if (nodeId) {
+          const n = useCanvasStore.getState().nodes.find(nd => nd.id === nodeId)
+          if (n && n.type === 'media' && !n.resultMediaType?.includes('video') && !n.resultMediaType?.includes('audio')) {
+            skinNode(nodeId)
+            return
+          }
+        }
+      }
+    }
+
+    // Drawing tool
+    if (isDrawingActive && e.button === 0) {
+      e.stopPropagation()
+      const wp = toWorld(e.clientX, e.clientY)
+      liveDrawRef.current = true
+      drawStartRef.current = wp
+      if (activeTool === 'pen') {
+        livePointsRef.current = [wp.x, wp.y]
+        setLivePoints([wp.x, wp.y])
+      } else {
+        setLiveShape({ x: wp.x, y: wp.y, w: 0, h: 0, startX: wp.x, startY: wp.y })
+      }
+      return
+    }
+
+    // Annotation marquee select
+    if (isSelectAnnotation && e.button === 0 && !(e.target as HTMLElement).closest('[data-node]')) {
+      e.stopPropagation()
+      const wp = toWorld(e.clientX, e.clientY)
+      liveDrawRef.current = true
+      drawStartRef.current = wp
+      setAnnotationMarquee({ x: wp.x, y: wp.y, w: 0, h: 0 })
+      return
+    }
+
     if (e.button === 0 && !spaceDown && !pendingEdge && !(e.target as HTMLElement).closest('[data-node]')) {
       marqueeStartRef.current  = { sx: e.clientX, sy: e.clientY }
       marqueeActiveRef.current = false
@@ -440,6 +533,22 @@ export default function InfiniteCanvas({ onOpenSettings }: Props): React.ReactEl
   }
 
   function onMouseMove(e: React.MouseEvent) {
+    if (liveDrawRef.current && drawStartRef.current && (isDrawingActive || isSelectAnnotation)) {
+      const wp = toWorld(e.clientX, e.clientY)
+      const sx = drawStartRef.current.x, sy = drawStartRef.current.y
+      if (activeTool === 'pen') {
+        livePointsRef.current = [...livePointsRef.current, wp.x, wp.y]
+        setLivePoints([...livePointsRef.current])
+      } else if (activeTool === 'rect' || activeTool === 'ellipse' || activeTool === 'line') {
+        const x = Math.min(sx, wp.x), y = Math.min(sy, wp.y)
+        setLiveShape({ x, y, w: Math.abs(wp.x - sx), h: Math.abs(wp.y - sy), startX: sx, startY: sy })
+      } else if (activeTool === 'select' || isSelectAnnotation) {
+        const x = Math.min(sx, wp.x), y = Math.min(sy, wp.y)
+        setAnnotationMarquee({ x, y, w: Math.abs(wp.x - sx), h: Math.abs(wp.y - sy) })
+      }
+      return
+    }
+
     if (isPanning && panStart) {
       setViewport({ x: panStart.vpx + (e.clientX - panStart.mx), y: panStart.vpy + (e.clientY - panStart.my) })
       return
@@ -460,43 +569,71 @@ export default function InfiniteCanvas({ onOpenSettings }: Props): React.ReactEl
       }
     }
 
-    // Port proximity detection — 44px screen-space threshold
-    const cRect = containerRef.current?.getBoundingClientRect()
-    if (cRect) {
-      const vp = viewportRef.current
-      const PROX = 44
-      let newNearInput:  string | null = null
-      let newNearOutput: string | null = null
-      for (const n of nodesRef.current) {
-        if (!newNearInput && n.type !== 'media' && n.type !== 'skillsbrowser') {
-          const sx = n.position.x * vp.zoom + vp.x + cRect.left
-          const sy = (n.position.y + n.size.h / 2) * vp.zoom + vp.y + cRect.top
-          if (Math.hypot(e.clientX - sx, e.clientY - sy) < PROX) newNearInput = n.id
-        }
-        if (!newNearOutput) {
-          const allItems = n.runs?.flatMap((r: any) => r.items) ?? []
-          if ((n.type === 'prompt' || n.type === 'skill') && allItems.length > 0) {
-            // Check each per-item output port position
-            for (let i = 0; i < allItems.length; i++) {
-              const portPos = promptOutputPortWorld(n, i)
-              const sx = portPos.x * vp.zoom + vp.x + cRect.left
-              const sy = portPos.y * vp.zoom + vp.y + cRect.top
-              if (Math.hypot(e.clientX - sx, e.clientY - sy) < PROX) { newNearOutput = n.id; break }
-            }
-          } else {
-            const sx = (n.position.x + n.size.w) * vp.zoom + vp.x + cRect.left
+    // Port proximity detection — rAF throttled so it runs at most once per frame
+    lastMouseRef.current = { x: e.clientX, y: e.clientY }
+    if (proxRafRef.current === null) {
+      proxRafRef.current = requestAnimationFrame(() => {
+        proxRafRef.current = null
+        const { x: mx, y: my } = lastMouseRef.current
+        const cRect = containerRef.current?.getBoundingClientRect()
+        if (!cRect) return
+        const vp = viewportRef.current
+        const PROX = 44
+        let newNearInput:  string | null = null
+        let newNearOutput: string | null = null
+        for (const n of nodesRef.current) {
+          if (!newNearInput && n.type !== 'media' && n.type !== 'skillsbrowser') {
+            const sx = n.position.x * vp.zoom + vp.x + cRect.left
             const sy = (n.position.y + n.size.h / 2) * vp.zoom + vp.y + cRect.top
-            if (Math.hypot(e.clientX - sx, e.clientY - sy) < PROX) newNearOutput = n.id
+            if (Math.hypot(mx - sx, my - sy) < PROX) newNearInput = n.id
           }
+          if (!newNearOutput) {
+            const allItems = n.runs?.flatMap((r: any) => r.items) ?? []
+            if ((n.type === 'prompt' || n.type === 'skill') && allItems.length > 0) {
+              for (let i = 0; i < allItems.length; i++) {
+                const portPos = promptOutputPortWorld(n, i)
+                const sx = portPos.x * vp.zoom + vp.x + cRect.left
+                const sy = portPos.y * vp.zoom + vp.y + cRect.top
+                if (Math.hypot(mx - sx, my - sy) < PROX) { newNearOutput = n.id; break }
+              }
+            } else {
+              const sx = (n.position.x + n.size.w) * vp.zoom + vp.x + cRect.left
+              const sy = (n.position.y + n.size.h / 2) * vp.zoom + vp.y + cRect.top
+              if (Math.hypot(mx - sx, my - sy) < PROX) newNearOutput = n.id
+            }
+          }
+          if (newNearInput && newNearOutput) break
         }
-        if (newNearInput && newNearOutput) break
-      }
-      if (newNearInput  !== nearInputNodeIdRef.current)  { nearInputNodeIdRef.current  = newNearInput;  setNearInputNodeId(newNearInput) }
-      if (newNearOutput !== nearOutputNodeIdRef.current) { nearOutputNodeIdRef.current = newNearOutput; setNearOutputNodeId(newNearOutput) }
+        if (newNearInput  !== nearInputNodeIdRef.current)  { nearInputNodeIdRef.current  = newNearInput;  setNearInputNodeId(newNearInput) }
+        if (newNearOutput !== nearOutputNodeIdRef.current) { nearOutputNodeIdRef.current = newNearOutput; setNearOutputNodeId(newNearOutput) }
+      })
     }
   }
 
   function onMouseUp() {
+    if (liveDrawRef.current) {
+      liveDrawRef.current = false
+      const pts = livePointsRef.current
+
+      if (activeTool === 'pen' && pts.length >= 4) {
+        addStroke({ type: 'stroke', points: pts, color: drawColor, width: strokeWidth, opacity: 1 })
+      } else if ((activeTool === 'rect' || activeTool === 'ellipse' || activeTool === 'line') && liveShape && liveShape.w > 2) {
+        addShape({ type: 'shape', shapeType: activeTool as 'rect'|'ellipse'|'line', x: liveShape.x, y: liveShape.y, w: liveShape.w, h: liveShape.h, color: drawColor, width: strokeWidth, fill: fillEnabled ? drawColor + '44' : null, opacity: 1 })
+      } else if (isSelectAnnotation && annotationMarquee && annotationMarquee.w > 10 && annotationMarquee.h > 10) {
+        const captured = getInBounds(annotationMarquee)
+        if (captured.length > 0) {
+          addArtNode(captured.map(a => a.id), annotationMarquee, { x: annotationMarquee.x + annotationMarquee.w + 30, y: annotationMarquee.y })
+        }
+        setAnnotationMarquee(null)
+      }
+
+      setLivePoints([])
+      livePointsRef.current = []
+      setLiveShape(null)
+      drawStartRef.current = null
+      return
+    }
+
     setIsPanning(false); setPanStart(null)
     if (marqueeActiveRef.current && marqueeRef.current) {
       justDidMarqueeRef.current = true
@@ -640,7 +777,9 @@ export default function InfiniteCanvas({ onOpenSettings }: Props): React.ReactEl
     switch (action) {
       case 'add-skill':         addSkillNode({ x: menu.worldX - 140, y: menu.worldY - 90 }); break
       case 'add-prompt':        addPromptNode({ x: menu.worldX - 140, y: menu.worldY - 90 }); break
-      case 'add-bin':           addBinNode({ x: menu.worldX - 150, y: menu.worldY - 150 }); break
+      case 'add-bin':                addBinNode({ x: menu.worldX - 150, y: menu.worldY - 150 }); break
+      case 'add-utility-bin':        addBinNode({ x: menu.worldX - 150, y: menu.worldY - 150 }); break
+      case 'add-utility-videoeditorout': addVideoEditorOutNode('', 'Video Editor Out', { x: menu.worldX - 160, y: menu.worldY - 120 }); break
       case 'add-method':        addMethodNode({ x: menu.worldX - 160, y: menu.worldY - 240 }); break
       case 'add-skills-browser':addSkillsBrowserNode({ x: menu.worldX - 160, y: menu.worldY - 240 }); break
       case 'fit-view':      fitView(); break
@@ -666,6 +805,14 @@ export default function InfiniteCanvas({ onOpenSettings }: Props): React.ReactEl
         break
       }
       case 'open-settings': onOpenSettings?.(); break
+      case 'toggle-palette': togglePalette(); break
+      case 'add-art-node': addArtNode([], undefined, { x: menu.worldX - 150, y: menu.worldY - 200 }); break
+      default:
+        if (action.startsWith('add-chain-')) {
+          const templateId = action.slice('add-chain-'.length)
+          addChainNode(templateId, { x: menu.worldX - 140, y: menu.worldY - 90 })
+        }
+        break
     }
   }
 
@@ -723,6 +870,31 @@ export default function InfiniteCanvas({ onOpenSettings }: Props): React.ReactEl
     window.addEventListener('mouseup', onUp)
   }
 
+  // ── Edge path cache ────────────────────────────────────────────────────────
+  // Recompute only when node positions / sizes / run counts change — NOT on every pan/zoom.
+  const positionsKey = useMemo(() =>
+    nodes.map(n => {
+      const items = n.runs?.reduce((a, r) => a + r.items.length, 0) ?? 0
+      return `${n.id}:${Math.round(n.position.x)},${Math.round(n.position.y)}:${Math.round(n.size.w)},${Math.round(n.size.h)}:${items}`
+    }).join('|'),
+  [nodes])
+
+  const edgePaths = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const edge of edges) {
+      const fromNode = nodes.find(nd => nd.id === edge.fromNodeId)
+      const toNode   = nodes.find(nd => nd.id === edge.toNodeId)
+      if (!fromNode || !toNode) continue
+      const fromPos = (fromNode.type === 'prompt' || fromNode.type === 'skill')
+        ? promptOutputPortWorld(fromNode, edge.fromItemIndex)
+        : genericOutputPortWorld(fromNode)
+      const toPos = inputPortWorld(toNode)
+      m.set(edge.id, avoidedEdgePath(fromPos, toPos, nodes, edge.fromNodeId, edge.toNodeId))
+    }
+    return m
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [edges, positionsKey])
+
   // Compute wire slack for physics droop (how much wire has been reeled out beyond current reach)
   const pendingSlack = pendingEdge
     ? Math.max(0, pendingMaxReachRef.current - Math.hypot(
@@ -731,7 +903,8 @@ export default function InfiniteCanvas({ onOpenSettings }: Props): React.ReactEl
       ))
     : 0
 
-  const cursor = isPanning ? 'cursor-grabbing' : spaceDown ? 'cursor-grab' : pendingEdge ? 'cursor-crosshair' : 'cursor-default'
+  const cursorStyle = isPanning ? 'cursor-grabbing' : spaceDown ? 'cursor-grab' : pendingEdge ? 'cursor-crosshair' : isDrawingActive ? (activeTool === 'text' ? 'cursor-text' : 'cursor-crosshair') : isSkinActive ? 'cursor-cell' : 'cursor-default'
+  const cursor = cursorStyle
 
   return (
     <div
@@ -772,7 +945,7 @@ export default function InfiniteCanvas({ onOpenSettings }: Props): React.ReactEl
       </svg>
 
       {/* World */}
-      <div className="absolute origin-top-left" style={{ transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`, transformOrigin: '0 0' }}>
+      <div className="absolute origin-top-left" style={{ transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`, transformOrigin: '0 0', willChange: 'transform' }}>
 
         {/* Edge SVG */}
         <svg className="absolute pointer-events-none" style={{ overflow: 'visible', width: 0, height: 0 }}>
@@ -791,16 +964,11 @@ export default function InfiniteCanvas({ onOpenSettings }: Props): React.ReactEl
             </filter>
           </defs>
 
-          {/* Connected edges — autopathed around obstructing nodes */}
+          {/* Connected edges — paths cached; only stroke/highlight recalculated per render */}
           {edges.map(edge => {
             const fromNode = nodes.find(n => n.id === edge.fromNodeId)
             const toNode   = nodes.find(n => n.id === edge.toNodeId)
             if (!fromNode || !toNode) return null
-
-            const fromPos = (fromNode.type === 'prompt' || fromNode.type === 'skill')
-              ? promptOutputPortWorld(fromNode, edge.fromItemIndex)
-              : genericOutputPortWorld(fromNode)
-            const toPos = inputPortWorld(toNode)
 
             const highlighted = fromNode.type === 'prompt' && isEdgeHighlighted(edge, fromNode)
             const stroke = edge.edgeType === 'media'
@@ -810,7 +978,7 @@ export default function InfiniteCanvas({ onOpenSettings }: Props): React.ReactEl
                 : highlighted ? 'rgba(255,140,0,1)' : 'rgba(108,71,255,0.22)'
 
             const isPipe = edge.edgeType === 'pipe'
-            const d = avoidedEdgePath(fromPos, toPos, nodes, edge.fromNodeId, edge.toNodeId)
+            const d = edgePaths.get(edge.id) ?? ''
 
             return (
               <path
@@ -834,14 +1002,7 @@ export default function InfiniteCanvas({ onOpenSettings }: Props): React.ReactEl
           {[...pulsingEdgeIds].map(edgeId => {
             const edge = edges.find(e => e.id === edgeId)
             if (!edge) return null
-            const fromNode = nodes.find(n => n.id === edge.fromNodeId)
-            const toNode   = nodes.find(n => n.id === edge.toNodeId)
-            if (!fromNode || !toNode) return null
-            const fromPos = (fromNode.type === 'prompt' || fromNode.type === 'skill')
-              ? promptOutputPortWorld(fromNode, edge.fromItemIndex)
-              : genericOutputPortWorld(fromNode)
-            const toPos = inputPortWorld(toNode)
-            const d = avoidedEdgePath(fromPos, toPos, nodes, edge.fromNodeId, edge.toNodeId)
+            const d = edgePaths.get(edgeId) ?? ''
             return (
               <path
                 key={`pulse-${edgeId}`}
@@ -869,8 +1030,33 @@ export default function InfiniteCanvas({ onOpenSettings }: Props): React.ReactEl
           )}
         </svg>
 
-        {/* Nodes */}
-        {nodes.map(node => {
+        {/* Drawing layer — annotations rendered as SVG in world space */}
+        <DrawingLayer
+          zoomForDash={viewport.zoom}
+          live={{
+            tool: (isDrawingActive || isSelectAnnotation) ? activeTool : null,
+            points: livePoints,
+            shape: liveShape,
+            color: drawColor,
+            width: strokeWidth,
+            fillEnabled,
+            marquee: annotationMarquee,
+          }}
+        />
+
+        {/* Nodes — viewport-culled; selected nodes always kept to allow off-screen drag-back */}
+        {(() => {
+          const CULL_BUF = 200
+          const vw = window.innerWidth, vh = window.innerHeight
+          const visibleNodes = nodes.filter(n => {
+            if (selectedNodeIds.includes(n.id)) return true
+            const sx = n.position.x * viewport.zoom + viewport.x
+            const sy = n.position.y * viewport.zoom + viewport.y
+            return sx < vw + CULL_BUF && sx + n.size.w * viewport.zoom > -CULL_BUF
+                && sy < vh + CULL_BUF && sy + n.size.h * viewport.zoom > -CULL_BUF
+          })
+          return visibleNodes
+        })().map(node => {
           const shared = {
             key: node.id, node,
             isSelected: selectedNodeIds.includes(node.id),
@@ -930,6 +1116,24 @@ export default function InfiniteCanvas({ onOpenSettings }: Props): React.ReactEl
               isSelected={selectedNodeIds.includes(node.id)}
               animationClass={nodeAnimClass(node.id)}
               onContextMenu={shared.onContextMenu}
+            />
+          )
+          if (node.type === 'videoeditorout') return (
+            <VideoEditorOutNode
+              key={node.id} node={node}
+              isSelected={selectedNodeIds.includes(node.id)}
+              animationClass={nodeAnimClass(node.id)}
+              onContextMenu={shared.onContextMenu}
+              onOpenLightbox={setLightboxItem}
+            />
+          )
+          if (node.type === 'artnode') return (
+            <ArtNode
+              key={node.id} node={node}
+              isSelected={selectedNodeIds.includes(node.id)}
+              animationClass={nodeAnimClass(node.id)}
+              onContextMenu={shared.onContextMenu}
+              onStartEdge={startEdge}
             />
           )
           return (
@@ -1001,6 +1205,39 @@ export default function InfiniteCanvas({ onOpenSettings }: Props): React.ReactEl
           mediaType={lightboxItem.mediaType}
           onClose={() => setLightboxItem(null)}
         />
+      )}
+
+      {paletteOpen && <PaletteDock />}
+
+      {/* Text annotation input */}
+      {liveTextPos && (
+        <div
+          className="fixed z-[300]"
+          style={{
+            left: liveTextPos.x * viewport.zoom + viewport.x + (containerRef.current?.getBoundingClientRect().left ?? 0),
+            top:  liveTextPos.y * viewport.zoom + viewport.y + (containerRef.current?.getBoundingClientRect().top  ?? 0),
+          }}
+        >
+          <input
+            ref={textInputRef}
+            autoFocus
+            value={liveText}
+            onChange={e => setLiveText(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                if (liveText.trim()) addAnnotationText({ type: 'text', x: liveTextPos.x, y: liveTextPos.y, text: liveText, color: drawColor, fontSize, opacity: 1 })
+                setLiveTextPos(null); setLiveText('')
+              }
+              if (e.key === 'Escape') { setLiveTextPos(null); setLiveText('') }
+            }}
+            onBlur={() => {
+              if (liveText.trim()) addAnnotationText({ type: 'text', x: liveTextPos.x, y: liveTextPos.y, text: liveText, color: drawColor, fontSize, opacity: 1 })
+              setLiveTextPos(null); setLiveText('')
+            }}
+            style={{ color: drawColor, fontSize: `${fontSize * viewport.zoom}px`, background: 'transparent', border: 'none', outline: 'none', borderBottom: `1px dashed ${drawColor}`, minWidth: 80, caretColor: drawColor }}
+            placeholder="Type…"
+          />
+        </div>
       )}
     </div>
   )

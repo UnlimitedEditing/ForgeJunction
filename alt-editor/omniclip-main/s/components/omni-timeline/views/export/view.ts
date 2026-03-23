@@ -229,6 +229,15 @@ export const ExportInProgressOverlay = shadow_view((use) => () => {
 							<sl-icon slot="prefix" name="download"></sl-icon>
 							Save Video
 						</sl-button>
+						<sl-button
+							variant="default"
+							size="large"
+							?disabled=${state.export_status !== "complete"}
+							@click=${() => videoExport.send_to_canvas()}
+							class="canvas-button"
+						>
+							Send to Canvas
+						</sl-button>
 					</div>
 				</div>
 			</div>

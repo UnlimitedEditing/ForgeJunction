@@ -4,6 +4,7 @@ import { useProjectsStore } from '@/stores/projects'
 import { useSettingsStore } from '@/stores/settings'
 import { useTagsStore } from '@/stores/tags'
 import { useVideoEditorStore } from '@/stores/videoEditor'
+import { useCanvasStore } from '@/stores/canvasStore'
 
 // In dev, use VITE_EDITOR_URL or run `npx http-server x -p 3000` in alt-editor/omniclip-main.
 // In production, the Electron main process starts the bundled static server on a
@@ -98,12 +99,20 @@ function BinItem({
 
 // ── VideoEditor ───────────────────────────────────────────────────────────────
 
-export default function VideoEditor({ onClose, onReady }: { onClose: () => void; onReady?: () => void }) {
+export default function VideoEditor({ onClose, onReady, isCanvasActive }: { onClose: () => void; onReady?: () => void; isCanvasActive?: boolean }) {
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const [search, setSearch] = useState('')
   const [iframeReady, setIframeReady] = useState(false)
   const binItemsRef = useRef<FjAsset[]>([])
   const [editorUrl, setEditorUrl] = useState(DEV_URL)
+  const [canvasToast, setCanvasToast] = useState<string | null>(null)
+  const addVideoEditorOutNode = useCanvasStore(s => s.addVideoEditorOutNode)
+
+  // Omniclip project state synced via postMessage
+  const [omniProjectName, setOmniProjectName] = useState('')
+  const [isRenaming, setIsRenaming] = useState(false)
+  const [renameValue, setRenameValue] = useState('')
+  const renameInputRef = useRef<HTMLInputElement>(null)
 
   // In production, request the URL from the Electron main process (which started
   // the bundled Nitro server on a random free port).
@@ -207,14 +216,17 @@ export default function VideoEditor({ onClose, onReady }: { onClose: () => void;
     onReady?.()
   }, [syncLibrary, syncTags, onReady])
 
-  // Listen for fj:bridge-ready — fires when Omniclip's bridge mounts
-  // (which happens after the iframe onLoad event, so we re-sync here)
+  // Listen for fj:bridge-ready and fj:project-state from Omniclip
   useEffect(() => {
     const handleMessage = (e: MessageEvent) => {
-      if (e.source === iframeRef.current?.contentWindow && e.data?.type === 'fj:bridge-ready') {
+      if (e.source !== iframeRef.current?.contentWindow) return
+      if (e.data?.type === 'fj:bridge-ready') {
         syncLibrary(binItemsRef.current)
         syncTags(binItemsRef.current)
         onReady?.()
+      }
+      if (e.data?.type === 'fj:project-state') {
+        setOmniProjectName(e.data.projectName ?? '')
       }
     }
     window.addEventListener('message', handleMessage)
@@ -226,6 +238,34 @@ export default function VideoEditor({ onClose, onReady }: { onClose: () => void;
     if (iframeReady) syncLibrary(binItems)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [iframeReady, binItems.length])
+
+  // Listen for export-to-canvas from Omniclip
+  const isCanvasActiveRef = useRef(isCanvasActive)
+  useEffect(() => { isCanvasActiveRef.current = isCanvasActive }, [isCanvasActive])
+
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      if (e.source !== iframeRef.current?.contentWindow) return
+      if (e.data?.type !== 'fj:export-to-canvas') return
+      const buffer: ArrayBuffer = e.data.buffer
+      if (!buffer) return
+
+      if (!isCanvasActiveRef.current) {
+        setCanvasToast('Open the canvas first to export there')
+        setTimeout(() => setCanvasToast(null), 4000)
+        return
+      }
+
+      const blob = new Blob([buffer], { type: 'video/mp4' })
+      const url = URL.createObjectURL(blob)
+      const name = `edit-${new Date().toISOString().slice(0, 19).replace('T', ' ')}.mp4`
+      addVideoEditorOutNode(url, name)
+      setCanvasToast('Sent to canvas!')
+      setTimeout(() => setCanvasToast(null), 3000)
+    }
+    window.addEventListener('message', handler)
+    return () => window.removeEventListener('message', handler)
+  }, [addVideoEditorOutNode])
 
   // When assets are queued for editor, open a new project with them on the timeline
   const pendingEditorAssets = useVideoEditorStore(s => s.pendingEditorAssets)
@@ -248,23 +288,95 @@ export default function VideoEditor({ onClose, onReady }: { onClose: () => void;
   return (
     <div className="flex flex-col flex-1 bg-neutral-900 text-white min-w-0">
 
-      {/* ── Header ── */}
-      <div className="flex items-center gap-3 px-4 py-2.5 border-b border-white/10 bg-neutral-950 flex-shrink-0">
+      {/* ── Unified header ── */}
+      <div className="flex items-center gap-2 px-3 py-0 border-b border-white/10 bg-neutral-950 flex-shrink-0 h-10">
+
+        {/* Left: nav */}
         <button
           onClick={onClose}
-          className="flex items-center gap-1.5 text-white/75 hover:text-white transition-colors text-xs font-medium"
+          className="flex items-center gap-1 text-white/65 hover:text-white transition-colors text-xs font-medium flex-shrink-0"
           title="Return to main view"
         >
-          <span className="text-base leading-none">⌂</span>
+          <span className="text-sm leading-none">⌂</span>
           <span>Home</span>
         </button>
-        <span className="text-white/30 text-xs">·</span>
-        <span className="text-white/82 text-sm font-semibold">✂ Video Editor</span>
-        {activeProject && (
-          <span className="text-[10px] text-emerald-400/60 font-mono">{activeProject.name}</span>
+        <span className="text-white/20 text-xs flex-shrink-0">·</span>
+        <span className="text-white/70 text-xs font-semibold flex-shrink-0">✂ Video Editor</span>
+
+        {/* Divider */}
+        <div className="w-px h-4 bg-white/10 mx-1 flex-shrink-0" />
+
+        {/* Centre: Omniclip project name / rename */}
+        {isRenaming ? (
+          <form
+            className="flex items-center gap-1 flex-1 min-w-0"
+            onSubmit={(e) => {
+              e.preventDefault()
+              const name = renameValue.trim()
+              if (name) {
+                iframeRef.current?.contentWindow?.postMessage({ type: 'fj:rename-project', name }, '*')
+                setOmniProjectName(name)
+              }
+              setIsRenaming(false)
+            }}
+          >
+            <input
+              ref={renameInputRef}
+              autoFocus
+              value={renameValue}
+              onChange={e => setRenameValue(e.target.value)}
+              onBlur={() => setIsRenaming(false)}
+              onKeyDown={e => { if (e.key === 'Escape') setIsRenaming(false) }}
+              className="flex-1 min-w-0 max-w-[260px] bg-white/8 border border-white/20 rounded px-2 py-0.5 text-xs text-white outline-none focus:border-[#ff6b2b]/60"
+            />
+            <button type="submit" className="text-[10px] text-white/50 hover:text-white/80 px-1">✓</button>
+          </form>
+        ) : (
+          <button
+            className="flex items-center gap-1.5 group min-w-0 flex-1"
+            onClick={() => { setRenameValue(omniProjectName); setIsRenaming(true) }}
+            title="Click to rename project"
+          >
+            <span className="text-xs text-white/75 group-hover:text-white truncate transition-colors font-mono max-w-[260px]">
+              {omniProjectName || 'Untitled Project'}
+            </span>
+            <span className="text-[10px] text-white/25 group-hover:text-white/50 transition-colors flex-shrink-0">✎</span>
+          </button>
         )}
+        {activeProject && (
+          <span className="text-[10px] text-emerald-400/50 font-mono flex-shrink-0 truncate max-w-[120px]">
+            · {activeProject.name}
+          </span>
+        )}
+
         <div className="flex-1" />
-        <span className="text-[10px] text-white/45 select-none">Omniclip</span>
+
+        {/* Right: canvas toast, export, Omniclip link */}
+        {canvasToast && (
+          <span className={`text-[10px] px-2 py-0.5 rounded font-medium transition-all flex-shrink-0 ${
+            canvasToast.startsWith('Open') ? 'bg-red-900/50 text-red-300' : 'bg-[#ff6b2b]/15 text-[#ff9554]'
+          }`}>
+            {canvasToast}
+          </span>
+        )}
+        <button
+          onClick={() => iframeRef.current?.contentWindow?.postMessage({ type: 'fj:trigger-export' }, '*')}
+          className="flex items-center gap-1 text-[11px] text-white/55 hover:text-white/90 hover:bg-white/6 px-2 py-1 rounded transition-colors flex-shrink-0"
+          title="Export video"
+        >
+          <span>↑</span>
+          <span>Export</span>
+        </button>
+        <div className="w-px h-4 bg-white/10 flex-shrink-0" />
+        <a
+          href="https://omniclip.app"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[10px] text-white/30 hover:text-white/60 transition-colors flex-shrink-0 select-none"
+          title="Omniclip — open source video editor"
+        >
+          Omniclip ↗
+        </a>
       </div>
 
       {/* ── Body ── */}

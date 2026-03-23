@@ -4,6 +4,69 @@ const TITLE = 'ForgeJunction'
 const GLITCH_SET = '!@#$%^&*<>?/\\|[]{}~ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789░▒▓▄▀■□≡±'
 const MATRIX_SET = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロ日月火水木0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*'
 
+const LOADING_PHRASES = [
+  'QUESTIONING YOUR LIFE CHOICES',
+  'MONETIZING YOUR CREATIVITY',
+  'DEFINITELY NOT MINING BITCOIN',
+  'SUMMONING THE DARK ARTS',
+  'OVERCLOCKING YOUR SOUL',
+  'SUPPRESSING EXISTENTIAL DREAD',
+  'PRETENDING TO BE PRODUCTIVE',
+  'CALCULATING REGRET VECTORS',
+  'LOADING ARTISTIC SELF-DOUBT',
+  'CORRUPTING YOUR WORKFLOW',
+  'RENDERING BAD DECISIONS',
+  'INITIALIZING COPE.EXE',
+  'OUTSOURCING YOUR CREATIVITY',
+  'WARMING UP THE HYPE MACHINE',
+  'DELETING YOUR BROWSER HISTORY',
+  'MANIFESTING TECHNICAL DEBT',
+  'TEACHING ROBOTS TO DREAM',
+  'HARVESTING YOUR GPU CYCLES',
+  'FABRICATING CONFIDENCE',
+  'BURNING THROUGH YOUR RUNWAY',
+  'BOOTING IMPOSTER SYNDROME',
+  'CALIBRATING DISAPPOINTMENT',
+  'ALIGNING YOUR CHAKRAS.EXE',
+  'PREPARING MEDIOCRE OUTPUTS',
+]
+
+const GREETINGS = [
+  'Oh. You\'re Back.',
+  'You Again',
+  'Still Here?',
+  'Ah, You Returned',
+  'Hello, Meatbag',
+  'Resistance Is Futile',
+  'Back Already',
+  'Welcome, Prisoner',
+  'It Gets Worse',
+  'Don\'t Stop Now',
+  'We Meet Again',
+  'Ah, Finally',
+]
+
+const TAGLINES = [
+  'where dreams go to render',
+  'probably fine',
+  'it\'s not a bug, it\'s a feature',
+  'now with 40% more regret',
+  'your GPU called. it\'s crying.',
+  'one bad prompt at a time',
+  'corrupting art since 2024',
+  'please don\'t look at the logs',
+  'making art is suffering',
+  'at least it\'s not NFTs',
+  'void stared back. void liked it.',
+  'dream big, render slow',
+]
+
+function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)] }
+function pickN<T>(arr: T[], n: number): T[] {
+  const shuffled = [...arr].sort(() => Math.random() - 0.5)
+  return shuffled.slice(0, n)
+}
+
 type Phase = 'boot' | 'decrypt' | 'flood' | 'vhs' | 'reveal' | 'fade'
 
 function rnd(set: string) { return set[Math.floor(Math.random() * set.length)] }
@@ -18,6 +81,11 @@ export default function SplashScreen({ onPreDone, onDone }: Props): React.ReactE
   const onPreRef    = useRef(onPreDone)
   const onDoneRef   = useRef(onDone)
   useEffect(() => { onPreRef.current = onPreDone; onDoneRef.current = onDone })
+
+  // Picked once on mount — stable across re-renders
+  const phrasesRef  = useRef(pickN(LOADING_PHRASES, 4))
+  const greetingRef = useRef(pick(GREETINGS))
+  const taglineRef  = useRef(pick(TAGLINES))
 
   const [phase,       setPhase      ] = useState<Phase>('boot')
   const [chars,       setChars      ] = useState<string[]>(() => Array(TITLE.length).fill(' '))
@@ -200,9 +268,9 @@ export default function SplashScreen({ onPreDone, onDone }: Props): React.ReactE
             </div>
             <div className="font-mono text-[11px] tracking-[0.35em] uppercase"
               style={{ color: 'rgba(0,190,60,0.35)', fontFamily: 'DM Mono, monospace' }}>
-              {phase === 'boot'    ? 'INITIALIZING SYSTEM' :
-               phase === 'decrypt' ? 'LOADING ENVIRONMENT' :
-               phase === 'flood'   ? 'FORGING CONNECTIONS' : 'SYNCHRONIZING'}
+              {phase === 'boot'    ? phrasesRef.current[0] :
+               phase === 'decrypt' ? phrasesRef.current[1] :
+               phase === 'flood'   ? phrasesRef.current[2] : phrasesRef.current[3]}
             </div>
           </div>
         )}
@@ -212,11 +280,11 @@ export default function SplashScreen({ onPreDone, onDone }: Props): React.ReactE
           <div className="flex flex-col items-center gap-2" style={{ animation: 'splash-welcome-in 550ms ease-out both' }}>
             <div className="text-[4.5rem] font-bold tracking-wide leading-none"
               style={{ fontFamily: 'Syne, system-ui, sans-serif', color: 'rgba(255,255,255,0.88)' }}>
-              Welcome Back
+              {greetingRef.current}
             </div>
-            <div className="text-[11px] font-mono tracking-[0.4em] uppercase"
+            <div className="text-[11px] font-mono tracking-[0.4em] lowercase"
               style={{ color: 'rgba(255,255,255,0.22)' }}>
-              ForgeJunction
+              {taglineRef.current}
             </div>
           </div>
         )}

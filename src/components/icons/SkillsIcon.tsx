@@ -5,23 +5,7 @@ interface Props {
   className?: string
 }
 
-// Two lightning bolts side by side — the Skills icon.
-// viewBox 0 0 20 20, overflow visible.
-// Each bolt: top-right corner → diagonal down-left → kink right → diagonal down-left to bottom,
-// then back up-right on the inner edge.
-function bolt(ox: number): string {
-  // Bolt fits in an ~8-wide × 18-tall space starting at (ox, 1)
-  return [
-    `M ${ox + 8}   1`,    // top-right
-    `L ${ox + 2}  10`,    // diagonal down-left to mid
-    `L ${ox + 5.5} 10`,   // kink right
-    `L ${ox + 0}  19`,    // diagonal down-left to bottom
-    `L ${ox + 7}   9`,    // diagonal back up-right
-    `L ${ox + 3.5}  9`,   // inner kink left
-    'Z',
-  ].join(' ')
-}
-
+// Open book icon for Skills.
 export default function SkillsIcon({ size = 16, className }: Props): React.ReactElement {
   return (
     <svg
@@ -29,14 +13,15 @@ export default function SkillsIcon({ size = 16, className }: Props): React.React
       height={size}
       viewBox="0 0 20 20"
       fill="currentColor"
-      overflow="visible"
       className={className}
       aria-hidden
     >
-      {/* Left bolt */}
-      <path d={bolt(1)} opacity={0.7} />
-      {/* Right bolt — offset right, slightly behind */}
-      <path d={bolt(9)} opacity={1} />
+      {/* Left page */}
+      <path d="M2 4.5A1.5 1.5 0 0 1 3.5 3h5A1.5 1.5 0 0 1 10 4.5v11a.5.5 0 0 1-.8.4A6 6 0 0 0 3.5 14H3a1 1 0 0 1-1-1V4.5Z" opacity="0.75" />
+      {/* Right page */}
+      <path d="M18 4.5A1.5 1.5 0 0 0 16.5 3h-5A1.5 1.5 0 0 0 10 4.5v11a.5.5 0 0 0 .8.4A6 6 0 0 1 16.5 14H17a1 1 0 0 0 1-1V4.5Z" />
+      {/* Spine line */}
+      <rect x="9.25" y="3" width="1.5" height="13" rx="0.75" opacity="0.4" />
     </svg>
   )
 }

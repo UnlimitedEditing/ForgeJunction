@@ -42,6 +42,8 @@ type FjMessage =
 	| { type: "fj:import-tag"; assets: FjAsset[]; tagName: string }
 	| { type: "fj:sync-tags"; tags: FjTag[]; tagAssets: Record<string, FjTagAsset[]> }
 	| { type: "fj:open-project-with-assets"; assets: FjAsset[] }
+	| { type: "fj:rename-project"; name: string }
+	| { type: "fj:trigger-export" }
 
 // ── Module state ──────────────────────────────────────────────────────────────
 
@@ -307,6 +309,8 @@ function handle_message(event: MessageEvent): void {
 		omnislate.context.actions.set_fj_tags(data.tags, data.tagAssets, {omit: true})
 	} else if (data.type === "fj:open-project-with-assets") {
 		void open_project_with_assets(data.assets)
+	} else if (data.type === "fj:rename-project") {
+		omnislate.context.actions.set_project_name(data.name)
 	}
 }
 

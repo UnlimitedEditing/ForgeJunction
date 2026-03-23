@@ -96,8 +96,15 @@ function createMainWindow(): BrowserWindow {
     height: 900,
     minWidth: 1024,
     minHeight: 600,
-    backgroundColor: '#0f0f0f',
-    titleBarStyle: 'hiddenInset',
+    backgroundColor: '#0a0a0c',
+    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'hidden',
+    ...(process.platform === 'win32' ? {
+      titleBarOverlay: {
+        color: '#0a0a0c',
+        symbolColor: '#ff6b2b',
+        height: 40,
+      },
+    } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,

@@ -222,6 +222,13 @@ export interface Skill {
   editable?: boolean
   is_open_source?: boolean
   category?: string
+  content?: string
+  source_visible?: boolean
+  version?: number
+  price_cents?: number
+  user_id?: number
+  inserted_at?: string
+  updated_at?: string
 }
 
 export interface SkillInvokeResult {
@@ -588,4 +595,114 @@ export function resolveAllMedia(info: RenderInfo): ResolvedMedia[] {
     if (img.url) return [{ url: img.url, mediaType: null, thumbnailUrl: null }]
     return []
   })
+}
+
+// ── Skill CRUD ────────────────────────────────────────────────────────────────
+
+export async function fetchSkillDetail(slug: string): Promise<Skill | null> {
+  try {
+    const res = await fetch(`${BASE_URL}skills/${slug}`, { headers: headers() })
+    if (!res.ok) return null
+    const json = await res.json()
+    const raw = (json.data ?? json) as Record<string, unknown>
+    const attrs = (raw.attributes ?? raw) as Record<string, unknown>
+    return {
+      id: (raw.id ?? attrs.id ?? '') as string,
+      name: (attrs.name ?? '') as string,
+      slug: (attrs.slug ?? '') as string,
+      description: attrs.description as string | undefined,
+      thumbnail_url: attrs.thumbnail_url as string | null | undefined,
+      is_public: attrs.is_public as boolean | undefined,
+      allows_input_media: attrs.allows_input_media as boolean | undefined,
+      owner: attrs.owner as boolean | undefined,
+      editable: attrs.editable as boolean | undefined,
+      is_open_source: attrs.is_open_source as boolean | undefined,
+      category: attrs.category as string | undefined,
+      content: attrs.content as string | undefined,
+      source_visible: attrs.source_visible as boolean | undefined,
+      version: attrs.version as number | undefined,
+      price_cents: attrs.price_cents as number | undefined,
+      user_id: attrs.user_id as number | undefined,
+      inserted_at: attrs.inserted_at as string | undefined,
+      updated_at: attrs.updated_at as string | undefined,
+    }
+  } catch {
+    return null
+  }
+}
+
+export async function createSkillApi(data: {
+  name: string
+  slug?: string
+  description: string
+  content: string
+  is_public?: boolean
+  is_open_source?: boolean
+  allows_input_media?: boolean
+}): Promise<Skill> {
+  const res = await fetch(`${BASE_URL}skills`, {
+    method: 'POST',
+    headers: headers(),
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const errText = await res.text()
+    throw new Error(errText)
+  }
+  const json = await res.json()
+  const raw = (json.data ?? json) as Record<string, unknown>
+  const attrs = (raw.attributes ?? raw) as Record<string, unknown>
+  return {
+    id: (raw.id ?? attrs.id ?? '') as string,
+    name: (attrs.name ?? '') as string,
+    slug: (attrs.slug ?? '') as string,
+    description: attrs.description as string | undefined,
+    is_public: attrs.is_public as boolean | undefined,
+    allows_input_media: attrs.allows_input_media as boolean | undefined,
+    editable: attrs.editable as boolean | undefined,
+    is_open_source: attrs.is_open_source as boolean | undefined,
+  }
+}
+
+export async function updateSkillApi(slug: string, data: {
+  name?: string
+  description?: string
+  content?: string
+  is_public?: boolean
+  is_open_source?: boolean
+  allows_input_media?: boolean
+}): Promise<Skill> {
+  const res = await fetch(`${BASE_URL}skills/${slug}`, {
+    method: 'PATCH',
+    headers: headers(),
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const errText = await res.text()
+    throw new Error(errText)
+  }
+  const json = await res.json()
+  const raw = (json.data ?? json) as Record<string, unknown>
+  const attrs = (raw.attributes ?? raw) as Record<string, unknown>
+  return {
+    id: (raw.id ?? attrs.id ?? '') as string,
+    name: (attrs.name ?? '') as string,
+    slug: (attrs.slug ?? '') as string,
+    description: attrs.description as string | undefined,
+    is_public: attrs.is_public as boolean | undefined,
+    allows_input_media: attrs.allows_input_media as boolean | undefined,
+    editable: attrs.editable as boolean | undefined,
+    is_open_source: attrs.is_open_source as boolean | undefined,
+  }
+}
+
+export async function deleteSkillApi(slug: string): Promise<void> {
+  const res = await fetch(`${BASE_URL}skills/${slug}`, {
+    method: 'DELETE',
+    headers: headers(),
+  })
+  if (!res.ok) {
+    const errText = await res.text()
+    throw new Error(errText)
+  }
 }

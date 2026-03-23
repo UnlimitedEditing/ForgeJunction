@@ -1,0 +1,252 @@
+Skills API
+Overview
+The Skills API allows you to create, manage, and invoke AI-powered workflow shortcuts. Skills are user-created documents that help LLMs generate proper workflow commands from natural language descriptions.
+
+Skills work through a two-stage process:
+
+Selection: Given a user prompt, select the best matching skill from available options
+Generation: Use the selected skill's instructions to generate a workflow command
+All endpoints support virtual_user_id to act on behalf of a specific user.
+
+Skill Attributes
+Skills have the following attributes:
+
+allows_input_media	Whether the skill accepts images/audio/video as input
+content	Detailed LLM instructions (only shown if source_visible is true)
+description	Short description used for skill selection
+editable	Whether the current user can edit this skill
+id	Unique identifier for the skill
+inserted_at	Creation timestamp
+is_open_source	Whether the skill's source content is visible to others
+is_public	Whether the skill is visible to all users
+name	Human-readable name of the skill
+owner	Whether the current user owns this skill
+price_cents	Price in cents (0 = free)
+slug	URL-friendly identifier for the skill
+source_visible	Whether the current user can view the skill's source content
+updated_at	Last update timestamp
+user_id	ID of the skill owner
+version	Version number (increments on updates)
+List Skills
+Retrieve all skills available to a user (their own skills plus public skills).
+
+URL
+GET https://my.graydient.ai/api/v3/skills
+Query Parameters
+virtual_user_id
+optional	List skills for this user instead of the API token owner
+CURL Example
+curl -X GET \
+  "https://DOMAIN/api/v3/skills" \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/vnd.api+json"
+Get Skill Details
+Retrieve detailed information about a specific skill, including ratings.
+
+URL
+GET https://my.graydient.ai/api/v3/skills/__SLUG__
+Query Parameters
+virtual_user_id
+optional	View skill as this user (affects visibility permissions)
+Notes
+The content field is only included if the user has permission to view the source (owner, open source skill, or admin).
+
+CURL Example
+curl -X GET \
+  "https://DOMAIN/api/v3/skills/photo-enhance" \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/vnd.api+json"
+Create Skill
+Create a new skill. The skill will be owned by the API token user (or virtual_user_id if provided).
+
+URL
+POST https://my.graydient.ai/api/v3/skills
+POST Parameters
+allows_input_media	Whether skill accepts media input (optional, default: false)
+content	Detailed LLM instructions (required)
+description	Short description for skill selection (required)
+is_open_source	Whether source is visible (optional, default: true)
+is_public	Whether skill is public (optional, default: false)
+name	Human-readable name for the skill (required)
+slug	URL-friendly identifier (optional, generated from name if not provided)
+virtual_user_id	Create skill for this user (optional)
+Content Format
+The content field should be a text document that guides the LLM in command generation. Use markdown formatting and include workflow references in [workflow-slug] format.
+
+Example content:
+
+# Photo Enhancer
+        
+        ## Purpose
+        Enhance photos using AI upscaling and face restoration.
+        
+        ## Workflow References
+        - [upscale] - High-quality image upscaling
+        - [restore-faces] - Face restoration for portraits
+        
+        ## Instructions
+        When enhancing a photo:
+        1. Use /wf /run:upscale for general enhancement
+        2. Add /wf /run:restore-faces if portrait
+        3. Include appropriate prompts
+CURL Example
+curl -X POST \
+  "https://DOMAIN/api/v3/skills" \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/vnd.api+json" \
+  -d '{
+    "name": "Photo Enhancer",
+    "slug": "photo-enhance",
+    "description": "Enhance photos with AI upscaling and face restoration",
+    "content": "# Photo Enhancer\n\n## Purpose\nEnhance photos using AI upscaling.\n\n## Workflow References\n- [upscale] - High-quality image upscaling\n\n## Instructions\nWhen user wants to enhance a photo:\n1. Use /wf /run:upscale for general enhancement\n2. Include appropriate prompts",
+    "allows_input_media": true,
+    "is_public": false,
+    "is_open_source": true
+  }'
+Update Skill
+Update an existing skill. Only the skill owner or users with write access can update. The version number is automatically incremented on each update.
+
+URL
+PUT/PATCH https://my.graydient.ai/api/v3/skills/__SLUG__
+POST Parameters
+Same as create parameters. Only include fields you want to update.
+
+CURL Example
+curl -X PUT \
+  "https://DOMAIN/api/v3/skills/photo-enhance" \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/vnd.api+json" \
+  -d '{
+    "description": "Updated description for the skill",
+    "content": "# Updated Photo Enhancer\n\nNew instructions here..."
+  }'
+Delete Skill
+Delete a skill permanently. Only the skill owner can delete.
+
+URL
+DELETE https://my.graydient.ai/api/v3/skills/__SLUG__
+CURL Example
+curl -X DELETE \
+  "https://DOMAIN/api/v3/skills/photo-enhance" \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/vnd.api+json"
+Select Skill
+Run Stage 1 of the skill flow: given a user prompt, select the best matching skill from available options. This endpoint does not generate a command - it only selects which skill would be most appropriate.
+
+URL
+POST https://my.graydient.ai/api/v3/skills/select
+POST Parameters
+prompt
+required	The user's natural language request
+virtual_user_id
+optional	Select from this user's available skills
+Response Format
+available_skills_count	Number of skills considered
+confidence	Match confidence score (0.0-1.0)
+prompt	The original user prompt
+reasoning	Explanation of the selection
+selected_skill	The selected skill object (null if no match)
+CURL Example
+curl -X POST \
+  "https://DOMAIN/api/v3/skills/select" \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/vnd.api+json" \
+  -d '{
+    "prompt": "make this portrait look professional"
+  }'
+Invoke Specific Skill
+Run Stage 2 of the skill flow: generate a command using a specific skill. This skips the selection phase and directly uses the provided skill's instructions.
+
+URL
+POST https://my.graydient.ai/api/v3/skills/__SLUG__/invoke
+POST Parameters
+prompt
+required	The user's natural language request
+virtual_user_id
+optional	Invoke as this user
+input_media
+optional	Media reference object: {"type": "image|audio|video", "reference": "..."}
+Response Format
+command	The generated workflow command
+explanation	User-friendly explanation of the command
+prompt	The original user prompt
+safe	Whether the command passed safety checks
+skill	The skill that was invoked
+Notes
+If the skill does not support input media and you provide it, you'll receive a 400 error. If the generated command fails safety checks, safe will be false and the command will not be executable.
+
+CURL Example
+curl -X POST \
+  "https://DOMAIN/api/v3/skills/photo-enhance/invoke" \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/vnd.api+json" \
+  -d '{
+    "prompt": "enhance this portrait with soft lighting",
+    "input_media": {
+      "type": "image",
+      "reference": "https://example.com/portrait.jpg"
+    }
+  }'
+Auto-Select and Invoke
+Run the complete two-stage flow in one call: select the best skill and generate a command. This is the most common way to use skills from your application.
+
+URL
+POST https://my.graydient.ai/api/v3/skills/auto
+POST Parameters
+prompt
+required	The user's natural language request
+virtual_user_id
+optional	Run as this user
+input_media
+optional	Media reference object: {"type": "image|audio|video", "reference": "..."}
+Response Format
+Same as the invoke endpoint, but includes error field if no skill matched or if there was an issue:
+
+error: "no_skills_available"	User has no skills (own or public)
+error: "no_match"	No skill matched the prompt
+error: "media_not_supported"	Selected skill doesn't accept input media
+CURL Example
+curl -X POST \
+  "https://DOMAIN/api/v3/skills/auto" \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/vnd.api+json" \
+  -d '{
+    "prompt": "create a professional product photo on white background",
+    "virtual_user_id": "VUxxx-yyy"
+  }'
+Response Example
+{
+  "data": {
+    "prompt": "create a professional product photo on white background",
+    "skill": {
+      "id": 123,
+      "slug": "product-marketing-photo",
+      "name": "Product Marketing Photo",
+      "description": "Creates professional product photos on clean backgrounds",
+      "allows_input_media": true,
+      "is_public": true,
+      "is_open_source": true,
+      "version": 3,
+      "user_id": 456,
+      "owner": false,
+      "inserted_at": "2025-01-15T10:30:00Z",
+      "updated_at": "2025-02-20T14:22:00Z"
+    },
+    "command": "/wf /run:qwen-edit-v1 /size:1024x1024 /steps:25 /strength:0.75 product photo on pure white background, professional studio lighting, soft shadows, high quality",
+    "explanation": "Using the Qwen Edit workflow to transform your image into a professional product photo with clean white background and studio lighting.",
+    "safe": true
+  }
+}
+Integration with Render API
+The commands generated by skills can be passed directly to the Render API:
+
+# 1. Get command from skill
+POST /api/v3/skills/auto
+{"prompt": "enhance my photo"}
+
+# Response: {"data": {"command": "/wf /run:upscale high quality...", ...}}
+
+# 2. Use command with Render API
+POST /api/v3/render
+{"prompt": "/wf /run:upscale high quality...", "callback_url": "..."}
+Skills automatically reference workflows using the /wf /run:slug syntax, which the Render API understands and processes correctly.

@@ -17,12 +17,13 @@ export default function MediaNode({ node, isSelected, isNearOutputPort = false, 
   const resizeState = useRef<{ sx: number; sy: number; sw: number; sh: number } | null>(null)
 
   function onHeaderMouseDown(e: React.MouseEvent) {
+    // shared drag logic used by both normal and skinned modes
     if (e.button !== 0) return
     e.stopPropagation()
     const store = useCanvasStore.getState()
-    const isInSelection = store.selectedNodeIds.includes(node.id)
-    if (!isInSelection) setSelectedNode(node.id)
-    const ids = isInSelection ? store.selectedNodeIds : [node.id]
+    const isInSel = store.selectedNodeIds.includes(node.id)
+    if (!isInSel) setSelectedNode(node.id)
+    const ids = isInSel ? store.selectedNodeIds : [node.id]
     const startPos: Record<string, { x: number; y: number }> = {}
     for (const id of ids) {
       const n = store.nodes.find(n2 => n2.id === id)
@@ -48,6 +49,36 @@ export default function MediaNode({ node, isSelected, isNearOutputPort = false, 
     }
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
+  }
+
+  // Skinned mode — frameless, drag-anywhere image
+  if (node.isSkinned) {
+    return (
+      <div
+        data-node={node.id}
+        className={`absolute overflow-visible cursor-move ${animationClass} ${isSelected ? 'ring-1 ring-white/40' : ''}`}
+        style={{ left: node.position.x, top: node.position.y, width: node.size.w, height: node.size.h }}
+        onMouseDown={onHeaderMouseDown}
+        onClick={(e) => { e.stopPropagation(); setSelectedNode(node.id) }}
+        onContextMenu={onContextMenu}
+      >
+        <img
+          src={node.mediaUrl}
+          className="w-full h-full object-cover select-none"
+          draggable={false}
+          onDoubleClick={(e) => { e.stopPropagation(); onOpenLightbox?.({ url: node.mediaUrl, mediaType: node.resultMediaType ?? 'image' }) }}
+        />
+        {/* Corner resize handles */}
+        {isSelected && (
+          <>
+            <div className="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-white/80 border border-black/30 cursor-se-resize z-10" onMouseDown={onResizeMouseDown} />
+            <div className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-white/80 border border-black/30 cursor-ne-resize z-10" />
+            <div className="absolute -bottom-1.5 -left-1.5 w-3 h-3 bg-white/80 border border-black/30 cursor-sw-resize z-10" />
+            <div className="absolute -top-1.5 -left-1.5 w-3 h-3 bg-white/80 border border-black/30 cursor-nw-resize z-10" />
+          </>
+        )}
+      </div>
+    )
   }
 
   function onResizeMouseDown(e: React.MouseEvent) {
@@ -141,6 +172,7 @@ export default function MediaNode({ node, isSelected, isNearOutputPort = false, 
           ) : (
             <img
               src={node.mediaUrl}
+              loading="lazy"
               className="w-full h-full object-cover cursor-zoom-in"
               draggable={false}
               onMouseDown={e => e.stopPropagation()}

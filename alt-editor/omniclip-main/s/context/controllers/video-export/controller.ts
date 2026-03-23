@@ -27,6 +27,14 @@ export class VideoExport {
 		this.#Decoder = new Decoder(actions, media, compositor, this.#Encoder)
 	}
 
+	async send_to_canvas() {
+		const file = this.#Encoder.file
+		if (!file) return
+		// Transfer the underlying ArrayBuffer to the parent frame (zero-copy)
+		const buffer = file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength) as ArrayBuffer
+		window.parent.postMessage({ type: "fj:export-to-canvas", buffer }, "*", [buffer])
+	}
+
 	async save_file() {
 		const file = this.#Encoder.file
 		if (!file) return

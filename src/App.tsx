@@ -17,7 +17,9 @@ import VideoEditor from '@/components/VideoEditor'
 import StorageManager from '@/components/StorageManager'
 import ProjectManager from '@/components/ProjectManager'
 import SkillsPanel from '@/components/SkillsPanel'
+import SkillEditorPane from '@/components/SkillEditorPane'
 import InfiniteCanvas from '@/components/canvas/InfiniteCanvas'
+import { useSkillEditorStore, type SkillEditorTarget } from '@/stores/skillEditor'
 import { useProjectsStore } from '@/stores/projects'
 import SagePane from '@/components/SagePane'
 import { useDebugProtocolStore } from '@/stores/debugProtocol'
@@ -54,7 +56,14 @@ function MainLayout({ loaded }: { loaded: boolean }): React.ReactElement {
   const [showStorage, setShowStorage] = useState(false)
   const [showProjects, setShowProjects] = useState(false)
   const [showSkills, setShowSkills] = useState(false)
+  const [showSkillEditor, setShowSkillEditor] = useState(false)
   const [showCanvas, setShowCanvas] = useState(false)
+  const setActiveTarget = useSkillEditorStore(s => s.setActiveTarget)
+
+  function openSkillEditor(target: SkillEditorTarget) {
+    setActiveTarget(target)
+    setShowSkillEditor(true)
+  }
   const [chainPaneView, setChainPaneView] = useState<'workflows' | 'chain'>('workflows')
   const { activeProjectId, getActiveProject, setActiveProject } = useProjectsStore()
   const activeProject = getActiveProject()
@@ -131,18 +140,32 @@ function MainLayout({ loaded }: { loaded: boolean }): React.ReactElement {
   const [mediaLibCols, setMediaLibCols] = useState(2)
   const [mediaLibSearch, setMediaLibSearch] = useState('')
   const mediaLibSearchTerm = mediaLibSearch.trim().toLowerCase()
-  const showMediaLib = !showVideoEditor && !showStorage && !showProjects && !showChain && !showSkills
+  const showMediaLib = !showVideoEditor && !showSkillEditor && !showStorage && !showProjects && !showChain && !showSkills
 
   return (
     <div className="flex h-full flex-col bg-neutral-950 text-white overflow-hidden">
 
       {/* ── Unified top bar (home view only) ── */}
       {!showVideoEditor && (
-        <div className={`flex items-stretch h-10 border-b border-white/10 bg-neutral-950 flex-shrink-0 splash-slide-top ${loaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
+        <div className={`flex items-stretch h-10 border-b border-white/10 bg-neutral-950 flex-shrink-0 splash-slide-top ${loaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}
+          style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
 
           {/* Left section — Home label + shortcut icons */}
-          <div className="flex items-center gap-0.5 px-3 w-[220px] flex-shrink-0 border-r border-white/8">
-            <span className="text-[11px] font-semibold text-white/70 tracking-wide mr-2 select-none">Home</span>
+          <div className="flex items-center gap-0.5 px-3 w-[220px] flex-shrink-0 border-r border-white/8"
+            style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+            <button
+              onClick={() => {
+                setShowVideoEditor(false)
+                setShowStorage(false)
+                setShowProjects(false)
+                setShowChain(false)
+                setShowSkills(false)
+                setShowSkillEditor(false)
+                setShowCanvas(false)
+              }}
+              className="text-[11px] font-semibold text-white/70 hover:text-white tracking-wide mr-2 transition-colors"
+              title="Return to media browser"
+            >Home</button>
             <div className="w-px h-3.5 bg-white/10 mr-1" />
             {showChain && (
               <button
@@ -194,7 +217,8 @@ function MainLayout({ loaded }: { loaded: boolean }): React.ReactElement {
           </div>
 
           {/* Center section — resize + search (media library) or view label */}
-          <div className="flex-1 flex items-center gap-2 px-3 border-r border-white/8 min-w-0">
+          <div className="flex-1 flex items-center gap-2 px-3 border-r border-white/8 min-w-0"
+            style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
             {showMediaLib ? (
               <>
                 {/* Resize icon */}
@@ -238,7 +262,7 @@ function MainLayout({ loaded }: { loaded: boolean }): React.ReactElement {
               </>
             ) : (
               <span className="text-[10px] font-semibold uppercase tracking-widest text-white/50 select-none">
-                {showStorage ? 'Storage' : showProjects ? 'Projects' : showSkills ? 'Skills' : showChain ? 'Chain Builder' : ''}
+                {showStorage ? 'Storage' : showProjects ? 'Projects' : showSkills ? 'Skills' : showSkillEditor ? 'Skills Editor' : showChain ? 'Chain Builder' : ''}
               </span>
             )}
           </div>
@@ -258,6 +282,7 @@ function MainLayout({ loaded }: { loaded: boolean }): React.ReactElement {
                   onClick={() => setActiveProject(null)}
                   className="text-[9px] text-emerald-400/25 hover:text-emerald-400/60 transition-colors"
                   title="Deactivate project"
+                  style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
                 >✕</button>
               </div>
             )}
@@ -280,7 +305,7 @@ function MainLayout({ loaded }: { loaded: boolean }): React.ReactElement {
               {showSettings
                 ? <div className="p-3"><Settings onClose={() => setShowSettings(false)} /></div>
                 : showSkills
-                  ? <SkillsPanel onClose={() => setShowSkills(false)} />
+                  ? <SkillsPanel onClose={() => setShowSkills(false)} onOpenEditor={openSkillEditor} />
                   : showChain && chainPaneView === 'chain'
                     ? <ChainTemplatePane />
                     : <WorkflowSelector />
@@ -294,10 +319,16 @@ function MainLayout({ loaded }: { loaded: boolean }): React.ReactElement {
           <VideoEditor
             onClose={() => setShowVideoEditor(false)}
             onReady={() => setEditorReady(true)}
+            isCanvasActive={showCanvas}
           />
         </div>
 
-        {!showVideoEditor && (
+        {/* Skill editor — full-width overlay, same pattern as VideoEditor */}
+        <div className={showSkillEditor ? 'flex flex-1 min-w-0 min-h-0' : 'hidden'}>
+          <SkillEditorPane onClose={() => setShowSkillEditor(false)} />
+        </div>
+
+        {!showVideoEditor && !showSkillEditor && (
           <>
             {/* Center — Media Library / Chain Builder / Storage Manager + floating Prompt Editor */}
             <main className="flex flex-1 flex-col border-r border-white/10 bg-neutral-900 min-h-0 overflow-hidden relative">
@@ -306,7 +337,7 @@ function MainLayout({ loaded }: { loaded: boolean }): React.ReactElement {
                 : showProjects
                   ? <ProjectManager onClose={() => setShowProjects(false)} />
                   : showSkills
-                    ? <div className="p-3"><SkillsPanel onClose={() => setShowSkills(false)} /></div>
+                    ? <div className="p-3"><SkillsPanel onClose={() => setShowSkills(false)} onOpenEditor={openSkillEditor} /></div>
                     : showChain
                       ? <ChainGraphEditor onClose={() => setShowChain(false)} />
                       : <MediaLibraryGrid cols={mediaLibCols} onColsChange={setMediaLibCols} search={mediaLibSearch} animateIn={loaded} />

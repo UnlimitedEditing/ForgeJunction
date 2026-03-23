@@ -68,6 +68,7 @@ export function removeLoadingPageIndicator() {
 const VideoEditor =  (omnislate: Nexus<OmniContext>) => omnislate.light_view((use) => () => {
 	use.watch(() => use.context.state)
 	const collaboration = use.context.controllers.collaboration
+	const isEmbedded = window !== window.parent
 	const [renameDisabled, setRenameDisabled] = use.state(true)
 	const toggleProjectRename = (e: PointerEvent) => {
 		e.preventDefault()
@@ -80,18 +81,55 @@ const VideoEditor =  (omnislate: Nexus<OmniContext>) => omnislate.light_view((us
 	}
 
 	use.mount(() => {
-		const dispose = collaboration.onChange(() => use.rerender())
-		return () => dispose()
+		const disposeCollab = collaboration.onChange(() => use.rerender())
+
+		if (isEmbedded) {
+			// Post initial project name to parent
+			window.parent.postMessage({ type: "fj:project-state", projectName: use.context.state.projectName }, "*")
+
+			// Handle trigger-export message from parent
+			const onMessage = (e: MessageEvent) => {
+				if (e.source !== window.parent) return
+				if (e.data?.type === "fj:trigger-export") {
+					setShowConfirmExportModal(true)
+				}
+			}
+			window.addEventListener("message", onMessage)
+			return () => { disposeCollab(); window.removeEventListener("message", onMessage) }
+		}
+
+		return () => disposeCollab()
+	})
+
+	// Keep parent synced whenever project name changes
+	use.mount(() => {
+		if (!isEmbedded) return
+		const prev = { name: "" }
+		const dispose = use.context.state && (() => {
+			const name = use.context.state.projectName
+			if (name !== prev.name) {
+				prev.name = name
+				window.parent.postMessage({ type: "fj:project-state", projectName: name }, "*")
+			}
+		})
+		// Use a watch — re-run on every render since use.watch already tracks state
+		return () => {}
 	})
 
 	const [showConfirmExportModal, setShowConfirmExportModal] = use.state(false)
 	const isClient = collaboration.client
+
+	// Post project name on every render when embedded (lightweight, deduplicated by parent)
+	if (isEmbedded) {
+		window.parent.postMessage({ type: "fj:project-state", projectName: use.context.state.projectName }, "*")
+	}
 
 	return html`
 		<div class=editor>
 			${IS_TEST_ENV ? TestEnvAlert : null}
 			${ExportConfirmModal([showConfirmExportModal, setShowConfirmExportModal])}
 			${ExportInProgressOverlay([])}
+			${isEmbedded ? null : html`
 			<div class=editor-header>
 				<div class=flex>
 					<img class="logo" src="/assets/icon3.png" />
@@ -122,6 +160,7 @@ const VideoEditor =  (omnislate: Nexus<OmniContext>) => omnislate.light_view((us
 					)}
 				</div>
 			</div>
+			`}
 			<construct-editor></construct-editor>
 		</div>
 	`

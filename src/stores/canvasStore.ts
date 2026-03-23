@@ -3,8 +3,9 @@ import { persist } from 'zustand/middleware'
 import { useRenderQueueStore } from './renderQueue'
 import { useWorkflowStore } from './workflows'
 import { useChainTemplateStore } from './chainTemplate'
+import { useUndoHistory } from './undoHistory'
 
-export type CanvasNodeType = 'prompt' | 'bin' | 'media' | 'utility' | 'chain' | 'skill' | 'skillsbrowser'
+export type CanvasNodeType = 'prompt' | 'bin' | 'media' | 'utility' | 'chain' | 'skill' | 'skillsbrowser' | 'videoeditorout' | 'artnode'
 
 // ── Run history ────────────────────────────────────────────────────────────
 
@@ -93,6 +94,14 @@ export interface CanvasNode {
   chainStatus?: 'idle' | 'running' | 'done' | 'error'
   chainError?: string | null
   chainResultUrls?: Array<{ url: string; mediaType: string }>
+
+  // Art node
+  artLayerIds?: string[]
+  artBounds?: { x: number; y: number; w: number; h: number }
+
+  // Skinned media node
+  isSkinned?: boolean
+  skinnedRotation?: number
 }
 
 // ── Edge ──────────────────────────────────────────────────────────────────
@@ -159,6 +168,7 @@ interface CanvasState {
   addBinNode: (pos: { x: number; y: number }) => string
   addMediaNode: (url: string, mediaType: string, pos: { x: number; y: number }, name?: string) => string
   addMethodNode: (pos: { x: number; y: number }) => string
+  addVideoEditorOutNode: (url: string, name: string, pos?: { x: number; y: number }) => string
   removeNode: (id: string) => void
   duplicateNode: (id: string) => void
   updateNode: (id: string, patch: Partial<CanvasNode>) => void
@@ -184,6 +194,8 @@ interface CanvasState {
   addChainNode: (templateId: string, pos: { x: number; y: number }) => string
   updateChainFormValue: (nodeId: string, fieldId: string, value: string) => void
   runChainNode: (nodeId: string) => void
+  addArtNode: (layerIds: string[], bounds?: { x: number; y: number; w: number; h: number }, pos?: { x: number; y: number }) => string
+  skinNode: (id: string) => void
   clearCanvas: () => void
 }
 
@@ -566,6 +578,7 @@ export const useCanvasStore = create<CanvasState>()(persist(
       const node = blankNode('prompt', pos, { w: 280, h: 180 })
       if (prompt) node.prompt = prompt
       set(s => ({ nodes: [...s.nodes, node] }))
+      useUndoHistory.getState().push(() => get().removeNode(node.id))
       return node.id
     },
 
@@ -575,6 +588,7 @@ export const useCanvasStore = create<CanvasState>()(persist(
       if (skillSlug) node.skillSlug = skillSlug
       if (skillName) node.skillName = skillName
       set(s => ({ nodes: [...s.nodes, node] }))
+      useUndoHistory.getState().push(() => get().removeNode(node.id))
       return node.id
     },
 
@@ -588,18 +602,39 @@ export const useCanvasStore = create<CanvasState>()(persist(
           !s.nodes.find(n => n.id === e.toNodeId && n.type === 'skillsbrowser')
         ),
       }))
+      useUndoHistory.getState().push(() => get().removeNode(node.id))
       return node.id
     },
 
     addBinNode: (pos) => {
       const node = blankNode('bin', pos, { w: 300, h: 300 })
       set(s => ({ nodes: [...s.nodes, node] }))
+      useUndoHistory.getState().push(() => get().removeNode(node.id))
       return node.id
     },
 
     addMediaNode: (url, mediaType, pos, name = 'media') => {
       const node: CanvasNode = { ...blankNode('media', pos, { w: 180, h: 180 }), mediaUrl: url, mediaName: name, resultMediaType: mediaType }
       set(s => ({ nodes: [...s.nodes, node] }))
+      useUndoHistory.getState().push(() => get().removeNode(node.id))
+      return node.id
+    },
+
+    addVideoEditorOutNode: (url, name, pos) => {
+      const viewport = get().viewport
+      // Default to centre of current view if no pos given
+      const spawnPos = pos ?? {
+        x: -viewport.x / viewport.zoom + 100,
+        y: -viewport.y / viewport.zoom + 100,
+      }
+      const node: CanvasNode = {
+        ...blankNode('videoeditorout', spawnPos, { w: 320, h: 240 }),
+        mediaUrl: url,
+        mediaName: name,
+        resultMediaType: 'video/mp4',
+      }
+      set(s => ({ nodes: [...s.nodes, node] }))
+      useUndoHistory.getState().push(() => get().removeNode(node.id))
       return node.id
     },
 
@@ -610,6 +645,7 @@ export const useCanvasStore = create<CanvasState>()(persist(
         nodes: [...s.nodes.filter(n => n.type !== 'utility'), node],
         edges: s.edges.filter(e => !s.nodes.find(n => n.id === e.fromNodeId && n.type === 'utility') && !s.nodes.find(n => n.id === e.toNodeId && n.type === 'utility')),
       }))
+      useUndoHistory.getState().push(() => get().removeNode(node.id))
       return node.id
     },
 
@@ -626,6 +662,7 @@ export const useCanvasStore = create<CanvasState>()(persist(
         chainResultUrls: [],
       }
       set(s => ({ nodes: [...s.nodes, node] }))
+      useUndoHistory.getState().push(() => get().removeNode(node.id))
       return node.id
     },
 
@@ -641,6 +678,26 @@ export const useCanvasStore = create<CanvasState>()(persist(
       runChainTemplate(nodeId, get, set).catch(err => {
         set(s => ({ nodes: s.nodes.map(n => n.id === nodeId ? { ...n, chainStatus: 'error', chainError: String(err) } : n) }))
       })
+    },
+
+    addArtNode: (layerIds, bounds, pos) => {
+      const viewport = get().viewport
+      const spawnPos = pos ?? {
+        x: -viewport.x / viewport.zoom + 100,
+        y: -viewport.y / viewport.zoom + 100,
+      }
+      const node: CanvasNode = {
+        ...blankNode('artnode', spawnPos, { w: 300, h: 400 }),
+        artLayerIds: layerIds,
+        artBounds: bounds,
+      }
+      set(s => ({ nodes: [...s.nodes, node] }))
+      useUndoHistory.getState().push(() => get().removeNode(node.id))
+      return node.id
+    },
+
+    skinNode: (id) => {
+      get().updateNode(id, { isSkinned: true })
     },
 
     removeNode: (id) => set(s => ({
@@ -678,7 +735,8 @@ export const useCanvasStore = create<CanvasState>()(persist(
       if (!fromNode || !toNode) return
       const isPromptLike = (t: string) => t === 'prompt' || t === 'skill'
       let edgeType: 'result' | 'media' | 'pipe' = 'result'
-      if (fromNode.type === 'media' && isPromptLike(toNode.type)) edgeType = 'media'
+      if ((fromNode.type === 'media' || fromNode.type === 'artnode') && isPromptLike(toNode.type)) edgeType = 'media'
+      else if (fromNode.type === 'artnode' && toNode.type === 'bin') edgeType = 'result'
       else if (isPromptLike(fromNode.type) && toNode.type === 'bin') edgeType = 'result'
       else if (isPromptLike(fromNode.type) && isPromptLike(toNode.type)) edgeType = 'pipe'
       else return

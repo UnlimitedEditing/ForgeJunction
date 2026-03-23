@@ -518,6 +518,24 @@ export const exportOverlayStyles = css`
 		overflow: hidden;
 	}
 
+	.canvas-button {
+		--sl-color-neutral-0: #ff6b2b;
+		--sl-color-neutral-600: #ff6b2b;
+		border-color: rgba(255,107,43,0.4);
+		color: #ff9554;
+	}
+
+	.canvas-button::part(base) {
+		background: rgba(255,107,43,0.08);
+		border-color: rgba(255,107,43,0.35);
+		color: #ff9554;
+	}
+
+	.canvas-button::part(base):hover {
+		background: rgba(255,107,43,0.16);
+		border-color: rgba(255,107,43,0.55);
+	}
+
 	/* Responsive adjustments */
 	@media (max-width: 640px) {
 		.export-container {
