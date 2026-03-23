@@ -6,7 +6,7 @@ export const styles = css`
 		justify-content: center;
 		height: 100%;
 		width: 100vw;
-		background: rgba(0, 0, 0, 1);
+		background: #080a0c;
 		padding: 2em !important;
 	}
 
@@ -29,10 +29,11 @@ export const styles = css`
 			display: flex;
 			flex-direction: column;
 			gap: 1em;
-			background: #0e0e0e;
+			background: #0d1014;
+			border: 1px solid rgba(255,255,255,0.07);
 			padding: 1em;
 			align-self: center;
-			border-radius: 10px;
+			border-radius: 8px;
 			margin-bottom: 2em;
 
 			& .title {
@@ -137,16 +138,22 @@ export const styles = css`
 			height: 200px;
 			width: 200px;
 			position: relative;
-			border-radius: 10px;
+			border-radius: 8px;
 			color: inherit;
 			display: flex;
 			align-items: center;
 			justify-content: center;
-			background: #0e0e0e;
+			background: #0d1014;
+			border: 1px solid rgba(255,255,255,0.07);
 			text-decoration: none;
 			flex-direction: column;
-			transition: 0.5s all ease;
+			transition: 0.2s all ease;
 			gap: 0.3em;
+
+			&:hover {
+				border-color: rgba(255,107,43,0.4);
+				background: #141a1f;
+			}
 
 			& .items {
 				display: flex;

@@ -41,6 +41,7 @@ type FjMessage =
 	| { type: "fj:add-asset"; asset: FjAsset }
 	| { type: "fj:import-tag"; assets: FjAsset[]; tagName: string }
 	| { type: "fj:sync-tags"; tags: FjTag[]; tagAssets: Record<string, FjTagAsset[]> }
+	| { type: "fj:open-project-with-assets"; assets: FjAsset[] }
 
 // ── Module state ──────────────────────────────────────────────────────────────
 
@@ -202,6 +203,55 @@ function build_effect(
 
 // ── Message handlers ──────────────────────────────────────────────────────────
 
+/**
+ * Navigate to a fresh Omniclip project, inject the given assets, and place
+ * them sequentially on track 0 starting at t=0.
+ */
+async function open_project_with_assets(assets: FjAsset[]): Promise<void> {
+	// 1. Create a new project ID and navigate the hash router to it
+	const projectId = generate_id()
+	window.location.hash = `#/editor/${projectId}`
+
+	// 2. Wait until omnislate.context has reinitialised for the new project
+	//    (setupContext replaces omnislate.context synchronously when the
+	//    router fires, but the hash change is async).
+	await new Promise<void>(resolve => {
+		const poll = setInterval(() => {
+			try {
+				if (omnislate.context?.state?.projectId === projectId) {
+					clearInterval(poll)
+					resolve()
+				}
+			} catch {}
+		}, 100)
+		// Safety timeout — proceed anyway after 6 s to avoid hanging forever
+		setTimeout(() => { clearInterval(poll); resolve() }, 6_000)
+	})
+
+	// 3. Inject and place each asset sequentially on the timeline
+	const context = omnislate.context
+	let cursor_ms = 0
+	for (const asset of assets) {
+		const hash = await inject_fj_asset(asset)
+		if (!hash) continue
+
+		const media_entry = context.controllers.media.get(hash)
+		const duration_ms = (media_entry as {duration?: number} | undefined)?.duration ?? 5_000
+
+		const effect = build_effect(asset, hash, cursor_ms, duration_ms)
+		if (asset.type === "video") {
+			context.actions.add_video_effect(effect as VideoEffect)
+		} else if (asset.type === "audio") {
+			context.actions.add_audio_effect(effect as AudioEffect)
+		} else {
+			context.actions.add_image_effect(effect as ImageEffect)
+		}
+		cursor_ms += duration_ms
+	}
+
+	context.controllers.compositor.update_canvas_objects(context.state)
+}
+
 async function sync_library(assets: FjAsset[]): Promise<void> {
 	await Promise.all(assets.map(inject_fj_asset))
 }
@@ -255,6 +305,8 @@ function handle_message(event: MessageEvent): void {
 		void import_tag_to_markers(data.assets)
 	} else if (data.type === "fj:sync-tags") {
 		omnislate.context.actions.set_fj_tags(data.tags, data.tagAssets, {omit: true})
+	} else if (data.type === "fj:open-project-with-assets") {
+		void open_project_with_assets(data.assets)
 	}
 }
 

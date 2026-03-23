@@ -6,8 +6,8 @@ export const styles = css`
 		align-items: center;
 		justify-content: center;
 		width: 120px;
-		background: rgb(26, 26, 26);
-		border-left: 1px solid #111;
+		background: #0d1014;
+		border-left: 1px solid rgba(255,255,255,0.06);
 
 		& .items {
 			display: flex;
@@ -29,12 +29,12 @@ export const styles = css`
 		& button {
 			display: flex;
 			background: transparent;
-			color: white;
+			color: rgba(255,255,255,0.6);
 			border: none;
 			cursor: pointer;
 
 			&[data-active] {
-				color: yellow;
+				color: #ff6b2b;
 			}
 
 			& svg {

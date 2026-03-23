@@ -252,7 +252,7 @@ export default function MethodBrowserNode({ node, isSelected, animationClass = '
           onMouseDown={onHeaderMouseDown}
         >
           <span className="text-brand/60 text-xs select-none">⬖</span>
-          <span className="text-[11px] text-white/40 font-medium select-none flex-1 tracking-wide">Method Browser</span>
+          <span className="text-[11px] text-white/70 font-medium select-none flex-1 tracking-wide">Method Browser</span>
         </div>
 
         {/* Tab bar */}
@@ -266,7 +266,7 @@ export default function MethodBrowserNode({ node, isSelected, animationClass = '
               className={`px-2.5 py-0.5 rounded-full text-[10px] font-medium transition-colors capitalize select-none ${
                 tab === t
                   ? 'bg-brand/20 text-brand border border-brand/30'
-                  : 'text-white/30 hover:text-white/60'
+                  : 'text-white/60 hover:text-white/82'
               }`}
               onClick={(e) => { e.stopPropagation(); setTab(t) }}
             >
@@ -280,7 +280,7 @@ export default function MethodBrowserNode({ node, isSelected, animationClass = '
           className="flex items-center gap-2 px-2 border-b border-white/5 flex-shrink-0"
           style={{ height: SEARCH_H }}
         >
-          <span className="text-white/20 text-xs select-none">⌕</span>
+          <span className="text-white/45 text-xs select-none">⌕</span>
           <input
             className="flex-1 bg-transparent text-[11px] text-white/70 placeholder-white/20 outline-none"
             placeholder={tab === 'workflows' ? 'Search workflows…' : 'Search concepts…'}
@@ -291,7 +291,7 @@ export default function MethodBrowserNode({ node, isSelected, animationClass = '
           />
           {search && (
             <button
-              className="text-white/20 hover:text-white/50 text-xs select-none"
+              className="text-white/45 hover:text-white/75 text-xs select-none"
               onClick={(e) => { e.stopPropagation(); setSearch('') }}
             >
               ✕
@@ -304,14 +304,14 @@ export default function MethodBrowserNode({ node, isSelected, animationClass = '
           <div className="flex-shrink-0 border-b border-white/5 px-2 py-1 space-y-1">
             {/* Family row */}
             <div className="flex items-center gap-1 flex-wrap" style={{ height: CHIP_H }}>
-              <span className="text-[9px] text-white/20 select-none w-10 flex-shrink-0">Family</span>
+              <span className="text-[9px] text-white/45 select-none w-10 flex-shrink-0">Family</span>
               {FAMILY_FILTERS.map(f => (
                 <button
                   key={f}
                   className={`px-1.5 py-0.5 rounded text-[9px] transition-colors select-none ${
                     familyFilter === f
                       ? 'bg-brand/25 text-brand/90 border border-brand/30'
-                      : 'text-white/30 hover:text-white/55 border border-white/8'
+                      : 'text-white/60 hover:text-white/75 border border-white/8'
                   }`}
                   onClick={(e) => { e.stopPropagation(); setFamilyFilter(f) }}
                 >
@@ -321,14 +321,14 @@ export default function MethodBrowserNode({ node, isSelected, animationClass = '
             </div>
             {/* Type row */}
             <div className="flex items-center gap-1 flex-wrap" style={{ height: CHIP_H }}>
-              <span className="text-[9px] text-white/20 select-none w-10 flex-shrink-0">Type</span>
+              <span className="text-[9px] text-white/45 select-none w-10 flex-shrink-0">Type</span>
               {TYPE_FILTERS.map(t => (
                 <button
                   key={t}
                   className={`px-1.5 py-0.5 rounded text-[9px] transition-colors select-none ${
                     typeFilter === t
                       ? 'bg-brand/25 text-brand/90 border border-brand/30'
-                      : 'text-white/30 hover:text-white/55 border border-white/8'
+                      : 'text-white/60 hover:text-white/75 border border-white/8'
                   }`}
                   onClick={(e) => { e.stopPropagation(); setTypeFilter(t) }}
                 >
@@ -381,7 +381,7 @@ export default function MethodBrowserNode({ node, isSelected, animationClass = '
                       {thumb ? (
                         <img src={thumb} alt={wf.name} className="w-full h-full object-cover" />
                       ) : (
-                        <SkillStar size={18} className="text-white/15" />
+                        <SkillStar size={18} className="text-white/30" />
                       )}
                       {isFlashing && (
                         <div className="absolute inset-0 flex items-center justify-center bg-brand/20">
@@ -390,8 +390,8 @@ export default function MethodBrowserNode({ node, isSelected, animationClass = '
                       )}
                     </div>
                     <div className="p-1.5">
-                      <div className="text-[10px] text-white/65 leading-tight truncate group-hover:text-white/80 transition-colors">{wf.name}</div>
-                      <div className="text-[9px] text-white/25 truncate mt-0.5">{wf.slug}</div>
+                      <div className="text-[10px] text-white/85 leading-tight truncate group-hover:text-white/80 transition-colors">{wf.name}</div>
+                      <div className="text-[9px] text-white/50 truncate mt-0.5">{wf.slug}</div>
                     </div>
                   </button>
                 )
@@ -412,7 +412,7 @@ export default function MethodBrowserNode({ node, isSelected, animationClass = '
                       {c.example_url ? (
                         <img src={c.example_url} alt={c.name} className="w-full h-full object-cover" />
                       ) : (
-                        <span className="text-white/15 text-lg">◈</span>
+                        <span className="text-white/30 text-lg">◈</span>
                       )}
                       {isFlashing && (
                         <div className="absolute inset-0 flex items-center justify-center bg-brand/20">
@@ -421,8 +421,8 @@ export default function MethodBrowserNode({ node, isSelected, animationClass = '
                       )}
                     </div>
                     <div className="p-1.5">
-                      <div className="text-[10px] text-white/65 leading-tight truncate group-hover:text-white/80 transition-colors">{c.name}</div>
-                      <div className="text-[9px] text-white/25 truncate mt-0.5">
+                      <div className="text-[10px] text-white/85 leading-tight truncate group-hover:text-white/80 transition-colors">{c.name}</div>
+                      <div className="text-[9px] text-white/50 truncate mt-0.5">
                         {c.model_family ?? ''}{c.type ? ` · ${c.type}` : ''}
                       </div>
                     </div>
@@ -430,10 +430,10 @@ export default function MethodBrowserNode({ node, isSelected, animationClass = '
                 )
               })}
               {tab === 'workflows' && !isLoading && displayedWorkflows.length === 0 && (
-                <div className="col-span-full text-center py-6 text-white/20 text-[11px]">No workflows found</div>
+                <div className="col-span-full text-center py-6 text-white/45 text-[11px]">No workflows found</div>
               )}
               {tab === 'concepts' && !isLoading && displayedConcepts.length === 0 && (
-                <div className="col-span-full text-center py-6 text-white/20 text-[11px]">No concepts found</div>
+                <div className="col-span-full text-center py-6 text-white/45 text-[11px]">No concepts found</div>
               )}
             </div>
           )}
@@ -446,7 +446,7 @@ export default function MethodBrowserNode({ node, isSelected, animationClass = '
         style={{ transform: 'translate(0, 0)' }}
         onMouseDown={onResizeMouseDown}
       >
-        <svg width="10" height="10" viewBox="0 0 10 10" className="absolute bottom-1.5 right-1.5 text-white/20">
+        <svg width="10" height="10" viewBox="0 0 10 10" className="absolute bottom-1.5 right-1.5 text-white/45">
           <path d="M 9 1 L 1 9 M 9 5 L 5 9" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
         </svg>
       </div>

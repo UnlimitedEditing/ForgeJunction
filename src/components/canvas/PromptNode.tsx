@@ -178,10 +178,10 @@ export default function PromptNode({ node, isSelected, isSnapTarget = false, isN
         onMouseDown={onHeaderMouseDown}
       >
         <div className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS_DOT[node.status]}`} />
-        <span className="text-[11px] text-white/35 font-medium select-none flex-1 tracking-wide">Prompt</span>
+        <span className="text-[11px] text-white/65 font-medium select-none flex-1 tracking-wide">Prompt</span>
         {hasQueue && <span className="text-[9px] text-amber-400/60 select-none tabular-nums">{node.inputQueue.filter(q => q.status === 'pending').length} queued</span>}
         <button
-          className={`w-5 h-5 flex items-center justify-center rounded text-xs transition-colors ${isRunning ? 'text-amber-400 hover:text-red-400' : 'text-white/20 hover:text-white/60'}`}
+          className={`w-5 h-5 flex items-center justify-center rounded text-xs transition-colors ${isRunning ? 'text-amber-400 hover:text-red-400' : 'text-white/45 hover:text-white/82'}`}
           onMouseDown={e => e.stopPropagation()}
           onClick={(e) => { e.stopPropagation(); isRunning ? cancelNode(node.id) : runNode(node.id) }}
           title={isRunning ? 'Cancel' : 'Run'}
@@ -204,7 +204,7 @@ export default function PromptNode({ node, isSelected, isSnapTarget = false, isN
                 <div className={`absolute bottom-0.5 right-0.5 w-2 h-2 rounded-full border border-black ${qi.status === 'done' ? 'bg-emerald-400' : qi.status === 'error' ? 'bg-red-400' : qi.status === 'processing' ? 'bg-brand animate-pulse' : 'bg-white/30'}`} />
               </div>
             ))}
-            <div className="flex-shrink-0 rounded border border-dashed border-white/10 flex items-center justify-center text-white/15 text-[10px] select-none" style={{ width: LEFT_W - 12, height: 24 }}>+</div>
+            <div className="flex-shrink-0 rounded border border-dashed border-white/10 flex items-center justify-center text-white/30 text-[10px] select-none" style={{ width: LEFT_W - 12, height: 24 }}>+</div>
           </div>
         )}
         {/* Textarea */}
@@ -276,7 +276,7 @@ export default function PromptNode({ node, isSelected, isSnapTarget = false, isN
                     ? 'animate-port-in bg-emerald-400/70 border-emerald-400'
                     : 'animate-port-in bg-rose-500/40 border-rose-500/60'
             }`} />
-            <span className="text-[7px] text-white/30 select-none -translate-x-full pr-1 whitespace-nowrap">
+            <span className="text-[7px] text-white/60 select-none -translate-x-full pr-1 whitespace-nowrap">
               /{key}
             </span>
           </div>
@@ -306,8 +306,8 @@ export default function PromptNode({ node, isSelected, isSnapTarget = false, isN
             style={{ height: OUTPUT_HEADER_H }}
             onClick={(e) => { e.stopPropagation(); toggleOutputCollapsed(node.id) }}
           >
-            <span className="text-[9px] text-white/20 w-3">{node.outputCollapsed ? '▶' : '▼'}</span>
-            <span className="text-[10px] text-white/30 flex-1">
+            <span className="text-[9px] text-white/45 w-3">{node.outputCollapsed ? '▶' : '▼'}</span>
+            <span className="text-[10px] text-white/60 flex-1">
               Output {node.runs.length} · {totalItems}{isRunning ? ` + 1 rendering` : ''}
             </span>
           </div>
@@ -328,7 +328,7 @@ export default function PromptNode({ node, isSelected, isSnapTarget = false, isN
                     className="relative flex items-center gap-1.5 pl-2 pr-5"
                     style={{ height: ITEM_ROW_H }}
                   >
-                    <span className="text-[8px] text-white/20 tabular-nums w-4 text-right flex-shrink-0 select-none">
+                    <span className="text-[8px] text-white/45 tabular-nums w-4 text-right flex-shrink-0 select-none">
                       {i + 1}
                     </span>
                     <div
@@ -359,7 +359,7 @@ export default function PromptNode({ node, isSelected, isSnapTarget = false, isN
                   className="relative flex items-center gap-1.5 pl-2 pr-5"
                   style={{ height: ITEM_ROW_H }}
                 >
-                  <span className="text-[8px] text-white/15 tabular-nums w-4 text-right flex-shrink-0 select-none">
+                  <span className="text-[8px] text-white/30 tabular-nums w-4 text-right flex-shrink-0 select-none">
                     {totalItems + 1}
                   </span>
                   <div
@@ -374,7 +374,7 @@ export default function PromptNode({ node, isSelected, isSnapTarget = false, isN
                         />
                       </div>
                     </div>
-                    <span className="text-[9px] text-white/20 tabular-nums">{renderProgress}%</span>
+                    <span className="text-[9px] text-white/45 tabular-nums">{renderProgress}%</span>
                   </div>
                 </div>
               )}

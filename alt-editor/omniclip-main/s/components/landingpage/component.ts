@@ -1,4 +1,4 @@
-import {LitElement, html} from "lit"
+import {LitElement, html, css} from "lit"
 import {property} from "lit/decorators.js"
 
 import styles from "./styles.js"
@@ -20,8 +20,193 @@ import arrowRightSvg from "../../icons/gravity-ui/arrow-right.svg.js"
 import rocketSvg from "../../icons/material-design-icons/rocket.svg.js"
 import externalLinkSvg from "../../icons/gravity-ui/external-link.svg.js"
 
+const fjStyles = css`
+	/* ── ForgeJunction splash ───────────────────────────── */
+	.fj-landing {
+		min-height: 100vh;
+		background: #080a0c;
+		display: flex;
+		flex-direction: column;
+		color: #fff;
+		font-family: 'Inter', 'Segoe UI', sans-serif;
+	}
+
+	.fj-nav {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 20px 40px;
+		border-bottom: 1px solid rgba(255,255,255,0.06);
+	}
+
+	.fj-wordmark {
+		font-size: 15px;
+		font-weight: 600;
+		letter-spacing: 0.04em;
+		color: rgba(255,255,255,0.9);
+	}
+
+	.fj-wordmark span {
+		color: #ff6b2b;
+	}
+
+	.fj-about-btn {
+		font-size: 12px;
+		font-weight: 500;
+		color: rgba(255,255,255,0.45);
+		background: rgba(255,255,255,0.04);
+		border: 1px solid rgba(255,255,255,0.09);
+		border-radius: 5px;
+		padding: 6px 14px;
+		cursor: pointer;
+		transition: all 0.15s;
+		text-decoration: none;
+	}
+
+	.fj-about-btn:hover {
+		color: rgba(255,255,255,0.8);
+		background: rgba(255,255,255,0.08);
+		border-color: rgba(255,255,255,0.18);
+	}
+
+	.fj-hero {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		text-align: center;
+		padding: 80px 40px 60px;
+		gap: 0;
+	}
+
+	.fj-eyebrow {
+		font-size: 11px;
+		font-weight: 600;
+		letter-spacing: 0.14em;
+		text-transform: uppercase;
+		color: #ff6b2b;
+		margin-bottom: 24px;
+	}
+
+	.fj-headline {
+		font-size: clamp(42px, 6vw, 78px);
+		font-weight: 700;
+		line-height: 1.08;
+		letter-spacing: -0.03em;
+		color: #fff;
+		margin-bottom: 22px;
+	}
+
+	.fj-headline em {
+		font-style: normal;
+		background: linear-gradient(135deg, #ff6b2b 0%, #4ae3ff 100%);
+		-webkit-background-clip: text;
+		-webkit-text-fill-color: transparent;
+		background-clip: text;
+	}
+
+	.fj-sub {
+		font-size: 17px;
+		color: rgba(255,255,255,0.5);
+		max-width: 480px;
+		line-height: 1.6;
+		margin-bottom: 48px;
+	}
+
+	.fj-cta-group {
+		display: flex;
+		align-items: center;
+		gap: 14px;
+		flex-wrap: wrap;
+		justify-content: center;
+	}
+
+	.fj-edit-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		background: #ff6b2b;
+		color: #fff;
+		font-size: 15px;
+		font-weight: 600;
+		padding: 13px 30px;
+		border-radius: 6px;
+		text-decoration: none;
+		transition: background 0.15s, transform 0.1s;
+		letter-spacing: 0.01em;
+	}
+
+	.fj-edit-btn:hover {
+		background: #ff9554;
+		transform: translateY(-1px);
+	}
+
+	.fj-powered {
+		font-size: 11px;
+		color: rgba(255,255,255,0.28);
+		margin-top: 36px;
+		letter-spacing: 0.04em;
+	}
+
+	.fj-powered a {
+		color: rgba(255,255,255,0.42);
+		text-decoration: underline;
+		cursor: pointer;
+	}
+
+	.fj-powered a:hover {
+		color: rgba(255,255,255,0.7);
+	}
+
+	/* ── Omniclip about overlay ─────────────────────────── */
+	.omni-about-back-bar {
+		display: flex;
+		align-items: center;
+		gap: 14px;
+		padding: 14px 32px;
+		background: #111;
+		border-bottom: 1px solid rgba(255,255,255,0.07);
+		position: sticky;
+		top: 0;
+		z-index: 100;
+	}
+
+	.omni-back-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		font-size: 13px;
+		font-weight: 500;
+		color: rgba(255,255,255,0.7);
+		background: rgba(255,255,255,0.07);
+		border: 1px solid rgba(255,255,255,0.12);
+		border-radius: 6px;
+		padding: 6px 14px;
+		cursor: pointer;
+		text-decoration: none;
+		transition: all 0.15s;
+	}
+
+	.omni-back-btn:hover {
+		background: rgba(255,255,255,0.12);
+		color: #fff;
+	}
+
+	.omni-about-label {
+		font-size: 12px;
+		color: rgba(255,255,255,0.35);
+		font-weight: 500;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+	}
+`
+
 export class LandingPage extends LitElement {
-	static styles = styles
+	static styles = [styles, fjStyles]
+
+	@property({type: Boolean})
+	showAbout = false
 
 	@property({type: Boolean})
 	menuOpened = false
@@ -35,13 +220,12 @@ export class LandingPage extends LitElement {
 	transitionsVideo: null | HTMLVideoElement = null
 
 	interval = 0
-	
-	// Toggle transitions dropdown
+
 	toggleTransitionsDropdown = (e: MouseEvent) => {
 		e.stopPropagation()
 		this.transitionsDropdownOpen = !this.transitionsDropdownOpen
 		this.requestUpdate()
-		
+
 		if (this.transitionsDropdownOpen) {
 			setTimeout(() => {
 				window.addEventListener('click', this.closeTransitionsDropdown)
@@ -49,13 +233,12 @@ export class LandingPage extends LitElement {
 		}
 	}
 
-	// Close transitions dropdown
 	closeTransitionsDropdown = (e: MouseEvent) => {
 		const dropdown = this.shadowRoot?.querySelector('.transitions-dropdown')
 		const moreButton = this.shadowRoot?.querySelector('.more-transitions')
-		
-		if (dropdown && moreButton && 
-				!dropdown.contains(e.target as Node) && 
+
+		if (dropdown && moreButton &&
+				!dropdown.contains(e.target as Node) &&
 				!moreButton.contains(e.target as Node)) {
 			this.transitionsDropdownOpen = false
 			this.requestUpdate()
@@ -102,28 +285,80 @@ export class LandingPage extends LitElement {
 		const transitionDuration = 3.492
 		const video = this.shadowRoot?.querySelector(".transitions-video") as HTMLVideoElement
 		this.transitionsVideo = video
-		this.interval = setInterval(() => {
-			const index = Math.floor(video.currentTime / transitionDuration)
-			this.currentTransition = transitions[index]
-			this.requestUpdate()
-		}, 100)
-		const path = this.getCurrentPath()
-		this.scrollIntoElementView(path)
+		if (video) {
+			this.interval = setInterval(() => {
+				const index = Math.floor(video.currentTime / transitionDuration)
+				this.currentTransition = transitions[index]
+				this.requestUpdate()
+			}, 100)
+		}
 	}
 
-	getCurrentPath() {
-		return window.location.hash.slice(1) || "/"
+	openAbout = () => {
+		this.showAbout = true
+		this.requestUpdate()
+		// initialise transitions video interval when about page mounts
+		setTimeout(() => {
+			const transitionDuration = 3.492
+			const video = this.shadowRoot?.querySelector(".transitions-video") as HTMLVideoElement
+			if (video && !this.interval) {
+				this.transitionsVideo = video
+				this.interval = setInterval(() => {
+					const index = Math.floor(video.currentTime / transitionDuration)
+					this.currentTransition = transitions[index]
+					this.requestUpdate()
+				}, 100)
+			}
+		}, 50)
 	}
 
-	scrollIntoElementView(id: string) {
-		try {
-			const element = this.shadowRoot?.querySelector(`#${id}`)
-			element?.scrollIntoView({behavior: "smooth"})
-		} catch(e) {}
+	closeAbout = () => {
+		this.showAbout = false
+		this.requestUpdate()
 	}
 
-	render() {return html`
+	render() {
+		if (this.showAbout) return this.renderAbout()
+		return this.renderFJ()
+	}
+
+	renderFJ() {return html`
+		<div class="fj-landing">
+			<nav class="fj-nav">
+				<span class="fj-wordmark">Forge<span>Junction</span></span>
+				<button class="fj-about-btn" @click=${this.openAbout}>About Omniclip</button>
+			</nav>
+
+			<div class="fj-hero">
+				<p class="fj-eyebrow">AI Media Studio</p>
+				<h1 class="fj-headline">
+					Edit your <em>AI&nbsp;media</em><br>the way you imagine it
+				</h1>
+				<p class="fj-sub">
+					Generate images, video, and audio with Graydient — then cut, compose, and export in one place.
+				</p>
+				<div class="fj-cta-group">
+					<a class="fj-edit-btn" href="#/editor">
+						Edit Now ${arrowRightSvg}
+					</a>
+				</div>
+				<p class="fj-powered">
+					Video editing powered by <a @click=${this.openAbout}>Omniclip</a>
+				</p>
+			</div>
+		</div>
+	`}
+
+	renderAbout() {return html`
 		<div class="landing-page">
+			<!-- Back bar -->
+			<div class="omni-about-back-bar">
+				<button class="omni-back-btn" @click=${this.closeAbout}>
+					← Back to Forge Junction
+				</button>
+				<span class="omni-about-label">About Omniclip</span>
+			</div>
+
 			<nav>
 				<img class="logo" src="/assets/icon3.png" />
 				<img @click=${() => {
@@ -131,21 +366,17 @@ export class LandingPage extends LitElement {
 					this.requestUpdate()
 				}} class="menu-icon" src="/assets/hamburger.svg">
 				<div class="menu" ?data-opened=${this.menuOpened}>
-					<a @click=${() => this.scrollIntoElementView("welcome")} href="#welcome">Home</a>
-					<a @click=${() => this.scrollIntoElementView("capabilities")} href="#capabilities">Features</a>
-					<a @click=${() => this.scrollIntoElementView("coming-soon")} href="#coming-soon">Coming Soon</a>
-					<a class="try" href="#/editor">Try it out ${arrowRightSvg}</a>
+					<a href="#welcome">Home</a>
+					<a href="#capabilities">Features</a>
+					<a href="#coming-soon">Coming Soon</a>
 				</div>
 				<div class="nav">
-					<a @click=${() => this.scrollIntoElementView("welcome")} href="#welcome">Home</a>
-					<a @click=${() => this.scrollIntoElementView("capabilities")} href="#capabilities">Features</a>
-					<a @click=${() => this.scrollIntoElementView("coming-soon")} href="#coming-soon">Coming Soon</a>
-				</div>
-				<div class="nav">
-					<a class="try" href="#/editor">Try it out ${arrowRightSvg}</a>
+					<a href="#welcome">Home</a>
+					<a href="#capabilities">Features</a>
+					<a href="#coming-soon">Coming Soon</a>
 				</div>
 			</nav>
-			
+
 			<!-- Welcome Section -->
 			<section id="welcome" class="welcome">
 				<p>video editor on the web</p>
@@ -159,12 +390,6 @@ export class LandingPage extends LitElement {
 				</h2>
 				<div class="btns">
 					<a
-						class="try"
-						href="#/editor"
-					>
-						Start for free
-					</a>
-					<a
 						href="https://discord.gg/Nr8t9s5wSM"
 						class="discord"
 						target="_blank"
@@ -173,7 +398,7 @@ export class LandingPage extends LitElement {
 					</a>
 				</div>
 			</section>
-			
+
 			<!-- Capabilities Section -->
 			<section id="capabilities" class="abilities">
 				<h2>Capabilities</h2>
@@ -245,15 +470,6 @@ export class LandingPage extends LitElement {
 								<li>No credit card required! <span class="emoji">&#129327;</span></li>
 								<li>Unparalleled speed <span class="emoji">&#9889;</span></li>
 								<li>Choose desired<br> bitrate & aspect ratio <span class="emoji">&#9881;</span></li>
-								<li>
-									Try it out!
-									<a
-										class="try"
-										href="#/editor"
-									>
-										Open editor
-									</a>
-								</li>
 							</ul>
 						</div>
 						<video autoplay loop muted width="250">
@@ -262,7 +478,7 @@ export class LandingPage extends LitElement {
 					</div>
 				</div>
 			</section>
-			
+
 			<!-- Collaboration Section -->
 			<section id="collaboration" class="collaboration">
 				<div class="collab-container">
@@ -292,7 +508,6 @@ export class LandingPage extends LitElement {
 
 						<div class="collab-visual">
 							<div class="collab-demo">
-								<!-- Mock media player preview -->
 								<div class="media-preview">
 									<div class="media-frame"></div>
 									<div class="media-controls">
@@ -301,8 +516,6 @@ export class LandingPage extends LitElement {
 										<button>⏭</button>
 									</div>
 								</div>
-
-								<!-- Timeline with blocks -->
 								<div class="timeline">
 									<div class="track">
 										<div class="clip video-clip" style="left: 5%; width: 30%;"></div>
@@ -316,22 +529,18 @@ export class LandingPage extends LitElement {
 								</div>
 							</div>
 						</div>
-
 						</div>
-						<a class="try collab-cta" href="#/editor">
-							Try Collaboration Now
-						</a>
 					</div>
 				</div>
 			</section>
-			
+
 			<!-- Transitions Section -->
 			<section id="transitions" class="transitions">
 				<div class="transitions-header">
 					<h2>Community-Driven Transitions</h2>
 					<p>Powered by <a href="https://gl-transitions.com/" target="_blank" class="gl-link">GL Transitions</a>, a collection of GLSL transitions created by developers worldwide.</p>
 				</div>
-				
+
 				<div class="transitions-container">
 					<div class="transitions-info">
 						<div class="transition-features">
@@ -346,7 +555,7 @@ export class LandingPage extends LitElement {
 									<p class=small>Access to 60+ high-quality transitions created and maintained by the community</p>
 								</div>
 							</div>
-							
+
 							<div class="feature">
 								<div class=flex>
 									<div class="feature-icon">
@@ -359,15 +568,14 @@ export class LandingPage extends LitElement {
 								</div>
 							</div>
 						</div>
-						
+
 						<div class="transitions-cta">
-							<a href="#/editor" class="try transitions-button">Try Transitions Now</a>
 							<a href="https://gl-transitions.com/gallery" target="_blank" class="transitions-link">
 								View All Transitions ${externalLinkSvg}
 							</a>
 						</div>
 					</div>
-					
+
 					<div class="transitions-demo">
 						<div class="video-container">
 							<video class="transitions-video" autoplay loop muted>
@@ -378,7 +586,7 @@ export class LandingPage extends LitElement {
 								<span class="transition-count">1/30</span>
 							</div>
 						</div>
-						
+
 						<div class="transitions-gallery">
 							${transitions.slice(0, 5).map((transition, i) => {
 								const paddedIndex = i.toString().padStart(3, '0');
@@ -414,7 +622,7 @@ export class LandingPage extends LitElement {
 					</div>
 				</div>
 			</section>
-			
+
 			<!-- Features Section -->
 			<section id="features" class="differences">
 				<div class="items">
@@ -445,14 +653,6 @@ export class LandingPage extends LitElement {
 							<span class="emoji-2">
 								&#127775;
 							</span>
-							<div class="view">
-								<a
-									class="try"
-									href="#/editor"
-								>
-									Open editor
-								</a>
-							</div>
 						</div>
 					</div>
 					<div class="flex">
@@ -485,9 +685,8 @@ export class LandingPage extends LitElement {
 					<h2>Coming Soon <span class="feature-badge">New Features</span></h2>
 					<p>We're constantly improving Omniclip with powerful new features to make your video editing experience even better.</p>
 				</div>
-				
+
 				<div class="coming-soon-container">
-					<!-- Keyframes Feature -->
 					<div class="coming-soon-feature">
 						<div class="feature-content">
 							<div class="flex">
@@ -506,8 +705,7 @@ export class LandingPage extends LitElement {
 							</ul>
 						</div>
 					</div>
-					
-					<!-- Speech to Text Feature -->
+
 					<div class="coming-soon-feature">
 						<div class="feature-content">
 							<div class="flex">
@@ -515,7 +713,7 @@ export class LandingPage extends LitElement {
 								<h3>Speech to Text</h3>
 							</div>
 							<p>
-								Automatically generate accurate captions for your videos with built-in speech recognition. 
+								Automatically generate accurate captions for your videos with built-in speech recognition.
 								Save hours of manual transcription work and make your content more accessible.
 							</p>
 							<ul class="feature-list">
@@ -528,19 +726,13 @@ export class LandingPage extends LitElement {
 					</div>
 				</div>
 
-				
 				<div class="coming-soon-cta">
-					<a href="#" class="notify-link">
-						<span>Get Notified When Available</span>
-						${bellSvg}
-					</a>
 					<a href="https://github.com/omni-media/omniclip" target="_blank" class="github-link">
 						<span>Follow Development on GitHub</span>
 						${githubSvg}
 					</a>
 				</div>
 			</section>
-
 
 			<section class="developers" id="developers">
 				<h2>For developers <span class="coming-soon-badge">Coming Soon</span></h2>
@@ -549,7 +741,6 @@ export class LandingPage extends LitElement {
 				</p>
 
 				<div class="dev-features-grid">
-					<!-- Omni Tools API Feature -->
 					<div class="dev-feature-card">
 						<div class="feature-header">
 							<h3>Omni Tools API</h3>
@@ -560,7 +751,6 @@ export class LandingPage extends LitElement {
 								<li>Powerful core with CLI, timeline format, and templates integration</li>
 							</ul>
 
-							<!-- Core Code Preview -->
 							<div class="code-preview">
 								<pre><code>
 // Create a video timeline programmatically
@@ -583,7 +773,6 @@ const timeline = sequence(
 								</code></pre>
 							</div>
 
-							<!-- Sub-Feature: CLI -->
 							<div class="sub-feature">
 								<h4>CLI Automation</h4>
 								<ul class="feature-list">
@@ -598,7 +787,6 @@ $ omnitool batch-render ./projects/* --output-dir ./exports
 								</div>
 							</div>
 
-							<!-- Sub-Feature: Timeline Format -->
 							<div class="sub-feature">
 								<h4>Omni Timeline Format</h4>
 								<ul class="feature-list">
@@ -622,7 +810,6 @@ $ omnitool batch-render ./projects/* --output-dir ./exports
 								</div>
 							</div>
 
-							<!-- Sub-Feature: Templates -->
 							<div class="sub-feature">
 								<h4>Reusable Templates</h4>
 								<ul class="feature-list">
@@ -635,10 +822,6 @@ $ omnitool batch-render ./projects/* --output-dir ./exports
 				</div>
 
 				<div class="dev-cta">
-					<a href="#" class="notify-link">
-						<span>Get Notified When Available</span>
-						${bellSvg}
-					</a>
 					<a href="https://github.com/omni-media/omnitool" target="_blank" class="github-link">
 						<span>Follow Development on GitHub</span>
 						${githubSvg}
@@ -646,22 +829,13 @@ $ omnitool batch-render ./projects/* --output-dir ./exports
 				</div>
 			</section>
 
-
-			
 			<!-- Footer -->
 			<footer>
 				<div class="footer-logo-background">
 					<img src="/assets/icon3.png" alt="Omniclip" />
 				</div>
-				
+
 				<div class="footer-content">
-					<!-- <div class="footer-main"> -->
-					<!-- 	<span>Copyright © 2024 Omniclip All Rights Reserved.</span> -->
-					<!-- 	<div class="footer-links"> -->
-					<!-- 		<a>Terms & Conditions</a> -->
-					<!-- 		<a>Privacy Policy</a> -->
-					<!-- 	</div> -->
-					<!-- </div> -->
 					<div class="creator-credit">
 						<span>Made by Przemek Gałęzki</span>
 						<a href="https://github.com/zenkyuv" class="github-link" target="_blank">
@@ -672,5 +846,5 @@ $ omnitool batch-render ./projects/* --output-dir ./exports
 				</div>
 			</footer>
 		</div>
-	`
-}}
+	`}
+}

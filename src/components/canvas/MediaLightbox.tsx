@@ -23,7 +23,7 @@ export default function MediaLightbox({ url, mediaType, onClose }: Props): React
     >
       {/* Close button */}
       <button
-        className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/60 hover:text-white transition-colors text-sm z-10"
+        className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/82 hover:text-white transition-colors text-sm z-10"
         onClick={onClose}
         title="Close (Esc)"
       >✕</button>

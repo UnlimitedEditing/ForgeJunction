@@ -61,13 +61,13 @@ function WorkflowCard({
               {workflow.description}
             </p>
             {!workflow.supports_dynamic_concepts && (
-              <span className="mt-1 text-[8px] text-white/30 italic">no LoRA support</span>
+              <span className="mt-1 text-[8px] text-white/60 italic">no LoRA support</span>
             )}
           </div>
         )}
       </div>
 
-      <span className="text-xs text-white/60 group-hover:text-white/90 text-center leading-tight line-clamp-2 transition-colors w-full">
+      <span className="text-xs text-white/82 group-hover:text-white/90 text-center leading-tight line-clamp-2 transition-colors w-full">
         {workflow.name}
       </span>
     </button>
@@ -131,7 +131,7 @@ function ConceptCard({
         )}
       </div>
 
-      <span className="text-xs text-white/60 group-hover:text-white/90 text-center leading-tight line-clamp-2 transition-colors w-full">
+      <span className="text-xs text-white/82 group-hover:text-white/90 text-center leading-tight line-clamp-2 transition-colors w-full">
         {concept.name}
       </span>
     </button>
@@ -224,12 +224,12 @@ export default function WorkflowGalleryPopup({
           {view === 'loras' ? (
             <button
               onClick={() => setView('workflows')}
-              className="text-xs text-white/50 hover:text-white/80 transition-colors flex items-center gap-1"
+              className="text-xs text-white/75 hover:text-white/80 transition-colors flex items-center gap-1"
             >
               ← Back
             </button>
           ) : (
-            <span className="text-xs font-semibold uppercase tracking-widest text-white/30">
+            <span className="text-xs font-semibold uppercase tracking-widest text-white/60">
               Workflows
             </span>
           )}
@@ -242,7 +242,7 @@ export default function WorkflowGalleryPopup({
 
           <button
             onClick={onClose}
-            className="text-xs text-white/30 hover:text-white/70 transition-colors ml-auto"
+            className="text-xs text-white/60 hover:text-white/70 transition-colors ml-auto"
           >
             ✕
           </button>
@@ -254,7 +254,7 @@ export default function WorkflowGalleryPopup({
 
             {view === 'workflows' && (
               workflows.length === 0 ? (
-                <p className="text-xs text-white/30 self-center">No workflows loaded</p>
+                <p className="text-xs text-white/60 self-center">No workflows loaded</p>
               ) : (
                 workflows.map((wf) => (
                   <WorkflowCard
@@ -271,8 +271,8 @@ export default function WorkflowGalleryPopup({
                 <SkeletonCards />
               ) : concepts.length === 0 ? (
                 <div className="self-center flex flex-col gap-1">
-                  <p className="text-xs text-white/40">No concepts found</p>
-                  <p className="text-xs text-white/20">Check back later as more are added</p>
+                  <p className="text-xs text-white/70">No concepts found</p>
+                  <p className="text-xs text-white/45">Check back later as more are added</p>
                 </div>
               ) : (() => {
                 const families = Array.from(new Set(concepts.map(c => c.model_family).filter(Boolean) as string[])).sort()
@@ -288,7 +288,7 @@ export default function WorkflowGalleryPopup({
                             className={`rounded px-2 py-0.5 text-[10px] transition-colors whitespace-nowrap ${
                               familyFilter === f
                                 ? 'bg-brand/30 text-brand border border-brand/40'
-                                : 'bg-white/5 text-white/40 border border-white/10 hover:bg-white/10 hover:text-white/70'
+                                : 'bg-white/5 text-white/70 border border-white/10 hover:bg-white/10 hover:text-white/70'
                             }`}
                           >
                             {f === 'all' ? 'All' : f}
@@ -304,7 +304,7 @@ export default function WorkflowGalleryPopup({
                       />
                     ))}
                     {filtered.length === 0 && (
-                      <div className="self-center text-xs text-white/30">No LoRAs for this family</div>
+                      <div className="self-center text-xs text-white/60">No LoRAs for this family</div>
                     )}
                   </>
                 )
@@ -316,7 +316,7 @@ export default function WorkflowGalleryPopup({
 
         {/* Drag hint */}
         <div className="px-4 pb-2 flex-shrink-0">
-          <p className="text-[9px] text-white/15 select-none">
+          <p className="text-[9px] text-white/30 select-none">
             {view === 'workflows'
               ? 'Click to select · Drag onto canvas to create a node'
               : 'Click to insert into prompt · Drag onto a canvas node to append'}

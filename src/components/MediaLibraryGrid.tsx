@@ -101,7 +101,7 @@ function VideoTile({ src, className }: { src: string; className?: string }): Rea
       />
       {!ready && (
         <div className="absolute inset-0 flex items-center justify-center bg-neutral-800">
-          <span className="text-white/20 text-2xl">▶</span>
+          <span className="text-white/45 text-2xl">▶</span>
         </div>
       )}
     </div>
@@ -133,13 +133,13 @@ function TagPopover({ tileId, onClose }: { tileId: string; onClose: () => void }
       onClick={e => e.stopPropagation()}
     >
       <div className="px-2.5 py-2 border-b border-white/8">
-        <p className="text-[9px] uppercase tracking-widest text-white/30 font-semibold">Tags</p>
+        <p className="text-[9px] uppercase tracking-widest text-white/60 font-semibold">Tags</p>
       </div>
 
       {/* Existing tags */}
       <div className="max-h-40 overflow-y-auto py-1">
         {tags.length === 0 && (
-          <p className="text-[10px] text-white/25 px-2.5 py-1">No tags yet</p>
+          <p className="text-[10px] text-white/50 px-2.5 py-1">No tags yet</p>
         )}
         {tags.map(tag => {
           const assigned = tileTagIds.has(tag.id)
@@ -151,7 +151,7 @@ function TagPopover({ tileId, onClose }: { tileId: string; onClose: () => void }
             >
               <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: tag.color }} />
               <span className="text-[11px] flex-1 truncate text-white/80">{tag.name}</span>
-              {assigned && <span className="text-[10px] text-white/40">✓</span>}
+              {assigned && <span className="text-[10px] text-white/70">✓</span>}
             </button>
           )
         })}
@@ -232,7 +232,7 @@ function MediaTile({
           <VideoTile src={url} className="w-full h-full bg-neutral-800" />
         ) : isAudio ? (
           <div className="w-full h-full flex items-center justify-center bg-neutral-800">
-            <span className="text-white/20 text-3xl">🎵</span>
+            <span className="text-white/45 text-3xl">🎵</span>
           </div>
         ) : thumb ? (
           <img
@@ -243,7 +243,7 @@ function MediaTile({
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-neutral-800">
-            <span className="text-white/20 text-3xl">🖼</span>
+            <span className="text-white/45 text-3xl">🖼</span>
           </div>
         )}
       </div>
@@ -295,7 +295,7 @@ function MediaTile({
             className={`text-[10px] leading-none py-1 px-1.5 rounded transition-colors font-medium ${
               isNsfw
                 ? 'bg-red-600/60 hover:bg-red-600/80 text-red-200'
-                : 'bg-white/10 hover:bg-red-600/40 text-white/50 hover:text-red-300'
+                : 'bg-white/10 hover:bg-red-600/40 text-white/75 hover:text-red-300'
             }`}
             title={isNsfw ? 'Remove NSFW tag' : 'Mark as NSFW'}
           >
@@ -306,7 +306,7 @@ function MediaTile({
             className={`text-[10px] leading-none py-1 px-1.5 rounded transition-colors font-medium ${
               tileTags.length > 0
                 ? 'bg-brand/40 hover:bg-brand/60 text-brand-light'
-                : 'bg-white/10 hover:bg-white/20 text-white/50'
+                : 'bg-white/10 hover:bg-white/20 text-white/75'
             }`}
             title="Assign tags"
           >
@@ -335,7 +335,7 @@ function MediaTile({
             </span>
           ))}
           {tileTags.length > 3 && (
-            <span className="rounded-sm px-1 py-0.5 text-[8px] font-bold leading-none text-white/60 bg-black/50 select-none">
+            <span className="rounded-sm px-1 py-0.5 text-[8px] font-bold leading-none text-white/82 bg-black/50 select-none">
               +{tileTags.length - 3}
             </span>
           )}
@@ -358,7 +358,7 @@ function MediaTile({
 
       {/* Batch-image index badge */}
       {batchTotal > 1 && !batchSelected && (
-        <div className="absolute top-1.5 left-1.5 rounded bg-black/60 px-1 py-0.5 text-[9px] text-white/60 leading-none font-mono z-10">
+        <div className="absolute top-1.5 left-1.5 rounded bg-black/60 px-1 py-0.5 text-[9px] text-white/82 leading-none font-mono z-10">
           {batchIndex + 1}/{batchTotal}
         </div>
       )}
@@ -382,7 +382,7 @@ function EmptyState(): React.ReactElement {
           <rect x="2" y="44" width="34" height="34" rx="4" stroke="white" strokeWidth="1.5"/>
           <rect x="44" y="44" width="34" height="34" rx="4" stroke="white" strokeWidth="1.5"/>
         </svg>
-        <p className="text-white/25 text-sm">Your renders will appear here</p>
+        <p className="text-white/50 text-sm">Your renders will appear here</p>
       </div>
     </div>
   )
@@ -390,10 +390,10 @@ function EmptyState(): React.ReactElement {
 
 // ── MediaLibraryGrid ───────────────────────────────────────────────────────────
 
-export default function MediaLibraryGrid({ cols, search, animateIn = true }: { cols: number; search: string; animateIn?: boolean }): React.ReactElement {
+export default function MediaLibraryGrid({ cols, onColsChange, search, animateIn = true }: { cols: number; onColsChange?: (c: number) => void; search: string; animateIn?: boolean }): React.ReactElement {
   const { queue, markNsfw } = useRenderQueueStore()
   const { setFromRender } = useSourceMediaStore()
-  const { addClip } = useVideoEditorStore()
+  const { queueForEditor } = useVideoEditorStore()
   const { hideNsfw } = useSettingsStore()
   const getTileTags = useTagsStore(s => s.getTileTags)
 
@@ -408,6 +408,19 @@ export default function MediaLibraryGrid({ cols, search, animateIn = true }: { c
   const [overscroll, setOverscroll] = useState(0)
   const springRafRef = useRef<number | null>(null)
   const springTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Shift+scroll resizes columns (2–5)
+  useEffect(() => {
+    const el = gridScrollRef.current
+    if (!el || !onColsChange) return
+    const handler = (e: WheelEvent) => {
+      if (!e.shiftKey) return
+      e.preventDefault()
+      onColsChange(Math.min(5, Math.max(2, cols + (e.deltaY > 0 ? 1 : -1))))
+    }
+    el.addEventListener('wheel', handler, { passive: false })
+    return () => el.removeEventListener('wheel', handler)
+  }, [cols, onColsChange])
 
   useEffect(() => {
     const el = gridScrollRef.current
@@ -514,8 +527,15 @@ export default function MediaLibraryGrid({ cols, search, animateIn = true }: { c
   }
 
   function addSingleToEditor(tile: FlatTile) {
-    const mt = tile.mediaType?.startsWith('video') ? 'video' : 'image'
-    addClip(tile.url, tile.render.prompt ?? '', tile.render.workflowSlug, mt)
+    const type = tile.mediaType?.startsWith('video') ? 'video' : tile.mediaType?.startsWith('audio') ? 'audio' : 'image'
+    queueForEditor([{
+      id: tile.render.id,
+      url: tile.url,
+      name: tile.render.workflowSlug || tile.render.id,
+      type,
+      thumbnailUrl: tile.render.thumbnailUrl ?? (type === 'image' ? tile.url : null),
+      prompt: tile.render.prompt,
+    }])
   }
 
   function grabPrompt(tile: FlatTile) {
@@ -534,13 +554,21 @@ export default function MediaLibraryGrid({ cols, search, animateIn = true }: { c
   }
 
   function sendBatchToEditor() {
-    const tiles = batchIds
+    const assets = batchIds
       .map(id => filtered.find(t => t.id === id))
-      .filter((t): t is FlatTile => !!t && !(t.mediaType?.startsWith('audio') ?? false))
-    for (const t of tiles) {
-      const mt = t.mediaType?.startsWith('video') ? 'video' : 'image'
-      addClip(t.url, t.render.prompt ?? '', t.render.workflowSlug, mt)
-    }
+      .filter((t): t is FlatTile => !!t)
+      .map(t => {
+        const type = t.mediaType?.startsWith('video') ? 'video' : t.mediaType?.startsWith('audio') ? 'audio' : 'image'
+        return {
+          id: t.render.id,
+          url: t.url,
+          name: t.render.workflowSlug || t.render.id,
+          type: type as 'video' | 'image' | 'audio',
+          thumbnailUrl: t.render.thumbnailUrl ?? (type === 'image' ? t.url : null),
+          prompt: t.render.prompt,
+        }
+      })
+    if (assets.length > 0) queueForEditor(assets)
     setBatchIds([])
   }
 
@@ -592,7 +620,7 @@ export default function MediaLibraryGrid({ cols, search, animateIn = true }: { c
       {/* ── Grid ── */}
       <div ref={gridScrollRef} className="flex-1 overflow-y-auto p-2">
         {filtered.length === 0 && searchTerm && (
-          <p className="text-[11px] text-white/25 text-center py-6">
+          <p className="text-[11px] text-white/50 text-center py-6">
             No renders match "{search}"
           </p>
         )}

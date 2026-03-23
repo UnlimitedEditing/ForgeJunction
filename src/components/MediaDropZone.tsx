@@ -74,7 +74,7 @@ function SlotDropZone({ slot }: { slot: MediaInputSlot }): React.ReactElement {
     <div className="flex flex-col gap-1.5">
       {/* Slot label + required badge */}
       <div className="flex items-center gap-2">
-        <span className="text-xs text-white/60 font-medium">{slot.label}</span>
+        <span className="text-xs text-white/82 font-medium">{slot.label}</span>
         {slot.required && (
           <span className="rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-yellow-500/10 text-yellow-400 ring-1 ring-yellow-500/20">
             Required
@@ -84,7 +84,7 @@ function SlotDropZone({ slot }: { slot: MediaInputSlot }): React.ReactElement {
 
       {/* Help text if distinct from label */}
       {slot.helpText && slot.helpText !== slot.label && (
-        <p className="text-xs text-white/30 leading-snug">💡 {slot.helpText}</p>
+        <p className="text-xs text-white/60 leading-snug">💡 {slot.helpText}</p>
       )}
 
       {/* Media loaded state */}
@@ -101,7 +101,7 @@ function SlotDropZone({ slot }: { slot: MediaInputSlot }): React.ReactElement {
           </div>
           <div className="flex-1 min-w-0 flex flex-col gap-0.5">
             <p className="text-xs text-white font-medium truncate">{media.fileName}</p>
-            <p className="text-xs text-white/40 capitalize">{media.mediaType} · from {media.source}</p>
+            <p className="text-xs text-white/70 capitalize">{media.mediaType} · from {media.source}</p>
             <p className="text-xs text-brand/60 truncate" title={media.url}>
               {media.url.startsWith('data:') ? '[local file — no public URL]' : media.url}
             </p>
@@ -148,8 +148,8 @@ function SlotDropZone({ slot }: { slot: MediaInputSlot }): React.ReactElement {
             onChange={handleFileChange}
             onClick={(e) => e.stopPropagation()}
           />
-          <p className="text-xs text-white/50">📁 Drag & drop or click to browse</p>
-          <p className="text-[10px] text-white/25">Accepts: {exts}</p>
+          <p className="text-xs text-white/75">📁 Drag & drop or click to browse</p>
+          <p className="text-[10px] text-white/50">Accepts: {exts}</p>
           {dropError && <p className="text-xs text-red-400">{dropError}</p>}
 
           {/* URL paste row */}
@@ -173,7 +173,7 @@ function SlotDropZone({ slot }: { slot: MediaInputSlot }): React.ReactElement {
           {changing && (
             <button
               onClick={(e) => { e.stopPropagation(); setChanging(false) }}
-              className="text-xs text-white/30 hover:text-white/60 transition-colors"
+              className="text-xs text-white/60 hover:text-white/82 transition-colors"
             >
               Cancel
             </button>

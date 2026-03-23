@@ -9,8 +9,10 @@ export const styles = css`
 		font-size: 0.5em;
 		display: flex;
 		height: 20px;
-		background: rgb(26, 26, 26);
+		background: #0d1014;
 		align-items: center;
+		position: relative;   /* anchors .fj-marker absolute children to this ruler */
+		overflow: visible;    /* lets the diamond and line bleed outside the 20px strip */
 	}
 
 	.indicator {
@@ -18,7 +20,7 @@ export const styles = css`
 		z-index: 10;
 		width: 1px;
 		height: 100%;
-		background: yellow;
+		background: #ff6b2b;
 	}
 
 	.time {
@@ -29,7 +31,7 @@ export const styles = css`
 	.dot {
 		width: 3px;
 		height: 3px;
-		background: gray;
+		background: rgba(255,255,255,0.25);
 		border-radius: 5px;
 	}
 
@@ -40,32 +42,36 @@ export const styles = css`
 
 	.fj-marker {
 		position: absolute;
-		top: 0;
+		/* Sit the container so the diamond tip lands exactly on the ruler's top border */
+		top: -8px;
 		display: flex;
 		flex-direction: column;
 		align-items: center;
 		pointer-events: none;
-		z-index: 5;
+		z-index: 6;
 	}
 
 	.fj-marker-diamond {
 		width: 10px;
 		height: 10px;
-		background: #f59e0b;
+		background: #ff6b2b;
+		/* translateX(-50%) centres the diamond on the left anchor */
 		transform: translateX(-50%) rotate(45deg);
 		cursor: pointer;
 		pointer-events: all;
 		flex-shrink: 0;
+		transition: background 0.1s, box-shadow 0.1s, transform 0.1s;
 	}
 
 	.fj-marker-diamond:hover {
-		background: #fbbf24;
+		background: #ff9554;
+		box-shadow: 0 0 5px 1px rgba(255, 107, 43, 0.6);
 	}
 
-	.fj-marker-line {
-		width: 1px;
-		height: 9999px;
-		background: rgba(245, 158, 11, 0.35);
-		pointer-events: none;
+	.fj-marker-diamond[data-active] {
+		background: #fff;
+		box-shadow: 0 0 7px 2px rgba(255, 107, 43, 0.9);
+		transform: translateX(-50%) rotate(45deg) scale(1.35);
 	}
+
 `

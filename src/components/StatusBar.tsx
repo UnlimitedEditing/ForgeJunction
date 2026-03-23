@@ -78,7 +78,7 @@ export default function StatusBar(): React.ReactElement {
           className={`flex-shrink-0 flex items-center gap-1 rounded px-1.5 py-0.5 transition-colors ${
             inspirationOpen
               ? 'text-brand bg-brand/10'
-              : 'text-white/40 hover:text-white/70 hover:bg-white/5'
+              : 'text-white/70 hover:text-white/70 hover:bg-white/5'
           }`}
           title="Inspiration feed"
         >
@@ -89,7 +89,7 @@ export default function StatusBar(): React.ReactElement {
           className={`flex-shrink-0 flex items-center gap-1 rounded px-1.5 py-0.5 transition-colors ${
             galleryOpen
               ? 'text-brand bg-brand/10'
-              : 'text-white/40 hover:text-white/70 hover:bg-white/5'
+              : 'text-white/70 hover:text-white/70 hover:bg-white/5'
           }`}
           title="Workflow gallery"
         >
@@ -101,28 +101,28 @@ export default function StatusBar(): React.ReactElement {
           </span>
         )}
         {activeCount === 0 && queuedCount === 0 && !chainRunning ? (
-          <span className="shrink-0 text-white/30">✓ Ready</span>
+          <span className="shrink-0 text-white/60">✓ Ready</span>
         ) : !chainRunning && (
           <>
             {activeCount > 0 && (
-              <span className="shrink-0 text-white/60">
+              <span className="shrink-0 text-white/82">
                 🔄 {activeCount} rendering
               </span>
             )}
             {queuedCount > 0 && (
-              <span className="shrink-0 text-white/40">
+              <span className="shrink-0 text-white/70">
                 {queuedCount} queued
               </span>
             )}
           </>
         )}
         {chainRunning && activeCount === 0 && queuedCount === 0 && (
-          <span className="shrink-0 text-white/30">chain rendering…</span>
+          <span className="shrink-0 text-white/60">chain rendering…</span>
         )}
         {firstActive && (
-          <span className="text-white/50 truncate">
+          <span className="text-white/75 truncate">
             <span className="text-white/70 font-mono">{firstActive.workflowSlug}</span>
-            {activeCount > 1 && <span className="text-white/30"> +{activeCount - 1} more</span>}
+            {activeCount > 1 && <span className="text-white/60"> +{activeCount - 1} more</span>}
             {' '}— {elapsedSec}s
             {firstActive.eta ? ` (ETA ~${firstActive.eta}s)` : ''}
           </span>
@@ -147,7 +147,7 @@ export default function StatusBar(): React.ReactElement {
           <button
             ref={buttonRef}
             onClick={() => setPopupOpen((v) => !v)}
-            className="rounded px-2 py-0.5 text-xs text-white/50 hover:bg-red-900/40 hover:text-red-400 transition-colors"
+            className="rounded px-2 py-0.5 text-xs text-white/75 hover:bg-red-900/40 hover:text-red-400 transition-colors"
           >
             ✕ Cancel
           </button>
@@ -157,7 +157,7 @@ export default function StatusBar(): React.ReactElement {
               ref={popupRef}
               className="absolute bottom-8 right-0 w-72 bg-neutral-800 border border-neutral-700 rounded-md shadow-xl overflow-hidden"
             >
-              <div className="px-3 py-2 border-b border-neutral-700 text-white/40 text-xs uppercase tracking-wider">
+              <div className="px-3 py-2 border-b border-neutral-700 text-white/70 text-xs uppercase tracking-wider">
                 Active Renders
               </div>
               <ul>
@@ -175,12 +175,12 @@ export default function StatusBar(): React.ReactElement {
                             style={{ width: `${r.progress}%` }}
                           />
                         </div>
-                        <span className="text-white/30">{r.progress}%</span>
+                        <span className="text-white/60">{r.progress}%</span>
                       </div>
                     </div>
                     <button
                       onClick={() => cancelById(r.id)}
-                      className="flex-shrink-0 rounded p-1 text-white/30 hover:bg-red-900/40 hover:text-red-400 transition-colors"
+                      className="flex-shrink-0 rounded p-1 text-white/60 hover:bg-red-900/40 hover:text-red-400 transition-colors"
                       title={`Cancel ${r.workflowSlug}`}
                     >
                       ✕
@@ -196,12 +196,12 @@ export default function StatusBar(): React.ReactElement {
       {/* Right */}
       <div className="flex items-center gap-3 flex-shrink-0">
         {activeCount > 0 && (
-          <span className="text-white/50">
+          <span className="text-white/75">
             {activeCount}/{maxConcurrent} in flight
           </span>
         )}
         {totalRendersThisSession > 0 && (
-          <span className="text-white/30">
+          <span className="text-white/60">
             {totalRendersThisSession} total
           </span>
         )}

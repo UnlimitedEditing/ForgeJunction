@@ -158,7 +158,7 @@ export default function SkillNode({
         <div className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS_DOT[node.status]}`} />
         <span className="text-[11px] font-medium select-none tracking-wide flex-1">
           <SkillsIcon size={12} className="text-brand/70 flex-shrink-0" />
-          <span className="text-white/35 ml-1">{node.skillName ? node.skillName : 'Skill'}</span>
+          <span className="text-white/65 ml-1">{node.skillName ? node.skillName : 'Skill'}</span>
         </span>
         {node.inputQueue.length > 0 && (
           <span className="text-[9px] text-amber-400/60 select-none tabular-nums">
@@ -166,7 +166,7 @@ export default function SkillNode({
           </span>
         )}
         <button
-          className={`w-5 h-5 flex items-center justify-center rounded text-xs transition-colors ${isRunning ? 'text-amber-400 hover:text-red-400' : 'text-white/20 hover:text-white/60'}`}
+          className={`w-5 h-5 flex items-center justify-center rounded text-xs transition-colors ${isRunning ? 'text-amber-400 hover:text-red-400' : 'text-white/45 hover:text-white/82'}`}
           onMouseDown={e => e.stopPropagation()}
           onClick={(e) => { e.stopPropagation(); isRunning ? cancelNode(node.id) : runSkillNode(node.id) }}
           title={isRunning ? 'Cancel' : 'Run'}
@@ -251,10 +251,10 @@ export default function SkillNode({
             style={{ height: OUTPUT_HEADER_H }}
             onClick={() => toggleOutputCollapsed(node.id)}
           >
-            <span className="text-[10px] text-white/25 uppercase tracking-widest flex-1">
+            <span className="text-[10px] text-white/50 uppercase tracking-widest flex-1">
               {totalItems} result{totalItems !== 1 ? 's' : ''}
             </span>
-            <span className="text-white/20 text-[10px]">{node.outputCollapsed ? '▸' : '▾'}</span>
+            <span className="text-white/45 text-[10px]">{node.outputCollapsed ? '▸' : '▾'}</span>
           </div>
 
           {/* Output gallery */}
@@ -285,7 +285,7 @@ export default function SkillNode({
                       style={{ width: ITEM_IMAGE_H, height: ITEM_IMAGE_H }}
                     >
                       {isAudio ? (
-                        <div className="w-full h-full flex items-center justify-center text-white/20 text-xl">♪</div>
+                        <div className="w-full h-full flex items-center justify-center text-white/45 text-xl">♪</div>
                       ) : isVideo ? (
                         <video src={item.url} className="w-full h-full object-cover" muted />
                       ) : (

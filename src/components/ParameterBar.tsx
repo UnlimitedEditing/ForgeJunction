@@ -35,7 +35,7 @@ function SliderWidget({
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center justify-between">
-        <span className="text-xs text-white/50">{label}</span>
+        <span className="text-xs text-white/75">{label}</span>
         <span className="text-xs font-mono text-white/70 tabular-nums">{display}</span>
       </div>
       <input
@@ -50,7 +50,7 @@ function SliderWidget({
 function SeedWidget({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-xs text-white/50">Seed</span>
+      <span className="text-xs text-white/75">Seed</span>
       <div className="flex gap-1.5">
         <input
           type="number"
@@ -62,7 +62,7 @@ function SeedWidget({ value, onChange }: { value: string; onChange: (v: string) 
         <button
           onClick={() => onChange('')}
           title="Use random seed"
-          className="rounded bg-neutral-800 px-2 py-1 text-xs text-white/40 ring-1 ring-white/10 hover:text-white/70 transition-colors"
+          className="rounded bg-neutral-800 px-2 py-1 text-xs text-white/70 ring-1 ring-white/10 hover:text-white/70 transition-colors"
         >
           🎲
         </button>
@@ -75,7 +75,7 @@ function ImagesWidget({ value, defaultValue, onChange }: { value: string; defaul
   const current = value !== '' ? value : defaultValue
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-xs text-white/50">Images</span>
+      <span className="text-xs text-white/75">Images</span>
       <div className="flex gap-1 flex-wrap">
         {IMAGES_OPTIONS.map((n) => (
           <button
@@ -84,7 +84,7 @@ function ImagesWidget({ value, defaultValue, onChange }: { value: string; defaul
             className={`rounded px-2 py-0.5 text-xs font-mono transition-colors ${
               current === n
                 ? 'bg-brand text-white'
-                : 'bg-neutral-800 text-white/50 ring-1 ring-white/10 hover:text-white/80'
+                : 'bg-neutral-800 text-white/75 ring-1 ring-white/10 hover:text-white/80'
             }`}
           >
             {n}
@@ -113,7 +113,7 @@ function SizeWidget({
 
   return (
     <div className="col-span-2 flex flex-col gap-1.5">
-      <span className="text-xs text-white/50">Size</span>
+      <span className="text-xs text-white/75">Size</span>
       <div className="flex items-center gap-2">
         <input
           type="number"
@@ -121,7 +121,7 @@ function SizeWidget({
           onChange={(e) => set(e.target.value, h)}
           className="w-20 rounded bg-neutral-800 px-2 py-1 text-xs text-white outline-none ring-1 ring-white/10 focus:ring-brand [appearance:textfield]"
         />
-        <span className="text-xs text-white/30">×</span>
+        <span className="text-xs text-white/60">×</span>
         <input
           type="number"
           value={h}
@@ -136,7 +136,7 @@ function SizeWidget({
               className={`rounded px-1.5 py-0.5 text-xs transition-colors ${
                 w === p.w && h === p.h
                   ? 'bg-brand/20 text-brand ring-1 ring-brand/40'
-                  : 'bg-neutral-800 text-white/40 ring-1 ring-white/10 hover:text-white/70'
+                  : 'bg-neutral-800 text-white/70 ring-1 ring-white/10 hover:text-white/70'
               }`}
             >
               {p.label}
@@ -145,7 +145,7 @@ function SizeWidget({
         </div>
       </div>
       {(widthField?.minimum_value || widthField?.maximum_value) && (
-        <p className="text-[10px] text-white/20">
+        <p className="text-[10px] text-white/45">
           {widthField.minimum_value}–{widthField.maximum_value}px per side
         </p>
       )}
@@ -157,7 +157,7 @@ function SizeTextWidget({ value, defaultValue, onChange }: { value: string; defa
   const cur = value !== '' ? value : defaultValue
   return (
     <div className="col-span-2 flex flex-col gap-1.5">
-      <span className="text-xs text-white/50">Size (W×H)</span>
+      <span className="text-xs text-white/75">Size (W×H)</span>
       <div className="flex items-center gap-2">
         <input
           type="text"
@@ -174,7 +174,7 @@ function SizeTextWidget({ value, defaultValue, onChange }: { value: string; defa
               className={`rounded px-1.5 py-0.5 text-xs transition-colors ${
                 cur === `${p.w}x${p.h}`
                   ? 'bg-brand/20 text-brand ring-1 ring-brand/40'
-                  : 'bg-neutral-800 text-white/40 ring-1 ring-white/10 hover:text-white/70'
+                  : 'bg-neutral-800 text-white/70 ring-1 ring-white/10 hover:text-white/70'
               }`}
             >
               {p.label}
@@ -191,7 +191,7 @@ function NumberWidget({ label, value, defaultValue, onChange, unit }: {
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-xs text-white/50">{label}{unit ? ` (${unit})` : ''}</span>
+      <span className="text-xs text-white/75">{label}{unit ? ` (${unit})` : ''}</span>
       <input
         type="number"
         value={value !== '' ? value : defaultValue}
@@ -207,7 +207,7 @@ function GenericWidget({ label, value, defaultValue, onChange }: {
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-xs text-white/50 truncate" title={label}>{label}</span>
+      <span className="text-xs text-white/75 truncate" title={label}>{label}</span>
       <input
         type="text"
         value={value !== '' ? value : defaultValue}
@@ -319,12 +319,12 @@ export default function ParameterBar({ onToggleRaw, showRaw }: ParameterBarProps
     <div className="border-b border-white/10 bg-neutral-900">
       {/* Header row */}
       <div className="flex items-center justify-between px-4 pt-3 pb-2">
-        <span className="themed-heading text-[10px] font-semibold uppercase tracking-widest text-white/40">
+        <span className="themed-heading text-[10px] font-semibold uppercase tracking-widest text-white/70">
           Parameters
         </span>
         <button
           onClick={onToggleRaw}
-          className={`text-xs transition-colors ${showRaw ? 'text-brand' : 'text-white/30 hover:text-white/60'}`}
+          className={`text-xs transition-colors ${showRaw ? 'text-brand' : 'text-white/60 hover:text-white/82'}`}
         >
           {showRaw ? '↙ Hide Raw' : 'Raw Prompt ↗'}
         </button>
@@ -332,7 +332,7 @@ export default function ParameterBar({ onToggleRaw, showRaw }: ParameterBarProps
 
       {/* No params case */}
       {fields.length === 0 && (
-        <p className="px-4 pb-3 text-xs text-white/30">
+        <p className="px-4 pb-3 text-xs text-white/60">
           No configurable parameters for this workflow.
         </p>
       )}
@@ -374,7 +374,7 @@ export default function ParameterBar({ onToggleRaw, showRaw }: ParameterBarProps
         <div className="px-4 pb-2.5">
           <button
             onClick={() => setShowMore(!showMore)}
-            className="text-xs text-white/30 hover:text-white/60 transition-colors"
+            className="text-xs text-white/60 hover:text-white/82 transition-colors"
           >
             {showMore
               ? '− Hide extra parameters'

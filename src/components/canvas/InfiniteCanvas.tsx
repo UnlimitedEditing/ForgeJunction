@@ -144,9 +144,9 @@ function CanvasHistoryHUD(): React.ReactElement {
         onMouseLeave={() => setOpen(false)}
       >
         {activeCount > 0 && <div className="w-1.5 h-1.5 rounded-full bg-brand animate-pulse flex-shrink-0" />}
-        <span className="text-[10px] text-white/30 font-mono">Output History</span>
+        <span className="text-[10px] text-white/60 font-mono">Output History</span>
         {queue.length > 0 && (
-          <span className="text-[9px] text-white/20 tabular-nums">{queue.length}</span>
+          <span className="text-[9px] text-white/45 tabular-nums">{queue.length}</span>
         )}
       </div>
 
@@ -190,14 +190,14 @@ function CanvasHistoryHUD(): React.ReactElement {
 
                 {/* Info */}
                 <div className="flex-1 min-w-0">
-                  <div className="text-[10px] text-white/60 truncate font-mono">{r.workflowSlug}</div>
+                  <div className="text-[10px] text-white/82 truncate font-mono">{r.workflowSlug}</div>
                   <div className="flex items-center gap-1 mt-0.5">
                     {isActive && (
                       <>
                         <div className="h-0.5 flex-1 rounded-full bg-white/10 overflow-hidden">
                           <div className="h-full rounded-full bg-brand/70 transition-all duration-500" style={{ width: `${r.progress}%` }} />
                         </div>
-                        <span className="text-[8px] text-white/25 tabular-nums flex-shrink-0">{r.progress}%</span>
+                        <span className="text-[8px] text-white/50 tabular-nums flex-shrink-0">{r.progress}%</span>
                       </>
                     )}
                     {isQueued  && <span className="text-[9px] text-amber-400/50">queued</span>}
@@ -947,14 +947,14 @@ export default function InfiniteCanvas({ onOpenSettings }: Props): React.ReactEl
       {nodes.length === 0 && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
           <div className="text-center space-y-2">
-            <p className="text-white/20 text-sm">Double-click to add a prompt node</p>
-            <p className="text-white/10 text-xs">Right-click for menu · Scroll to zoom · Middle-drag or Space+drag to pan</p>
-            <p className="text-white/8 text-xs">Drop images onto canvas · ALT/CTRL/SHIFT+right-click for more</p>
+            <p className="text-white/45 text-sm">Double-click to add a prompt node</p>
+            <p className="text-white/20 text-xs">Right-click for menu · Scroll to zoom · Middle-drag or Space+drag to pan</p>
+            <p className="text-white/15 text-xs">Drop images onto canvas · ALT/CTRL/SHIFT+right-click for more</p>
           </div>
         </div>
       )}
 
-      <div className="absolute bottom-3 right-3 text-[10px] text-white/15 pointer-events-none font-mono tabular-nums">
+      <div className="absolute bottom-3 right-3 text-[10px] text-white/30 pointer-events-none font-mono tabular-nums">
         {Math.round(viewport.zoom * 100)}%
       </div>
 
@@ -963,7 +963,7 @@ export default function InfiniteCanvas({ onOpenSettings }: Props): React.ReactEl
       {nodes.some(n => n.status === 'active' || n.status === 'queued') && (
         <div className="absolute bottom-3 left-3 flex items-center gap-1.5 pointer-events-none">
           <div className="w-1.5 h-1.5 rounded-full bg-brand animate-pulse" />
-          <span className="text-[10px] text-white/25">
+          <span className="text-[10px] text-white/50">
             {nodes.filter(n => n.status === 'active').length} active
             {nodes.filter(n => n.status === 'queued').length > 0 && ` · ${nodes.filter(n => n.status === 'queued').length} queued`}
           </span>

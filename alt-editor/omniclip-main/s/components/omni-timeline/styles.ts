@@ -7,7 +7,7 @@ export const styles = css`
 		overflow: scroll;
 		position: relative;
 		height: 100%;
-		background: rgb(26, 26, 26);
+		background: #080a0c;
 	}
 
 	.timeline {
@@ -23,20 +23,18 @@ export const styles = css`
 				left: 0;
 				z-index: 800;
 				font-family: "Nippo-Regular";
-				color: #fff;
-				border: 1px solid #111;
-				background-image: -webkit-gradient(
-						linear,
-						left bottom,
-						left top,
-						color-stop(0, rgb(48,48,48)),
-						color-stop(1, rgb(102, 102, 102))
-				);
-				text-shadow: 0px -1px 0px rgba(0,0,0,.5);
+				color: rgba(255,255,255,0.7);
+				border: 1px solid rgba(255,255,255,0.07);
+				background: #0d1014;
 				font-size: 0.8em;
 				border-radius: 0;
 				min-width: 120px;
 				cursor: pointer;
+
+				&:hover {
+					background: #141a1f;
+					color: #fff;
+				}
 			}
 		}
 
@@ -62,7 +60,7 @@ export const styles = css`
 				flex-direction: column;
 				padding: 1.5em;
 				gap: 0.2em;
-				font-family: cursive;
+				font-family: "Inter", "Segoe UI", system-ui, sans-serif;
 
 				& h3 {
 					font-size: 18px;
@@ -81,9 +79,9 @@ export const styles = css`
 		& .transition-duration {
 			position: absolute;
 			z-index: 5;
-			background: #0080005e;
+			background: rgba(74,227,255,0.12);
 			border-radius: 5px;
-			border: 1px solid green;
+			border: 1px solid #4ae3ff;
 			transition: 0.5s ease all;
 
 			&:first-of-type {
@@ -100,9 +98,9 @@ export const styles = css`
 		& .transition-indicator {
 			text-align: center;
 			display: flex;
-			background: #5b8900;
-			border: 2px solid #111;
-			border-radius: 5px;
+			background: #ff6b2b;
+			border: 2px solid rgba(255,107,43,0.5);
+			border-radius: 4px;
 			color: white;
 			align-items: center;
 			justify-content: center;
@@ -124,7 +122,7 @@ export const styles = css`
 
 				& svg {
 					z-index: 6;
-					background: #329032;
+					background: #ff9554;
 				}
 			}
 
@@ -132,7 +130,7 @@ export const styles = css`
 				width: 100%;
 				height: 100%;
 				color: white;
-				background: #2d2d2d;
+				background: rgba(255,107,43,0.3);
 			}
 
 			&:hover {
@@ -143,16 +141,16 @@ export const styles = css`
 
 		& .drop-indicator {
 			height: 50px;
-			border: green dotted 2px;
+			border: rgba(74,227,255,0.7) dotted 2px;
 			position: absolute;
-			background: #0080002e;
+			background: rgba(74,227,255,0.08);
 			border-radius: 5px;
 			top: 0;
-			
+
 			&[data-push-effects] {
 				width: 10px;
 				z-index: 1;
-				border: 1px green solid;
+				border: 1px rgba(74,227,255,0.7) solid;
 				left: -0.5px;
 			}
 		}

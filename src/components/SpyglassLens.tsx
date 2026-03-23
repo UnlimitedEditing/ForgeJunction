@@ -16,7 +16,7 @@ export default function SpyglassLens({
   return (
     <div className="relative w-full h-64 bg-neutral-950 border-2 border-neutral-800 rounded-2xl overflow-hidden flex items-center justify-center p-4 group">
       {/* 1. Content */}
-      <div className="relative z-0 w-full h-full flex items-center justify-center text-white/40">
+      <div className="relative z-0 w-full h-full flex items-center justify-center text-white/70">
         {children ?? (
           <span className="themed-heading tracking-widest text-sm">
             Target Acquired...

@@ -68,9 +68,9 @@ export default function SkillsBrowserNode({ node, isSelected, animationClass = '
         onMouseDown={onHeaderMouseDown}
       >
         <SkillsIcon size={14} className="text-brand/70 flex-shrink-0" />
-        <span className="text-[11px] text-white/40 font-medium select-none tracking-wide flex-1">Skills Browser</span>
+        <span className="text-[11px] text-white/70 font-medium select-none tracking-wide flex-1">Skills Browser</span>
         <button
-          className="w-5 h-5 flex items-center justify-center rounded text-white/20 hover:text-white/60 text-xs transition-colors"
+          className="w-5 h-5 flex items-center justify-center rounded text-white/45 hover:text-white/82 text-xs transition-colors"
           onMouseDown={e => e.stopPropagation()}
           onClick={(e) => { e.stopPropagation(); removeNode(node.id) }}
           title="Close"
@@ -97,7 +97,7 @@ export default function SkillsBrowserNode({ node, isSelected, animationClass = '
             <div className="w-4 h-4 rounded-full border-2 border-white/20 border-t-brand animate-spin" />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="px-3 py-4 text-xs text-white/25 text-center">
+          <div className="px-3 py-4 text-xs text-white/50 text-center">
             {skills.length === 0 ? 'No skills available' : 'No matching skills'}
           </div>
         ) : (
@@ -117,7 +117,7 @@ export default function SkillsBrowserNode({ node, isSelected, animationClass = '
                     </span>
                   </div>
                   {skill.description && (
-                    <p className="text-white/30 text-[10px] leading-snug mt-0.5 line-clamp-2 pl-4">
+                    <p className="text-white/60 text-[10px] leading-snug mt-0.5 line-clamp-2 pl-4">
                       {skill.description}
                     </p>
                   )}
@@ -129,7 +129,7 @@ export default function SkillsBrowserNode({ node, isSelected, animationClass = '
       </div>
 
       {/* Footer hint */}
-      <div className="flex-shrink-0 px-3 py-1.5 border-t border-white/5 text-[10px] text-white/15 select-none">
+      <div className="flex-shrink-0 px-3 py-1.5 border-t border-white/5 text-[10px] text-white/30 select-none">
         Click a skill to create a pinned node
       </div>
     </div>

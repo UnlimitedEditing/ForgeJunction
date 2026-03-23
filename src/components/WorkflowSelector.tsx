@@ -49,7 +49,7 @@ function WorkflowInfoPanel({ workflow }: { workflow: Workflow }): React.ReactEle
       )}
 
       {workflow.description && (
-        <p className="text-xs text-white/60 leading-relaxed">{workflow.description}</p>
+        <p className="text-xs text-white/82 leading-relaxed">{workflow.description}</p>
       )}
 
       {caps.length > 0 && (
@@ -65,23 +65,23 @@ function WorkflowInfoPanel({ workflow }: { workflow: Workflow }): React.ReactEle
         </div>
       )}
 
-      <div className="flex flex-col gap-1 text-xs text-white/40">
+      <div className="flex flex-col gap-1 text-xs text-white/70">
         {workflow.avg_elapsed != null && (
           <div className="flex justify-between">
             <span>Avg. render time</span>
-            <span className="text-white/60">{Math.round(workflow.avg_elapsed)}s</span>
+            <span className="text-white/82">{Math.round(workflow.avg_elapsed)}s</span>
           </div>
         )}
         {workflow.platform && (
           <div className="flex justify-between">
             <span>Platform</span>
-            <span className="text-white/60 font-mono">{workflow.platform}</span>
+            <span className="text-white/82 font-mono">{workflow.platform}</span>
           </div>
         )}
         {workflow.slug && (
           <div className="flex justify-between">
             <span>Slug</span>
-            <span className="text-white/60 font-mono truncate max-w-[60%] text-right">{workflow.slug}</span>
+            <span className="text-white/82 font-mono truncate max-w-[60%] text-right">{workflow.slug}</span>
           </div>
         )}
       </div>
@@ -165,7 +165,7 @@ function ConceptsPanel({
         </div>
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-8 gap-1.5 flex-1">
-          <p className="text-xs text-white/25">
+          <p className="text-xs text-white/50">
             {search ? 'No matching concepts' : 'No concepts available for this family'}
           </p>
         </div>
@@ -189,7 +189,7 @@ function ConceptsPanel({
                       loading="lazy"
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-white/10 text-2xl font-bold select-none">
+                    <div className="w-full h-full flex items-center justify-center text-white/20 text-2xl font-bold select-none">
                       {concept.name.slice(0, 2).toUpperCase()}
                     </div>
                   )}
@@ -299,17 +299,17 @@ export default function WorkflowSelector(): React.ReactElement {
         <div className="flex-shrink-0 border-b border-white/10 px-2 py-2 flex items-center gap-2">
           <button
             onClick={() => setView('workflows')}
-            className="rounded p-1 text-white/40 hover:text-white/80 hover:bg-white/5 transition-colors text-xs flex-shrink-0"
+            className="rounded p-1 text-white/70 hover:text-white/80 hover:bg-white/5 transition-colors text-xs flex-shrink-0"
             title="Back"
           >
             ←
           </button>
-          <span className="text-xs text-white/60 truncate font-medium flex-1">
+          <span className="text-xs text-white/82 truncate font-medium flex-1">
             {selectedWorkflow.name}
           </span>
           <button
             onClick={() => setView('workflows')}
-            className="text-[11px] text-white/25 hover:text-brand transition-colors flex-shrink-0"
+            className="text-[11px] text-white/50 hover:text-brand transition-colors flex-shrink-0"
             title="All Workflows"
           >
             All →
@@ -323,7 +323,7 @@ export default function WorkflowSelector(): React.ReactElement {
               className={`flex-1 py-1.5 text-xs transition-colors ${
                 detailTab === 'concepts'
                   ? 'text-brand border-b-2 border-brand bg-brand/5'
-                  : 'text-white/40 hover:text-white/70'
+                  : 'text-white/70 hover:text-white/70'
               }`}
             >
               Concepts
@@ -334,7 +334,7 @@ export default function WorkflowSelector(): React.ReactElement {
             className={`flex-1 py-1.5 text-xs transition-colors ${
               detailTab === 'details'
                 ? 'text-brand border-b-2 border-brand bg-brand/5'
-                : 'text-white/40 hover:text-white/70'
+                : 'text-white/70 hover:text-white/70'
             }`}
           >
             Details
@@ -348,13 +348,13 @@ export default function WorkflowSelector(): React.ReactElement {
             : detailTab === 'concepts' && !hasConcepts
               ? (
                 <div className="flex flex-col flex-1 items-center justify-center gap-3 px-4 text-center">
-                  <div className="relative flex items-center justify-center w-10 h-10 text-white/20">
+                  <div className="relative flex items-center justify-center w-10 h-10 text-white/45">
                     <svg viewBox="0 0 40 40" fill="none" className="w-full h-full">
                       <circle cx="20" cy="20" r="18" stroke="currentColor" strokeWidth="2.5" />
                       <line x1="7" y1="7" x2="33" y2="33" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
                     </svg>
                   </div>
-                  <p className="text-xs text-white/30 leading-relaxed">
+                  <p className="text-xs text-white/60 leading-relaxed">
                     Not compatible with Concepts
                   </p>
                 </div>
@@ -365,7 +365,7 @@ export default function WorkflowSelector(): React.ReactElement {
                   <WorkflowInfoPanel workflow={selectedWorkflow} />
                   {lastConcept && (
                     <div className="flex-shrink-0 border-t border-white/10 px-3 py-3 flex flex-col gap-2">
-                      <p className="text-[11px] uppercase tracking-widest text-white/25">Last Concept</p>
+                      <p className="text-[11px] uppercase tracking-widest text-white/50">Last Concept</p>
                       {lastConcept.example_url && (
                         <img
                           src={lastConcept.example_url}
@@ -375,13 +375,13 @@ export default function WorkflowSelector(): React.ReactElement {
                       )}
                       <div>
                         <p className="text-xs font-semibold text-white/80">{lastConcept.name}</p>
-                        <p className="text-[11px] text-white/30 font-mono mt-0.5">{lastConcept.token}</p>
+                        <p className="text-[11px] text-white/60 font-mono mt-0.5">{lastConcept.token}</p>
                       </div>
                       {lastConcept.description && (
-                        <p className="text-xs text-white/50 leading-relaxed">{lastConcept.description}</p>
+                        <p className="text-xs text-white/75 leading-relaxed">{lastConcept.description}</p>
                       )}
                       {lastConcept.model_family && (
-                        <span className="self-start rounded px-1.5 py-0.5 text-[10px] bg-white/5 text-white/30 font-mono">
+                        <span className="self-start rounded px-1.5 py-0.5 text-[10px] bg-white/5 text-white/60 font-mono">
                           {lastConcept.model_family}
                         </span>
                       )}
@@ -406,11 +406,11 @@ export default function WorkflowSelector(): React.ReactElement {
               <span className="text-brand text-xs font-semibold">Welcome to Forge Junction</span>
               <button
                 onClick={dismissGreeting}
-                className="text-white/20 hover:text-white/60 text-[10px] flex-shrink-0 leading-none mt-0.5"
+                className="text-white/45 hover:text-white/82 text-[10px] flex-shrink-0 leading-none mt-0.5"
                 title="Dismiss"
               >✕</button>
             </div>
-            <p className="text-[11px] text-white/50 leading-relaxed">
+            <p className="text-[11px] text-white/75 leading-relaxed">
               Type a prompt and press <span className="text-white/70 font-mono">Enter</span> to generate.
               Use <span className="text-white/70 inline-flex items-center gap-0.5"><SkillsIcon size={10} /> Skills</span> to let AI pick the best workflow automatically,
               or select a workflow here for precise control.
@@ -429,11 +429,11 @@ export default function WorkflowSelector(): React.ReactElement {
       {/* Sticky header */}
       <div className="flex-shrink-0 border-b border-white/10 mt-2">
         <div className="flex items-center justify-between px-3 pt-2 pb-1">
-          <span className="text-[11px] text-white/25 uppercase tracking-widest">Workflows</span>
+          <span className="text-[11px] text-white/50 uppercase tracking-widest">Workflows</span>
           {greetingDismissed && (
             <button
               onClick={() => setGreetingDismissed(false)}
-              className="text-[10px] text-white/20 hover:text-brand transition-colors"
+              className="text-[10px] text-white/45 hover:text-brand transition-colors"
               title="Show guide"
             >
               ? Guide
@@ -447,7 +447,7 @@ export default function WorkflowSelector(): React.ReactElement {
             </span>
             <button
               onClick={() => clearSourceMedia()}
-              className="text-white/40 hover:text-white transition-colors"
+              className="text-white/70 hover:text-white transition-colors"
               title="Clear filter and source media"
             >
               ✕ Show all
@@ -459,13 +459,13 @@ export default function WorkflowSelector(): React.ReactElement {
           <div className="border-b border-white/8">
             {/* Collapsed row — active filter + toggle */}
             <div className="flex items-center gap-1.5 px-3 py-1.5">
-              <span className="text-[10px] text-white/25 uppercase tracking-widest flex-shrink-0">Type</span>
+              <span className="text-[10px] text-white/50 uppercase tracking-widest flex-shrink-0">Type</span>
               <button
                 onClick={() => { setActiveCategory(null); setFiltersOpen(false) }}
                 className={`rounded px-2 py-0.5 text-xs transition-colors flex-shrink-0 ${
                   activeCategory === null
                     ? 'bg-brand/15 text-brand border border-brand/30'
-                    : 'text-white/40 hover:text-white hover:bg-white/5'
+                    : 'text-white/70 hover:text-white hover:bg-white/5'
                 }`}
               >
                 {activeCategory === null ? `All (${workflows.length})` : 'All'}
@@ -478,10 +478,10 @@ export default function WorkflowSelector(): React.ReactElement {
               <div className="flex-1" />
               <button
                 onClick={() => setFiltersOpen(v => !v)}
-                className="flex items-center gap-1 px-2 py-0.5 rounded text-[11px] text-white/40 hover:text-white/80 hover:bg-white/8 transition-colors flex-shrink-0"
+                className="flex items-center gap-1 px-2 py-0.5 rounded text-[11px] text-white/70 hover:text-white/80 hover:bg-white/8 transition-colors flex-shrink-0"
                 title={filtersOpen ? 'Hide filters' : 'Show all types'}
               >
-                <span className="text-[10px] text-white/30">filter</span>
+                <span className="text-[10px] text-white/60">filter</span>
                 <svg
                   width="10" height="10" viewBox="0 0 10 10" fill="none"
                   className={`transition-transform duration-150 ${filtersOpen ? 'rotate-180' : ''}`}
@@ -501,7 +501,7 @@ export default function WorkflowSelector(): React.ReactElement {
                     className={`rounded px-2 py-0.5 text-xs transition-colors ${
                       activeCategory === cat
                         ? 'bg-brand/15 text-brand border border-brand/30'
-                        : 'text-white/45 hover:text-white hover:bg-white/5'
+                        : 'text-white/72 hover:text-white hover:bg-white/5'
                     }`}
                   >
                     {cat} ({categoryCounts.get(cat) ?? 0})
@@ -542,7 +542,7 @@ export default function WorkflowSelector(): React.ReactElement {
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-medium leading-snug flex-1">{wf.name}</p>
                     {extraInputCount > 0 && (
-                      <span className={`text-[10px] flex-shrink-0 ${isSelected ? 'text-white/60' : 'text-white/30'}`}>
+                      <span className={`text-[10px] flex-shrink-0 ${isSelected ? 'text-white/82' : 'text-white/60'}`}>
                         📎+{extraInputCount}
                       </span>
                     )}
@@ -555,7 +555,7 @@ export default function WorkflowSelector(): React.ReactElement {
             )
           })}
           {filtered.length === 0 && (
-            <p className="px-3 py-2 text-xs text-white/30">No workflows found.</p>
+            <p className="px-3 py-2 text-xs text-white/60">No workflows found.</p>
           )}
         </ul>
       </div>

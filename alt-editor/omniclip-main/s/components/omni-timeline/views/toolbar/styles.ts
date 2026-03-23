@@ -60,7 +60,7 @@ export const styles = css`
 
 	.history {
 		display: flex;
-		fill: #555454;
+		fill: rgba(255,255,255,0.2);
 
 		& button {
 			display: flex;
@@ -68,7 +68,7 @@ export const styles = css`
 		}
 
 		& button[data-past], button[data-future] {
-			fill: #989898;
+			fill: rgba(255,255,255,0.65);
 		}
 
 	}
@@ -79,7 +79,7 @@ export const styles = css`
 
 		& .zoom-in, .zoom-out {
 			display: flex;
-			color: #989898;
+			color: rgba(255,255,255,0.65);
 		}
 	}
 

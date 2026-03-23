@@ -127,7 +127,7 @@ export const TimeRuler = shadow_view(use => (timeline: GoldElement) => {
 					})
 					setPrevTimecode(closestTimeCode)
 				}
-			} 
+			}
 		}
 		return time_codes as any
 	}
@@ -142,6 +142,9 @@ export const TimeRuler = shadow_view(use => (timeline: GoldElement) => {
 	// Convert marker time (ms) to pixel offset at current zoom
 	const marker_offset = (time_ms: number) =>
 		time_ms / Math.pow(2, -(use.context.state.zoom))
+
+	// A marker is "active" when the playhead is within 50ms of it
+	const ACTIVE_THRESHOLD_MS = 50
 
 	return html`
 		<div
@@ -158,19 +161,21 @@ export const TimeRuler = shadow_view(use => (timeline: GoldElement) => {
 				<div class="content">${kind === "normal" ? time : null}</div>
 			</div>
 			`)}
-			${use.context.state.markers.map(marker => html`
-			<div class="fj-marker" style="left: ${marker_offset(marker.time)}px">
-				<div
-					class="fj-marker-diamond"
-					title="Marker @ ${(marker.time / 1000).toFixed(2)}s — click to remove"
-					@pointerdown=${(e: PointerEvent) => {
-						e.stopPropagation()
-						use.context.actions.remove_marker(marker.id, {omit: true})
-					}}
-				></div>
-				<div class="fj-marker-line"></div>
-			</div>
-			`)}
+			${use.context.state.markers.map(marker => {
+				const active = Math.abs(use.context.state.timecode - marker.time) <= ACTIVE_THRESHOLD_MS
+				return html`
+				<div class="fj-marker" style="left: ${marker_offset(marker.time)}px">
+					<div
+						class="fj-marker-diamond"
+						?data-active=${active}
+						title="Marker @ ${(marker.time / 1000).toFixed(2)}s"
+						@pointerdown=${(e: PointerEvent) => {
+							e.stopPropagation()
+							use.context.actions.remove_marker(marker.id, {omit: true})
+						}}
+					></div>
+				</div>
+			`})}
 		</div>
 	`
 })

@@ -27,6 +27,15 @@ export interface AudioTrack {
   volume: number    // 0.0-1.0
 }
 
+export interface FjEditorAsset {
+  id: string
+  url: string
+  name: string
+  type: 'video' | 'image' | 'audio'
+  thumbnailUrl?: string | null
+  prompt?: string
+}
+
 interface VideoEditorState {
   clips: VideoClip[]
   audioTracks: AudioTrack[]
@@ -39,8 +48,11 @@ interface VideoEditorState {
   exportProgress: number
   exportLog: string[]
   previewClipId: string | null
+  pendingEditorAssets: FjEditorAsset[] | null
 
   addClip: (url: string, prompt: string, label: string, mediaType?: 'video' | 'image') => string
+  queueForEditor: (assets: FjEditorAsset[]) => void
+  clearPendingEditorAssets: () => void
   removeClip: (id: string) => void
   moveClip: (id: string, direction: 'left' | 'right') => void
   updateClip: (id: string, patch: Partial<VideoClip>) => void
@@ -75,6 +87,7 @@ export const useVideoEditorStore = create<VideoEditorState>((set, get) => ({
   exportProgress: 0,
   exportLog: [],
   previewClipId: null,
+  pendingEditorAssets: null,
 
   addClip: (url, prompt, label, mediaType = 'video') => {
     const id = makeId()
@@ -177,6 +190,9 @@ export const useVideoEditorStore = create<VideoEditorState>((set, get) => ({
       exportProgress: progress !== undefined ? progress : s.exportProgress,
     }))
   },
+
+  queueForEditor: (assets) => set({ pendingEditorAssets: assets }),
+  clearPendingEditorAssets: () => set({ pendingEditorAssets: null }),
 
   clearEditor: () => {
     set({

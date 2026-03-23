@@ -5,8 +5,8 @@ export const styles = css`
 		display: flex;
 		position: relative;
 		height: 50px;
-		background: rgb(26, 26, 26);
-		outline: 1px #111 solid;
+		background: #0d1014;
+		outline: 1px rgba(255,255,255,0.06) solid;
 
 		&[data-locked] {
 			background: repeating-linear-gradient(45deg, #5D5D5D, #5D5D5D 10px, #858585 10px, #858585 20px);
@@ -41,12 +41,11 @@ export const styles = css`
 			position: relative;
 			align-items: center;
 			width: 100%;
-			outline: 1px solid green;
+			outline: 1px solid rgba(74,227,255,0.6);
 
 			&[data-indicate] {
 				display: flex;
-				background: #0080002e;
-
+				background: rgba(74,227,255,0.08);
 			}
 		}
 	}

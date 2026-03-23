@@ -43,14 +43,14 @@ function RawPromptView({ onClose }: { onClose: () => void }): React.ReactElement
   return (
     <div className="flex flex-col gap-2 px-3 pt-2 pb-1 border-b border-white/10">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-widest text-white/30">
+        <span className="text-xs font-semibold uppercase tracking-widest text-white/60">
           Raw Prompt
         </span>
         <div className="flex items-center gap-3">
-          <button onClick={handleCopy} className="text-xs text-white/40 hover:text-white/70 transition-colors">
+          <button onClick={handleCopy} className="text-xs text-white/70 hover:text-white/70 transition-colors">
             {copied ? '✓ Copied' : '📋 Copy'}
           </button>
-          <button onClick={onClose} className="text-xs text-white/40 hover:text-white/70 transition-colors">
+          <button onClick={onClose} className="text-xs text-white/70 hover:text-white/70 transition-colors">
             ✕
           </button>
         </div>
@@ -61,7 +61,7 @@ function RawPromptView({ onClose }: { onClose: () => void }): React.ReactElement
         spellCheck={false}
         className="w-full rounded font-mono text-xs bg-black/30 text-white/80 p-2 ring-1 ring-white/10 focus:ring-brand outline-none resize-none min-h-[56px] leading-relaxed"
       />
-      <p className="text-xs text-white/20 pb-1">⚠ Editing raw prompt updates all controls</p>
+      <p className="text-xs text-white/45 pb-1">⚠ Editing raw prompt updates all controls</p>
     </div>
   )
 }
@@ -155,7 +155,7 @@ function WorkflowChip(): React.ReactElement {
             <span className="font-medium">Skills</span>
           </>
         )}
-        <span className="text-white/30 flex-shrink-0 text-[10px]">▼</span>
+        <span className="text-white/60 flex-shrink-0 text-[10px]">▼</span>
       </button>
 
       {open && (
@@ -165,7 +165,7 @@ function WorkflowChip(): React.ReactElement {
             <div className="border-b border-white/8 px-2 py-1.5">
               <button
                 onClick={() => { clearWorkflow(); setWorkflowSlug(''); setOpen(false) }}
-                className="w-full text-left px-2 py-1 rounded text-xs text-white/40 hover:text-white/70 hover:bg-white/5 transition-colors"
+                className="w-full text-left px-2 py-1 rounded text-xs text-white/70 hover:text-white/70 hover:bg-white/5 transition-colors"
               >
                 ✕ Clear selection
               </button>
@@ -174,7 +174,7 @@ function WorkflowChip(): React.ReactElement {
           {/* Quick-start picks */}
           {!search && quickPicks.length > 0 && (
             <div className="border-b border-white/8">
-              <div className="px-3 pt-2 pb-1 text-[10px] text-white/25 uppercase tracking-widest">Quick Start</div>
+              <div className="px-3 pt-2 pb-1 text-[10px] text-white/50 uppercase tracking-widest">Quick Start</div>
               <div className="grid grid-cols-3 gap-1 px-2 pb-2">
                 {quickPicks.map(({ type, wf }) => (
                   <button
@@ -184,7 +184,7 @@ function WorkflowChip(): React.ReactElement {
                     title={type.label}
                   >
                     <span className="text-lg leading-none">{type.icon}</span>
-                    <span className="text-[9px] text-white/50 leading-tight">{type.label}</span>
+                    <span className="text-[9px] text-white/75 leading-tight">{type.label}</span>
                   </button>
                 ))}
               </div>
@@ -216,10 +216,10 @@ function WorkflowChip(): React.ReactElement {
               </li>
             ))}
             {filtered.length === 0 && (
-              <li className="px-3 py-2 text-xs text-white/30">No workflows found</li>
+              <li className="px-3 py-2 text-xs text-white/60">No workflows found</li>
             )}
             {filtered.length > 60 && (
-              <li className="px-3 py-2 text-xs text-white/20">+{filtered.length - 60} more — refine search</li>
+              <li className="px-3 py-2 text-xs text-white/45">+{filtered.length - 60} more — refine search</li>
             )}
           </ul>
         </div>
@@ -349,7 +349,7 @@ export default function PromptEditor(): React.ReactElement {
 
             {inputSlots.length > 0 && (
               <div className="flex flex-col gap-1.5">
-                <p className="text-xs font-semibold uppercase tracking-widest text-white/30">
+                <p className="text-xs font-semibold uppercase tracking-widest text-white/60">
                   Input Media
                 </p>
                 <MediaDropZone slots={inputSlots} />
@@ -358,7 +358,7 @@ export default function PromptEditor(): React.ReactElement {
 
             {/* Negative prompt */}
             <div className="flex items-center gap-2 rounded-lg bg-white/5 ring-1 ring-white/10 focus-within:ring-brand px-3 py-2">
-              <span className="text-xs text-white/30 flex-shrink-0 select-none">Negative:</span>
+              <span className="text-xs text-white/60 flex-shrink-0 select-none">Negative:</span>
               <input
                 type="text"
                 value={negativePrompt}
@@ -371,7 +371,7 @@ export default function PromptEditor(): React.ReactElement {
             {/* Raw prompt preview hint */}
             {!showRaw && rawPrompt && (
               <p
-                className="text-xs text-white/20 font-mono leading-relaxed truncate cursor-pointer hover:text-white/40 transition-colors"
+                className="text-xs text-white/45 font-mono leading-relaxed truncate cursor-pointer hover:text-white/70 transition-colors"
                 title={rawPrompt}
                 onClick={() => setShowRaw(true)}
               >
@@ -431,7 +431,7 @@ export default function PromptEditor(): React.ReactElement {
         {/* 📎 Media attach — toggles drawer */}
         <button
           onClick={() => setDrawerOpen(v => !v)}
-          className={`flex-shrink-0 rounded-md p-1.5 transition-colors ${drawerOpen && inputSlots.length > 0 ? 'text-brand bg-brand/10' : 'text-white/40 hover:text-white/70 hover:bg-white/10'}`}
+          className={`flex-shrink-0 rounded-md p-1.5 transition-colors ${drawerOpen && inputSlots.length > 0 ? 'text-brand bg-brand/10' : 'text-white/70 hover:text-white/70 hover:bg-white/10'}`}
           title={drawerOpen ? 'Close media drawer' : inputSlots.length > 0 ? 'Attach input media' : 'Attach media (select a workflow that accepts input first)'}
         >
           📎
@@ -443,7 +443,7 @@ export default function PromptEditor(): React.ReactElement {
           className={`flex-shrink-0 rounded-md p-1.5 transition-colors ${
             drawerOpen
               ? 'text-brand bg-brand/10 hover:bg-brand/20'
-              : 'text-white/40 hover:text-white/70 hover:bg-white/10'
+              : 'text-white/70 hover:text-white/70 hover:bg-white/10'
           }`}
           title={drawerOpen ? 'Close advanced options' : 'Advanced options'}
         >
@@ -453,7 +453,7 @@ export default function PromptEditor(): React.ReactElement {
         {/* ⎇ Template mode */}
         <button
           onClick={() => setTemplateOpen(true)}
-          className="flex-shrink-0 rounded-md px-2 py-1.5 text-xs transition-colors text-white/40 hover:text-white/70 hover:bg-white/10"
+          className="flex-shrink-0 rounded-md px-2 py-1.5 text-xs transition-colors text-white/70 hover:text-white/70 hover:bg-white/10"
           title="Prompt templates"
         >
           ⎇

@@ -35,19 +35,19 @@ function ChainCopyModal({
       >
         <div className="flex items-center justify-between">
           <span className="text-xs font-semibold text-white/70">Copy to Chain Builder</span>
-          <button onClick={onClose} className="text-white/30 hover:text-white/70 text-xs">✕</button>
+          <button onClick={onClose} className="text-white/60 hover:text-white/70 text-xs">✕</button>
         </div>
 
         {item.prompt && (
           <div className="rounded-lg bg-white/5 p-2 max-h-24 overflow-y-auto">
-            <p className="text-[10px] text-white/60 leading-relaxed font-mono whitespace-pre-wrap">
+            <p className="text-[10px] text-white/82 leading-relaxed font-mono whitespace-pre-wrap">
               {item.prompt}
             </p>
           </div>
         )}
 
         <div className="flex flex-col gap-1">
-          <label className="text-[10px] text-white/40">Workflow</label>
+          <label className="text-[10px] text-white/70">Workflow</label>
           <select
             value={selectedSlug}
             onChange={e => setSelectedSlug(e.target.value)}
@@ -93,7 +93,7 @@ function InspirationTile({
         />
       ) : (
         <div className="absolute inset-0 flex items-center justify-center bg-neutral-800">
-          <span className="text-white/20 text-2xl">{item.mediaType === 'video' ? '▶' : '🖼'}</span>
+          <span className="text-white/45 text-2xl">{item.mediaType === 'video' ? '▶' : '🖼'}</span>
         </div>
       )}
 
@@ -114,7 +114,7 @@ function InspirationTile({
           </button>
           <button
             onClick={() => onRemove(item.id)}
-            className="rounded bg-white/10 hover:bg-red-900/40 hover:text-red-400 px-1.5 py-0.5 text-[9px] text-white/40 transition-colors"
+            className="rounded bg-white/10 hover:bg-red-900/40 hover:text-red-400 px-1.5 py-0.5 text-[9px] text-white/70 transition-colors"
             title="Remove"
           >
             ✕
@@ -151,7 +151,7 @@ export default function InspirationFeed({ onClose }: { onClose: () => void }): R
           <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10 flex-shrink-0">
             <span className="text-sm font-semibold text-white/80">Inspiration</span>
             {items.length > 0 && (
-              <span className="text-[10px] text-white/30">{items.length} items</span>
+              <span className="text-[10px] text-white/60">{items.length} items</span>
             )}
             <div className="flex-1" />
             {items.length > 0 && (
@@ -165,13 +165,13 @@ export default function InspirationFeed({ onClose }: { onClose: () => void }): R
                 />
                 <button
                   onClick={clearAll}
-                  className="text-[10px] text-white/25 hover:text-red-400/70 transition-colors"
+                  className="text-[10px] text-white/50 hover:text-red-400/70 transition-colors"
                 >
                   Clear all
                 </button>
               </>
             )}
-            <button onClick={onClose} className="text-white/30 hover:text-white/70 transition-colors ml-1">
+            <button onClick={onClose} className="text-white/60 hover:text-white/70 transition-colors ml-1">
               ✕
             </button>
           </div>
@@ -179,8 +179,8 @@ export default function InspirationFeed({ onClose }: { onClose: () => void }): R
           {/* Body */}
           {items.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center px-8">
-              <p className="text-white/25 text-sm select-none">No inspiration imported yet</p>
-              <p className="text-white/15 text-[11px] leading-relaxed max-w-xs select-none">
+              <p className="text-white/50 text-sm select-none">No inspiration imported yet</p>
+              <p className="text-white/30 text-[11px] leading-relaxed max-w-xs select-none">
                 Export your Telegram group history, filter out the media and prompts, then import a JSON file here.
               </p>
               <ImportButton onImport={importItems} />
@@ -189,7 +189,7 @@ export default function InspirationFeed({ onClose }: { onClose: () => void }): R
             <div className="flex flex-col flex-1 min-h-0">
               <div className="flex-1 overflow-y-auto p-2">
                 {filtered.length === 0 && (
-                  <p className="text-[11px] text-white/25 text-center py-8">No items match "{search}"</p>
+                  <p className="text-[11px] text-white/50 text-center py-8">No items match "{search}"</p>
                 )}
                 <div className="grid grid-cols-5 gap-1.5">
                   {filtered.map(item => (
@@ -243,7 +243,7 @@ function ImportButton({ onImport }: { onImport: (items: InspirationItem[]) => vo
   return (
     <div className="flex items-center gap-2">
       {error && <span className="text-[10px] text-red-400">{error}</span>}
-      <label className="cursor-pointer rounded bg-white/8 hover:bg-white/12 px-3 py-1.5 text-[11px] text-white/60 transition-colors">
+      <label className="cursor-pointer rounded bg-white/8 hover:bg-white/12 px-3 py-1.5 text-[11px] text-white/82 transition-colors">
         Import JSON
         <input type="file" accept=".json" className="hidden" onChange={handleFile} />
       </label>

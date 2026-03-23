@@ -93,7 +93,7 @@ function VideoTile({ src, className }: { src: string; className?: string }): Rea
       />
       {!ready && (
         <div className="absolute inset-0 flex items-center justify-center bg-neutral-800">
-          <span className="text-white/20 text-2xl">▶</span>
+          <span className="text-white/45 text-2xl">▶</span>
         </div>
       )}
     </div>
@@ -132,7 +132,7 @@ function StorageTile({ file }: { file: ScannedFile }): React.ReactElement {
       )}
 
       {/* No-prompt badge */}
-      <div className="absolute top-1.5 left-1.5 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white/50 leading-none pointer-events-none">
+      <div className="absolute top-1.5 left-1.5 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white/75 leading-none pointer-events-none">
         ⊘ no prompt
       </div>
 
@@ -144,7 +144,7 @@ function StorageTile({ file }: { file: ScannedFile }): React.ReactElement {
       >
         <p className="text-white/80 text-xs font-mono truncate">{file.name}</p>
         <div className="flex items-center justify-between mt-0.5">
-          <span className="text-white/40 text-[10px]">{formatBytes(file.size)}</span>
+          <span className="text-white/70 text-[10px]">{formatBytes(file.size)}</span>
           <button
             onClick={handleReveal}
             className="text-[10px] text-brand hover:text-white transition-colors"
@@ -166,7 +166,7 @@ function DriveBar({ drive }: { drive: DriveInfo }): React.ReactElement {
     <div className="mb-3">
       <div className="flex items-center justify-between mb-1">
         <span className="text-xs text-white/70 font-mono truncate">{drive.label}</span>
-        <span className="text-[10px] text-white/40 ml-2 whitespace-nowrap">
+        <span className="text-[10px] text-white/70 ml-2 whitespace-nowrap">
           {formatBytes(drive.used)} / {formatBytes(drive.total)}
         </span>
       </div>
@@ -291,16 +291,16 @@ export default function StorageManager({ onClose }: { onClose: () => void }): Re
       {/* Left sidebar */}
       <aside className="w-[200px] flex-shrink-0 border-r border-white/10 bg-neutral-950 flex flex-col overflow-y-auto">
         <div className="p-3 border-b border-white/10">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-white/30 mb-3">Drives</p>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-white/60 mb-3">Drives</p>
           {drives.length === 0 ? (
-            <p className="text-xs text-white/20">No drives detected</p>
+            <p className="text-xs text-white/45">No drives detected</p>
           ) : (
             drives.map(drive => <DriveBar key={drive.path} drive={drive} />)
           )}
         </div>
 
         <div className="p-3 flex-1">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-white/30 mb-2">Directories</p>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-white/60 mb-2">Directories</p>
           <button
             onClick={handleAddDir}
             className="w-full text-xs text-brand border border-brand/30 hover:bg-brand/10 rounded px-2 py-1.5 transition-colors mb-3 text-left"
@@ -309,7 +309,7 @@ export default function StorageManager({ onClose }: { onClose: () => void }): Re
           </button>
 
           {watchedDirs.length === 0 ? (
-            <p className="text-xs text-white/20">No directories added</p>
+            <p className="text-xs text-white/45">No directories added</p>
           ) : (
             <div className="flex flex-col gap-2">
               {watchedDirs.map(dir => {
@@ -323,14 +323,14 @@ export default function StorageManager({ onClose }: { onClose: () => void }): Re
                       </span>
                       <button
                         onClick={() => handleRemoveDir(dir)}
-                        className="text-white/30 hover:text-red-400 transition-colors text-xs flex-shrink-0 ml-1"
+                        className="text-white/60 hover:text-red-400 transition-colors text-xs flex-shrink-0 ml-1"
                         title="Remove directory"
                       >
                         ✕
                       </button>
                     </div>
                     <div className="flex items-center justify-between mt-1.5">
-                      <span className="text-[10px] text-white/30">
+                      <span className="text-[10px] text-white/60">
                         {isScanning ? (
                           <span className="inline-flex items-center gap-1">
                             <span className="inline-block w-2.5 h-2.5 border border-brand border-t-transparent rounded-full animate-spin" />
@@ -342,7 +342,7 @@ export default function StorageManager({ onClose }: { onClose: () => void }): Re
                       </span>
                       <button
                         onClick={() => handleMoveDir(dir)}
-                        className="text-[10px] text-white/30 hover:text-brand transition-colors"
+                        className="text-[10px] text-white/60 hover:text-brand transition-colors"
                         title="Move directory"
                       >
                         Move
@@ -375,7 +375,7 @@ export default function StorageManager({ onClose }: { onClose: () => void }): Re
                 className={`px-3 py-1.5 text-xs capitalize transition-colors ${
                   filter === type
                     ? 'bg-brand text-white'
-                    : 'text-white/40 hover:text-white hover:bg-white/5'
+                    : 'text-white/70 hover:text-white hover:bg-white/5'
                 }`}
               >
                 {type === 'all' ? 'All' : type === 'image' ? 'Images' : 'Videos'}
@@ -389,7 +389,7 @@ export default function StorageManager({ onClose }: { onClose: () => void }): Re
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
               <p className="text-4xl mb-4 opacity-30">📁</p>
-              <p className="text-white/30 text-sm mb-4">No directories added yet</p>
+              <p className="text-white/60 text-sm mb-4">No directories added yet</p>
               <button
                 onClick={handleAddDir}
                 className="text-sm text-brand border border-brand/30 hover:bg-brand/10 rounded px-4 py-2 transition-colors"
@@ -400,7 +400,7 @@ export default function StorageManager({ onClose }: { onClose: () => void }): Re
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex-1 flex items-center justify-center">
-            <p className="text-white/25 text-sm">
+            <p className="text-white/50 text-sm">
               {search || filter !== 'all' ? 'No files match your search' : 'No media files found in watched directories'}
             </p>
           </div>

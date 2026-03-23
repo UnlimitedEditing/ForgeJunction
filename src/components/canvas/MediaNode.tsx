@@ -108,11 +108,11 @@ export default function MediaNode({ node, isSelected, isNearOutputPort = false, 
           onMouseDown={onHeaderMouseDown}
         >
           <span className="text-amber-400/50 text-[10px] select-none flex-shrink-0">◻</span>
-          <span className="text-[10px] text-white/30 truncate flex-1 select-none font-mono" title={node.mediaName}>
+          <span className="text-[10px] text-white/60 truncate flex-1 select-none font-mono" title={node.mediaName}>
             {node.mediaName}
           </span>
           <button
-            className="w-4 h-4 flex items-center justify-center rounded text-[9px] text-white/20 hover:text-white/60 hover:bg-white/8 transition-colors flex-shrink-0"
+            className="w-4 h-4 flex items-center justify-center rounded text-[9px] text-white/45 hover:text-white/82 hover:bg-white/8 transition-colors flex-shrink-0"
             onMouseDown={e => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); removeNode(node.id) }}
             title="Remove"

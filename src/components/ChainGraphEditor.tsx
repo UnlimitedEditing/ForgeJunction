@@ -49,8 +49,8 @@ function statusColor(status: ChainNode['status']) {
   if (status === 'done') return 'text-green-400'
   if (status === 'error') return 'text-red-400'
   if (status === 'active') return 'text-brand animate-pulse'
-  if (status === 'waiting') return 'text-white/30'
-  return 'text-white/20'
+  if (status === 'waiting') return 'text-white/60'
+  return 'text-white/45'
 }
 function statusLabel(node: ChainNode) {
   if (node.status === 'done') return '✓ Done'
@@ -491,12 +491,12 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
     <div className="flex flex-col h-full bg-neutral-950">
       {/* ── Toolbar ── */}
       <div className="flex items-center gap-2 border-b border-white/10 bg-neutral-900/95 px-4 py-2 flex-shrink-0">
-        <span className="text-xs font-semibold uppercase tracking-widest text-white/40">Chain Builder</span>
+        <span className="text-xs font-semibold uppercase tracking-widest text-white/70">Chain Builder</span>
         <div className="flex-1" />
         {selectedNodeIds.length > 1 && (
           <button
             onClick={duplicateSelected}
-            className="rounded px-2.5 py-1 text-xs text-white/40 hover:text-white hover:bg-white/8 transition-colors"
+            className="rounded px-2.5 py-1 text-xs text-white/70 hover:text-white hover:bg-white/8 transition-colors"
             title="Duplicate selection (Ctrl+D)"
           >
             ⧉ Copy {selectedNodeIds.length}
@@ -506,7 +506,7 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
           <button
             onClick={clearGraph}
             disabled={isRunning}
-            className="rounded px-2.5 py-1 text-xs text-white/30 hover:text-red-400 hover:bg-red-900/20 transition-colors disabled:opacity-40"
+            className="rounded px-2.5 py-1 text-xs text-white/60 hover:text-red-400 hover:bg-red-900/20 transition-colors disabled:opacity-40"
           >
             Clear
           </button>
@@ -514,20 +514,20 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
         <button
           onClick={addNewAnnotation}
           disabled={isRunning}
-          className="rounded bg-white/8 px-2.5 py-1 text-xs text-white/60 hover:bg-white/12 hover:text-white transition-colors disabled:opacity-40"
+          className="rounded bg-white/8 px-2.5 py-1 text-xs text-white/82 hover:bg-white/12 hover:text-white transition-colors disabled:opacity-40"
         >
           📝 Note
         </button>
         <button
           onClick={addNewNode}
           disabled={isRunning}
-          className="rounded bg-white/8 px-2.5 py-1 text-xs text-white/60 hover:bg-white/12 hover:text-white transition-colors disabled:opacity-40"
+          className="rounded bg-white/8 px-2.5 py-1 text-xs text-white/82 hover:bg-white/12 hover:text-white transition-colors disabled:opacity-40"
         >
           + Add Node
         </button>
         <button
           onClick={onClose}
-          className="rounded px-2 py-1 text-xs text-white/30 hover:text-white hover:bg-white/8 transition-colors"
+          className="rounded px-2 py-1 text-xs text-white/60 hover:text-white hover:bg-white/8 transition-colors"
         >
           ✕
         </button>
@@ -559,24 +559,24 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
         )}
         {isRunning && (
           <>
-            <span className="text-xs font-mono text-white/50">
+            <span className="text-xs font-mono text-white/75">
               ⏱ {formatTime(elapsedSec)}
             </span>
-            <span className="text-xs text-white/30">
+            <span className="text-xs text-white/60">
               {nodes.filter(n => n.status === 'done' || n.status === 'error').length}/{nodes.length} nodes
             </span>
-            <span className="text-xs text-white/20">
+            <span className="text-xs text-white/45">
               {chains.length > 1 ? `${chains.length} chains` : ''}
             </span>
           </>
         )}
         {!isRunning && nodes.length > 0 && (
-          <span className="text-xs text-white/20">
+          <span className="text-xs text-white/45">
             {nodes.length} node{nodes.length !== 1 ? 's' : ''} · {chains.length} chain{chains.length !== 1 ? 's' : ''}
           </span>
         )}
         <div className="flex-1" />
-        <span className="text-xs text-white/15">Shift+click multi-select · Ctrl+D duplicate · Del remove</span>
+        <span className="text-xs text-white/30">Shift+click multi-select · Ctrl+D duplicate · Del remove</span>
       </div>
 
       {/* ── Canvas ── */}
@@ -689,7 +689,7 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
                 {toPort.isControlnet ? (
                   isEditing ? (
                     <div className="flex items-center gap-1 bg-neutral-800 border border-orange-500/50 rounded px-1.5 py-0.5 shadow-xl">
-                      <span className="text-[9px] text-white/40 shrink-0">slug:</span>
+                      <span className="text-[9px] text-white/70 shrink-0">slug:</span>
                       <input
                         autoFocus
                         value={edgeSlugDraft}
@@ -708,7 +708,7 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
                       >✓</button>
                       <button
                         onClick={() => setEditingEdgeId(null)}
-                        className="text-white/30 text-[10px] hover:text-white/60"
+                        className="text-white/60 text-[10px] hover:text-white/82"
                         title="Cancel"
                       >✕</button>
                     </div>
@@ -730,7 +730,7 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
                 ) : (
                   /* Non-controlnet: show port label as a dim read-only badge */
                   <span
-                    className="text-[9px] text-white/20 bg-neutral-950/70 border border-white/5 px-1.5 py-0.5 rounded pointer-events-none select-none"
+                    className="text-[9px] text-white/45 bg-neutral-950/70 border border-white/5 px-1.5 py-0.5 rounded pointer-events-none select-none"
                     title={toPort.tooltip}
                   >
                     {toPort.label}
@@ -753,7 +753,7 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
                 <button
                   onClick={() => reorderChain(root.id, 'up')}
                   disabled={idx === 0}
-                  className="text-white/20 hover:text-white/60 disabled:opacity-0 text-[10px] leading-none transition-colors"
+                  className="text-white/45 hover:text-white/82 disabled:opacity-0 text-[10px] leading-none transition-colors"
                 >▲</button>
                 <span className="rounded-full bg-brand/80 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center shadow-lg">
                   {idx + 1}
@@ -761,7 +761,7 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
                 <button
                   onClick={() => reorderChain(root.id, 'down')}
                   disabled={idx === chains.length - 1}
-                  className="text-white/20 hover:text-white/60 disabled:opacity-0 text-[10px] leading-none transition-colors"
+                  className="text-white/45 hover:text-white/82 disabled:opacity-0 text-[10px] leading-none transition-colors"
                 >▼</button>
               </div>
             )
@@ -799,7 +799,7 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
                   >
                     <span className="text-[10px] text-yellow-400/60 font-semibold flex-1 select-none">📝 Note</span>
                     <button
-                      className="text-white/20 hover:text-red-400 transition-colors text-xs"
+                      className="text-white/45 hover:text-red-400 transition-colors text-xs"
                       onMouseDown={e => e.stopPropagation()}
                       onClick={e => { e.stopPropagation(); handleDeleteNode(node.id) }}
                     >✕</button>
@@ -861,11 +861,11 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
                     style={{ height: 36, flexShrink: 0 }}
                     onMouseDown={(e) => handleNodeMouseDown(e, node.id)}
                   >
-                    <span className="text-xs text-white/50 font-medium truncate flex-1 select-none">
+                    <span className="text-xs text-white/75 font-medium truncate flex-1 select-none">
                       {isVideo ? '▶' : '🖼'} Media Source
                     </span>
                     <button
-                      className="text-white/20 hover:text-red-400 transition-colors ml-2 flex-shrink-0 text-xs"
+                      className="text-white/45 hover:text-red-400 transition-colors ml-2 flex-shrink-0 text-xs"
                       onMouseDown={e => e.stopPropagation()}
                       onClick={e => { e.stopPropagation(); handleDeleteNode(node.id) }}
                     >✕</button>
@@ -1010,7 +1010,7 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
                     </button>
                   )}
                   <button
-                    className="text-white/20 hover:text-red-400 transition-colors ml-2 flex-shrink-0 leading-none text-xs"
+                    className="text-white/45 hover:text-red-400 transition-colors ml-2 flex-shrink-0 leading-none text-xs"
                     onMouseDown={(e) => e.stopPropagation()}
                     onClick={(e) => { e.stopPropagation(); handleDeleteNode(node.id) }}
                   >
@@ -1086,7 +1086,7 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
                         <button
                           onMouseDown={e => e.stopPropagation()}
                           onClick={() => { setNodeFieldMark(null); setMarkFieldLabel('') }}
-                          className="text-xs text-white/30 hover:text-white"
+                          className="text-xs text-white/60 hover:text-white"
                         >
                           ✕
                         </button>
@@ -1121,12 +1121,12 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
               className="absolute flex flex-col items-center gap-3 text-center"
               style={{ left: '50%', top: '50%', transform: 'translate(-50%,-50%)' }}
             >
-              <p className="text-white/20 text-sm leading-relaxed">
+              <p className="text-white/45 text-sm leading-relaxed">
                 Add workflow nodes and connect them<br />to build a render chain
               </p>
               <button
                 onClick={addNewNode}
-                className="rounded-lg bg-white/8 px-4 py-2 text-xs text-white/50 hover:bg-white/12 hover:text-white transition-colors"
+                className="rounded-lg bg-white/8 px-4 py-2 text-xs text-white/75 hover:bg-white/12 hover:text-white transition-colors"
               >
                 + Add First Node
               </button>
@@ -1135,7 +1135,7 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
         </div>
 
         {/* Controls hint */}
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-4 text-white/15 text-xs pointer-events-none">
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-4 text-white/30 text-xs pointer-events-none">
           <span>Double-click to add node</span>
           <span>·</span>
           <span>Drag canvas to pan</span>
@@ -1169,7 +1169,7 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
               />
               <button
                 onClick={() => { setPickerTargetNodeId(null); setPickerSearch('') }}
-                className="text-white/30 hover:text-white text-xs transition-colors"
+                className="text-white/60 hover:text-white text-xs transition-colors"
               >
                 ✕
               </button>
@@ -1186,7 +1186,7 @@ export default function ChainGraphEditor({ onClose }: { onClose: () => void }): 
                 </li>
               ))}
               {filteredWorkflows.length === 0 && (
-                <li className="px-3 py-3 text-xs text-white/30">No workflows found</li>
+                <li className="px-3 py-3 text-xs text-white/60">No workflows found</li>
               )}
             </ul>
           </div>

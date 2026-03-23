@@ -43,12 +43,12 @@ export default function SkillsPanel({ onClose }: Props): React.ReactElement {
       {/* Header */}
       <div className="flex-shrink-0 border-b border-white/10 px-3 py-2 flex items-center gap-2">
         <SkillsIcon size={14} className="text-brand/70" />
-        <span className="text-[11px] text-white/40 uppercase tracking-widest font-semibold flex-1">Skills</span>
+        <span className="text-[11px] text-white/70 uppercase tracking-widest font-semibold flex-1">Skills</span>
       </div>
 
       {/* "Describe Anything" quick launch */}
       <div className="flex-shrink-0 px-3 py-3 border-b border-white/5">
-        <p className="text-[10px] text-white/30 mb-2">
+        <p className="text-[10px] text-white/60 mb-2">
           Skills auto-select the best workflow for your prompt using AI.
         </p>
         <button
@@ -62,7 +62,7 @@ export default function SkillsPanel({ onClose }: Props): React.ReactElement {
           {queued === '__any__' ? '✓ Queued' : <><SkillsIcon size={11} className="inline-block align-middle mr-1" />Run with Auto-Select</>}
         </button>
         {!descriptiveText?.trim() && (
-          <p className="text-[10px] text-white/20 mt-1.5 text-center">
+          <p className="text-[10px] text-white/45 mt-1.5 text-center">
             Type a prompt in the editor below first
           </p>
         )}
@@ -86,7 +86,7 @@ export default function SkillsPanel({ onClose }: Props): React.ReactElement {
             <div className="w-4 h-4 rounded-full border-2 border-white/20 border-t-brand animate-spin" />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="px-3 py-4 text-xs text-white/25 text-center">
+          <div className="px-3 py-4 text-xs text-white/50 text-center">
             {skills.length === 0 ? 'No skills available' : 'No matching skills'}
           </div>
         ) : (
@@ -106,13 +106,13 @@ export default function SkillsPanel({ onClose }: Props): React.ReactElement {
                     <span className={`text-[9px] px-1.5 py-0.5 rounded transition-colors flex-shrink-0 ${
                       queued === skill.id
                         ? 'text-emerald-400 bg-emerald-900/30'
-                        : 'text-white/20 bg-white/5 group-hover:text-brand/70 group-hover:bg-brand/10'
+                        : 'text-white/45 bg-white/5 group-hover:text-brand/70 group-hover:bg-brand/10'
                     }`}>
                       {queued === skill.id ? '✓' : '▶'}
                     </span>
                   </div>
                   {skill.description && (
-                    <p className="text-[11px] text-white/30 leading-snug mt-0.5 pl-4 line-clamp-2">
+                    <p className="text-[11px] text-white/60 leading-snug mt-0.5 pl-4 line-clamp-2">
                       {skill.description}
                     </p>
                   )}

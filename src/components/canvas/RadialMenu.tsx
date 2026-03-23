@@ -156,10 +156,10 @@ export default function RadialMenu({ screenX, screenY, modifiers, context, onAct
               close.current()
             }}
           >
-            <div className="w-9 h-9 rounded-full bg-[#1c1c1c] border border-white/10 flex items-center justify-center text-sm text-white/50 group-hover:bg-brand/20 group-hover:border-brand/40 group-hover:text-white transition-all shadow-xl">
+            <div className="w-9 h-9 rounded-full bg-[#1c1c1c] border border-white/10 flex items-center justify-center text-sm text-white/75 group-hover:bg-brand/20 group-hover:border-brand/40 group-hover:text-white transition-all shadow-xl">
               {item.icon}
             </div>
-            <span className="text-[9px] text-white/30 group-hover:text-white/70 transition-colors whitespace-nowrap select-none leading-tight">
+            <span className="text-[9px] text-white/60 group-hover:text-white/70 transition-colors whitespace-nowrap select-none leading-tight">
               {item.label}
             </span>
           </button>

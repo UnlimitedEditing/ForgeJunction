@@ -20,7 +20,7 @@ function statusColor(status: DebugWorkflowResult['status']): string {
     case 'failed': return 'text-red-400'
     case 'skipped': return 'text-yellow-400'
     case 'running': return 'text-brand animate-pulse'
-    default: return 'text-white/30'
+    default: return 'text-white/60'
   }
 }
 
@@ -132,7 +132,7 @@ export default function DebugProtocol(): React.ReactElement | null {
     return (
       <button
         onClick={() => handleSort(field)}
-        className={`text-left text-xs font-semibold uppercase tracking-widest transition-colors ${active ? 'text-brand' : 'text-white/40 hover:text-white/70'}`}
+        className={`text-left text-xs font-semibold uppercase tracking-widest transition-colors ${active ? 'text-brand' : 'text-white/70 hover:text-white/70'}`}
       >
         {label}{active ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}
       </button>
@@ -168,7 +168,7 @@ export default function DebugProtocol(): React.ReactElement | null {
           onMouseDown={(e) => { setDragging(true); setDragOffset({ x: e.clientX - pos.x, y: e.clientY - pos.y }) }}
         >
           <span className="themed-heading text-sm font-semibold text-white">🔧 Workflow Debug Protocol</span>
-          <button onClick={close} className="text-white/40 hover:text-white transition-colors text-lg leading-none">✕</button>
+          <button onClick={close} className="text-white/70 hover:text-white transition-colors text-lg leading-none">✕</button>
         </div>
 
         {/* ── Controls ── */}
@@ -222,9 +222,9 @@ export default function DebugProtocol(): React.ReactElement | null {
                 <div className="flex-1 h-2 rounded-full bg-white/10 overflow-hidden">
                   <div className="fill-progress h-full rounded-full bg-brand transition-all duration-500" style={{ width: `${pct}%` }} />
                 </div>
-                <span className="text-xs text-white/60 shrink-0">{completed}/{totalWorkflows} ({pct}%)</span>
+                <span className="text-xs text-white/82 shrink-0">{completed}/{totalWorkflows} ({pct}%)</span>
               </div>
-              <div className="flex items-center gap-3 text-xs text-white/50">
+              <div className="flex items-center gap-3 text-xs text-white/75">
                 {isRunning && overallElapsedMs > 0 && (
                   <span>Elapsed: {formatDuration(overallElapsedMs)}</span>
                 )}
@@ -234,7 +234,7 @@ export default function DebugProtocol(): React.ReactElement | null {
                 <span className="text-green-400">✓ {passed} passed</span>
                 <span className="text-red-400">✗ {failed} failed</span>
                 <span className="text-yellow-400">⊘ {skipped} skipped</span>
-                <span className="text-white/30">○ {pending} pending</span>
+                <span className="text-white/60">○ {pending} pending</span>
               </div>
             </>
           )}
@@ -245,11 +245,11 @@ export default function DebugProtocol(): React.ReactElement | null {
           <div className="flex-shrink-0 px-4 py-2 border-b border-white/10 bg-brand/5 text-xs flex flex-col gap-0.5">
             <p className="text-white/70">
               Currently testing: <span className="text-white font-mono">{runningResult.slug}</span>
-              <span className="text-white/40 ml-2">({runningResult.category})</span>
+              <span className="text-white/70 ml-2">({runningResult.category})</span>
             </p>
-            <p className="text-white/50">Prompt: "{runningResult.testPrompt}"</p>
-            <p className="text-white/50">Options: <span className="font-mono">{runningResult.testOptions}</span></p>
-            <p className="text-white/40">Elapsed: {elapsedSec}s</p>
+            <p className="text-white/75">Prompt: "{runningResult.testPrompt}"</p>
+            <p className="text-white/75">Options: <span className="font-mono">{runningResult.testOptions}</span></p>
+            <p className="text-white/70">Elapsed: {elapsedSec}s</p>
           </div>
         )}
 
@@ -267,7 +267,7 @@ export default function DebugProtocol(): React.ReactElement | null {
                 <button
                   key={tab}
                   onClick={() => setFilterTab(tab)}
-                  className={`rounded px-2 py-0.5 text-xs transition-colors capitalize ${filterTab === tab ? 'bg-brand text-white' : 'text-white/40 hover:text-white/70'}`}
+                  className={`rounded px-2 py-0.5 text-xs transition-colors capitalize ${filterTab === tab ? 'bg-brand text-white' : 'text-white/70 hover:text-white/70'}`}
                 >
                   {tab} ({count})
                 </button>
@@ -281,13 +281,13 @@ export default function DebugProtocol(): React.ReactElement | null {
             <SortHeader field="category" label="Category" />
             <SortHeader field="slug" label="Workflow" />
             <SortHeader field="elapsed" label="Time" />
-            <span className="text-xs font-semibold uppercase tracking-widest text-white/40">Error</span>
+            <span className="text-xs font-semibold uppercase tracking-widest text-white/70">Error</span>
           </div>
 
           {/* Table rows */}
           <div className="flex-1 overflow-y-auto">
             {sorted.length === 0 && (
-              <p className="px-4 py-6 text-xs text-white/30 text-center">
+              <p className="px-4 py-6 text-xs text-white/60 text-center">
                 {results.length === 0 ? 'Click "Run All" to start testing workflows.' : 'No results match this filter.'}
               </p>
             )}
@@ -299,9 +299,9 @@ export default function DebugProtocol(): React.ReactElement | null {
                   className="w-full grid grid-cols-[28px_120px_1fr_60px_1fr] gap-2 px-3 py-1.5 text-left hover:bg-white/5 transition-colors"
                 >
                   <span className={`text-sm font-bold ${statusColor(r.status)}`}>{statusIcon(r.status)}</span>
-                  <span className="text-xs text-white/50 truncate">{r.category}</span>
+                  <span className="text-xs text-white/75 truncate">{r.category}</span>
                   <span className="text-xs font-mono text-white/80 truncate">{r.slug}</span>
-                  <span className="text-xs text-white/40">{formatElapsed(r.elapsed)}</span>
+                  <span className="text-xs text-white/70">{formatElapsed(r.elapsed)}</span>
                   <span className="text-xs text-red-400/80 truncate">{r.error ? r.error.slice(0, 40) : ''}</span>
                 </button>
 
@@ -310,20 +310,20 @@ export default function DebugProtocol(): React.ReactElement | null {
                   <div className="px-4 pb-3 flex flex-col gap-2 bg-black/20">
                     {r.error && (
                       <div>
-                        <p className="text-xs text-white/40 mb-0.5">Error:</p>
+                        <p className="text-xs text-white/70 mb-0.5">Error:</p>
                         <p className="text-xs text-red-400 font-mono whitespace-pre-wrap">{r.error}</p>
                       </div>
                     )}
                     {r.requestBody && (
                       <div>
-                        <p className="text-xs text-white/40 mb-0.5">Request body:</p>
-                        <pre className="text-xs text-white/60 font-mono bg-black/40 rounded p-2 overflow-x-auto max-h-28">{r.requestBody}</pre>
+                        <p className="text-xs text-white/70 mb-0.5">Request body:</p>
+                        <pre className="text-xs text-white/82 font-mono bg-black/40 rounded p-2 overflow-x-auto max-h-28">{r.requestBody}</pre>
                       </div>
                     )}
                     {r.apiResponse && (
                       <div>
-                        <p className="text-xs text-white/40 mb-0.5">Response:</p>
-                        <pre className="text-xs text-white/50 font-mono bg-black/40 rounded p-2 overflow-x-auto max-h-28">{r.apiResponse}</pre>
+                        <p className="text-xs text-white/70 mb-0.5">Response:</p>
+                        <pre className="text-xs text-white/75 font-mono bg-black/40 rounded p-2 overflow-x-auto max-h-28">{r.apiResponse}</pre>
                       </div>
                     )}
                     {r.resultUrl && (
@@ -367,16 +367,16 @@ export default function DebugProtocol(): React.ReactElement | null {
         <div className="flex-shrink-0 border-t border-white/10">
           <button
             onClick={() => setShowLog((v) => !v)}
-            className="w-full flex items-center justify-between px-4 py-2 text-xs text-white/40 hover:text-white/70 hover:bg-white/5 transition-colors"
+            className="w-full flex items-center justify-between px-4 py-2 text-xs text-white/70 hover:text-white/70 hover:bg-white/5 transition-colors"
           >
             <span>{showLog ? 'Hide Live Log ▲' : 'Show Live Log ▼'}</span>
-            <span className="text-white/20">{logEntries.length} entries</span>
+            <span className="text-white/45">{logEntries.length} entries</span>
           </button>
           {showLog && (
             <div className="max-h-36 overflow-y-auto bg-black/50 px-3 py-2 font-mono text-xs">
               {logEntries.map((e, i) => (
                 <div key={i} className="leading-5 flex gap-2">
-                  <span className="text-white/20 shrink-0">{e.timestamp.slice(11, 19)}</span>
+                  <span className="text-white/45 shrink-0">{e.timestamp.slice(11, 19)}</span>
                   <span className={e.level === 'error' ? 'text-red-400' : e.level === 'warn' ? 'text-yellow-400' : 'text-white/70'}>
                     {e.message}
                   </span>

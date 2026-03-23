@@ -29,7 +29,7 @@ function RenderCard({
 
       {/* Media type badge */}
       <div className={`absolute top-1.5 right-1.5 z-10 text-[8px] font-mono px-1 py-0.5 rounded leading-none ${
-        isVideo ? 'bg-brand/80 text-white' : isAudio ? 'bg-purple-500/80 text-white' : 'bg-neutral-600/80 text-white/50'
+        isVideo ? 'bg-brand/80 text-white' : isAudio ? 'bg-purple-500/80 text-white' : 'bg-neutral-600/80 text-white/75'
       }`}>
         {isVideo ? 'VID' : isAudio ? 'AUD' : 'IMG'}
       </div>
@@ -39,7 +39,7 @@ function RenderCard({
         {render.thumbnailUrl ? (
           <img src={render.thumbnailUrl} alt={render.workflowSlug} className="w-full h-full object-cover" draggable={false} />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-white/15 text-3xl">
+          <div className="w-full h-full flex items-center justify-center text-white/30 text-3xl">
             {isVideo ? '▶' : isAudio ? '♪' : '□'}
           </div>
         )}
@@ -47,7 +47,7 @@ function RenderCard({
 
       {/* Slug */}
       <div className="px-2 py-1.5">
-        <p className="text-[10px] text-white/50 font-mono truncate" title={render.workflowSlug}>
+        <p className="text-[10px] text-white/75 font-mono truncate" title={render.workflowSlug}>
           {render.workflowSlug || '—'}
         </p>
       </div>
@@ -57,7 +57,7 @@ function RenderCard({
         <button
           onClick={() => reorderRender(projectId, index, index - 1)}
           disabled={index === 0}
-          className="w-6 h-6 rounded bg-black/70 text-white/60 hover:text-white disabled:opacity-20 text-xs flex items-center justify-center"
+          className="w-6 h-6 rounded bg-black/70 text-white/82 hover:text-white disabled:opacity-20 text-xs flex items-center justify-center"
           title="Move earlier"
         >←</button>
         <button
@@ -68,7 +68,7 @@ function RenderCard({
         <button
           onClick={() => reorderRender(projectId, index, index + 1)}
           disabled={index === total - 1}
-          className="w-6 h-6 rounded bg-black/70 text-white/60 hover:text-white disabled:opacity-20 text-xs flex items-center justify-center"
+          className="w-6 h-6 rounded bg-black/70 text-white/82 hover:text-white disabled:opacity-20 text-xs flex items-center justify-center"
           title="Move later"
         >→</button>
       </div>
@@ -136,7 +136,7 @@ function ProjectListItem({
       )}
 
       {/* Stats */}
-      <span className="text-[10px] text-white/25 shrink-0">
+      <span className="text-[10px] text-white/50 shrink-0">
         {project.renders.length}
         {videoCount > 0 && <span className="text-brand/50"> / {videoCount}v</span>}
       </span>
@@ -217,11 +217,11 @@ export default function ProjectManager({ onClose }: { onClose: () => void }): Re
     <div className="flex flex-col h-full bg-neutral-950 text-white">
       {/* ── Toolbar ── */}
       <div className="flex items-center gap-2 border-b border-white/10 bg-neutral-900/95 px-4 py-2 flex-shrink-0">
-        <span className="text-xs font-semibold uppercase tracking-widest text-white/40">Projects</span>
+        <span className="text-xs font-semibold uppercase tracking-widest text-white/70">Projects</span>
         <div className="flex-1" />
         <button
           onClick={onClose}
-          className="rounded px-2 py-1 text-xs text-white/30 hover:text-white hover:bg-white/8 transition-colors"
+          className="rounded px-2 py-1 text-xs text-white/60 hover:text-white hover:bg-white/8 transition-colors"
         >
           ✕
         </button>
@@ -234,7 +234,7 @@ export default function ProjectManager({ onClose }: { onClose: () => void }): Re
         <div className="flex flex-col w-52 shrink-0 border-r border-white/10 bg-neutral-900/50 min-h-0">
           <div className="flex-1 overflow-y-auto min-h-0 p-2 flex flex-col gap-0.5">
             {projects.length === 0 && !creatingInline && (
-              <p className="text-[11px] text-white/25 text-center py-4 px-3">
+              <p className="text-[11px] text-white/50 text-center py-4 px-3">
                 No projects yet.
               </p>
             )}
@@ -324,7 +324,7 @@ export default function ProjectManager({ onClose }: { onClose: () => void }): Re
         <div className="flex flex-col flex-1 min-w-0 min-h-0">
           {!viewedProject ? (
             <div className="flex-1 flex items-center justify-center">
-              <p className="text-white/20 text-sm">Select a project to view its renders</p>
+              <p className="text-white/45 text-sm">Select a project to view its renders</p>
             </div>
           ) : (
             <>
@@ -339,7 +339,7 @@ export default function ProjectManager({ onClose }: { onClose: () => void }): Re
                       </span>
                     )}
                   </div>
-                  <p className="text-[11px] text-white/30 mt-0.5">
+                  <p className="text-[11px] text-white/60 mt-0.5">
                     {totalRenders} render{totalRenders !== 1 ? 's' : ''}
                     {videoCount > 0 && ` · ${videoCount} video${videoCount !== 1 ? 's' : ''}`}
                     {imageCount > 0 && ` · ${imageCount} image${imageCount !== 1 ? 's' : ''}`}
@@ -348,7 +348,7 @@ export default function ProjectManager({ onClose }: { onClose: () => void }): Re
 
                 {/* Dimension picker */}
                 <div className="flex flex-col gap-0.5">
-                  <label className="text-[9px] text-white/25 uppercase tracking-widest">Size</label>
+                  <label className="text-[9px] text-white/50 uppercase tracking-widest">Size</label>
                   <select
                     value={viewedProject.dimensions ? `${viewedProject.dimensions.width}x${viewedProject.dimensions.height}` : ''}
                     onChange={e => {
@@ -389,7 +389,7 @@ export default function ProjectManager({ onClose }: { onClose: () => void }): Re
                         </button>
                         <button
                           onClick={() => importVideos(true)}
-                          className="rounded px-2.5 py-1.5 text-xs bg-white/5 border border-white/10 text-white/50 hover:bg-white/10 hover:text-white/80 transition-colors"
+                          className="rounded px-2.5 py-1.5 text-xs bg-white/5 border border-white/10 text-white/75 hover:bg-white/10 hover:text-white/80 transition-colors"
                           title="Clear the video editor timeline and import project media in sequence"
                         >
                           ↺ Replace Timeline
@@ -413,11 +413,11 @@ export default function ProjectManager({ onClose }: { onClose: () => void }): Re
               {viewedProject.renders.length === 0 ? (
                 <div className="flex-1 flex items-center justify-center">
                   <div className="text-center">
-                    <p className="text-white/20 text-sm">No renders yet</p>
+                    <p className="text-white/45 text-sm">No renders yet</p>
                     {viewedProject.id !== activeProjectId ? (
-                      <p className="text-white/15 text-xs mt-1">Set this project as active to capture renders</p>
+                      <p className="text-white/30 text-xs mt-1">Set this project as active to capture renders</p>
                     ) : (
-                      <p className="text-white/15 text-xs mt-1">Renders will appear here as they complete</p>
+                      <p className="text-white/30 text-xs mt-1">Renders will appear here as they complete</p>
                     )}
                   </div>
                 </div>

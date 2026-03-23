@@ -28,8 +28,32 @@ export class VideoExport {
 	}
 
 	async save_file() {
-		const handle = await this.#FileSystemHelper.getFileHandle()
-		await this.#FileSystemHelper.writeFile(handle, this.#Encoder.file!)
+		const file = this.#Encoder.file
+		if (!file) return
+
+		// Try the File System Access API (works in Chromium browsers, not in Electron iframes)
+		if ('showSaveFilePicker' in window) {
+			try {
+				const handle = await this.#FileSystemHelper.getFileHandle()
+				await this.#FileSystemHelper.writeFile(handle, file)
+				return
+			} catch (e) {
+				// AbortError = user cancelled the picker — do nothing
+				if (e instanceof DOMException && e.name === 'AbortError') return
+				// Any other error (e.g. Electron doesn't support the API) — fall through
+			}
+		}
+
+		// Fallback: blob URL download — works in Electron and any browser
+		const blob = new Blob([file], { type: 'video/mp4' })
+		const url = URL.createObjectURL(blob)
+		const a = document.createElement('a')
+		a.href = url
+		a.download = 'export.mp4'
+		document.body.appendChild(a)
+		a.click()
+		document.body.removeChild(a)
+		setTimeout(() => URL.revokeObjectURL(url), 10_000)
 	}
 
 	resetExporter(state: State) {

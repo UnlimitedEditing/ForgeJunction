@@ -72,7 +72,7 @@ export default function ChainTemplatePane(): React.ReactElement {
       {/* A. Header */}
       <div className="flex-shrink-0 px-4 py-3 border-b border-white/10">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-semibold uppercase tracking-widest text-white/40">
+          <span className="text-xs font-semibold uppercase tracking-widest text-white/70">
             Chain Templates
           </span>
           {!showSaveForm && (
@@ -108,7 +108,7 @@ export default function ChainTemplatePane(): React.ReactElement {
             </button>
             <button
               onClick={() => { setShowSaveForm(false); setSaveName('') }}
-              className="text-xs text-white/30 hover:text-white transition-colors"
+              className="text-xs text-white/60 hover:text-white transition-colors"
             >
               ✕
             </button>
@@ -120,12 +120,12 @@ export default function ChainTemplatePane(): React.ReactElement {
       {activeTemplate && activeTemplate.forms.length > 0 && (
         <div className="flex-shrink-0 px-4 py-3 border-b border-white/10 bg-neutral-900/40">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-white/50">
+            <span className="text-xs text-white/75">
               Active: <span className="text-white/70 font-medium">{activeTemplate.name}</span>
             </span>
             <button
               onClick={() => setActiveTemplate(null)}
-              className="text-xs text-white/20 hover:text-white/60 transition-colors"
+              className="text-xs text-white/45 hover:text-white/82 transition-colors"
               title="Clear active template"
             >
               ✕
@@ -135,7 +135,7 @@ export default function ChainTemplatePane(): React.ReactElement {
           <div className="flex flex-col gap-2 mb-3">
             {activeTemplate.forms.map(field => (
               <div key={field.id}>
-                <label className="block text-xs text-white/40 mb-0.5">{field.label}</label>
+                <label className="block text-xs text-white/70 mb-0.5">{field.label}</label>
                 <input
                   type="text"
                   value={formValues[field.id] ?? ''}
@@ -156,7 +156,7 @@ export default function ChainTemplatePane(): React.ReactElement {
             </button>
             <button
               onClick={handleReload}
-              className="rounded bg-white/8 px-2 py-1 text-xs text-white/60 hover:bg-white/12 hover:text-white transition-colors"
+              className="rounded bg-white/8 px-2 py-1 text-xs text-white/82 hover:bg-white/12 hover:text-white transition-colors"
               title="Reload template (resets node prompts)"
             >
               ↺
@@ -169,7 +169,7 @@ export default function ChainTemplatePane(): React.ReactElement {
       <div className="flex-1 overflow-y-auto min-h-0">
         {templates.length === 0 ? (
           <div className="flex items-center justify-center h-full">
-            <p className="text-xs text-white/20 text-center px-4">No saved templates yet</p>
+            <p className="text-xs text-white/45 text-center px-4">No saved templates yet</p>
           </div>
         ) : (
           <div className="py-2 flex flex-col gap-1">
@@ -219,7 +219,7 @@ export default function ChainTemplatePane(): React.ReactElement {
 
       {/* D. Mark-as-field hint */}
       <div className="flex-shrink-0 px-4 py-2 border-t border-white/5">
-        <p className="text-xs text-white/20">
+        <p className="text-xs text-white/45">
           Select text in a node prompt then click Mark
         </p>
       </div>
@@ -277,7 +277,7 @@ function TemplateCard({
       <div className="flex items-center gap-1.5 px-3 py-2">
         <div className="flex-1 min-w-0">
           <p className="text-xs font-medium text-white/80 truncate">{template.name}</p>
-          <p className="text-xs text-white/25 mt-0.5">
+          <p className="text-xs text-white/50 mt-0.5">
             {template.nodes.length} node{template.nodes.length !== 1 ? 's' : ''} · {template.forms.length} field{template.forms.length !== 1 ? 's' : ''}
           </p>
         </div>
@@ -300,7 +300,7 @@ function TemplateCard({
           className={`text-xs rounded px-1.5 py-0.5 transition-colors flex-shrink-0 ${
             isEditing
               ? 'text-brand bg-brand/10'
-              : 'text-white/30 hover:text-white hover:bg-white/8'
+              : 'text-white/60 hover:text-white hover:bg-white/8'
           }`}
           title="Edit template"
         >
@@ -308,7 +308,7 @@ function TemplateCard({
         </button>
         <button
           onClick={onDelete}
-          className="text-xs text-white/20 hover:text-red-400 transition-colors flex-shrink-0"
+          className="text-xs text-white/45 hover:text-red-400 transition-colors flex-shrink-0"
           title="Delete template"
         >
           ✕
@@ -320,7 +320,7 @@ function TemplateCard({
         <div className="border-t border-white/8 px-3 py-2 flex flex-col gap-2">
           {/* Rename */}
           <div>
-            <label className="block text-xs text-white/30 mb-1">Template Name</label>
+            <label className="block text-xs text-white/60 mb-1">Template Name</label>
             <input
               type="text"
               value={renameValue}
@@ -334,7 +334,7 @@ function TemplateCard({
           {/* Fields list */}
           {template.forms.length > 0 && (
             <div>
-              <label className="block text-xs text-white/30 mb-1">Form Fields</label>
+              <label className="block text-xs text-white/60 mb-1">Form Fields</label>
               <div className="flex flex-col gap-1">
                 {template.forms.map(field => (
                   <FieldRow
@@ -350,7 +350,7 @@ function TemplateCard({
 
           {/* Add field form */}
           <div>
-            <label className="block text-xs text-white/30 mb-1">Add Field</label>
+            <label className="block text-xs text-white/60 mb-1">Add Field</label>
             <div className="flex items-center gap-1">
               <input
                 type="text"
@@ -382,7 +382,7 @@ function TemplateCard({
 
           <button
             onClick={onToggleEdit}
-            className="text-xs text-white/40 hover:text-white transition-colors self-end"
+            className="text-xs text-white/70 hover:text-white transition-colors self-end"
           >
             Done
           </button>
@@ -410,7 +410,7 @@ function FieldRow({
 
   return (
     <div className="flex items-center gap-1">
-      <span className="text-xs text-white/25 font-mono flex-shrink-0">{`{{${field.id}}}`}</span>
+      <span className="text-xs text-white/50 font-mono flex-shrink-0">{`{{${field.id}}}`}</span>
       <input
         type="text"
         value={val}
@@ -421,7 +421,7 @@ function FieldRow({
       />
       <button
         onClick={onRemove}
-        className="text-xs text-white/20 hover:text-red-400 transition-colors flex-shrink-0"
+        className="text-xs text-white/45 hover:text-red-400 transition-colors flex-shrink-0"
       >
         ✕
       </button>

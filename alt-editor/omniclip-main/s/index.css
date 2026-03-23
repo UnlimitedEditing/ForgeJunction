@@ -94,16 +94,21 @@
 	height: 21px;
 	align-items: center;
 	color: white;
-	background: #1d1c1c;
+	background: #ff6b2b;
 	cursor: pointer;
 	border-radius: 5px;
 	padding: 0 0.3em;
-	border: 1px solid white;
+	border: 1px solid rgba(255,107,43,0.6);
+
+	&:hover:not(:disabled) {
+		background: #ff9554;
+	}
 
 	&:disabled {
-		opacity: 0.5;
+		opacity: 0.4;
 		cursor: default;
-		border-color: #1d1c1c;
+		background: rgba(255,255,255,0.06);
+		border-color: rgba(255,255,255,0.08);
 	}
 
 	& .text {
@@ -123,15 +128,15 @@
 /*Global styles*/
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #333; border-radius: 1em; }
-::-webkit-scrollbar-thumb:hover { background: #444; }
+::-webkit-scrollbar-thumb { background: rgba(255,107,43,0.35); border-radius: 1em; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,107,43,0.6); }
 
 html, body {
 	font-size: 16px;
 	min-height: 100%;
 
-	color: gray;
-	background: #101010; /*#111*/
+	color: rgba(255,255,255,0.55);
+	background: #080a0c;
 }
 
 body {
@@ -143,11 +148,11 @@ construct-editor {
 	height: calc(100% - 25px);
 	border-radius: 10px;
 
-	--alpha: yellow;
-	--bravo: lime;
-	--bg-a: #151618; /*#151618*/ /*#111*/
-	--bg-b: #000;
-	--bg-c: #333;
+	--alpha: #ff6b2b;
+	--bravo: #4ae3ff;
+	--bg-a: #0d1014;
+	--bg-b: #080a0c;
+	--bg-c: rgba(255,255,255,0.1);
 	--taskbar-size: 1em;
 }
 

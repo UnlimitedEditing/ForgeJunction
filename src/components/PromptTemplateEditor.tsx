@@ -70,7 +70,7 @@ function renderTemplateSegments(
         </span>
       )
     } else {
-      parts.push(<span key={key++} className="text-white/30">{match[0]}</span>)
+      parts.push(<span key={key++} className="text-white/60">{match[0]}</span>)
     }
     lastIndex = regex.lastIndex
   }
@@ -144,7 +144,7 @@ function StepCard({
           <button
             onClick={() => moveStep(step.id, 'up')}
             disabled={index === 0}
-            className="rounded p-0.5 text-white/30 hover:text-white/70 disabled:opacity-20 disabled:cursor-not-allowed transition-colors text-xs"
+            className="rounded p-0.5 text-white/60 hover:text-white/70 disabled:opacity-20 disabled:cursor-not-allowed transition-colors text-xs"
             title="Move up"
           >
             ↑
@@ -152,20 +152,20 @@ function StepCard({
           <button
             onClick={() => moveStep(step.id, 'down')}
             disabled={index === total - 1}
-            className="rounded p-0.5 text-white/30 hover:text-white/70 disabled:opacity-20 disabled:cursor-not-allowed transition-colors text-xs"
+            className="rounded p-0.5 text-white/60 hover:text-white/70 disabled:opacity-20 disabled:cursor-not-allowed transition-colors text-xs"
             title="Move down"
           >
             ↓
           </button>
         </div>
-        <span className="text-xs text-white/40 flex-shrink-0">
+        <span className="text-xs text-white/70 flex-shrink-0">
           {step.label ?? `Step ${index + 1}`}
         </span>
-        <span className="text-white/20 text-xs">—</span>
+        <span className="text-white/45 text-xs">—</span>
         <StepWorkflowPicker stepId={step.id} currentSlug={step.workflowSlug} />
         <button
           onClick={() => removeStep(step.id)}
-          className="ml-auto text-xs text-white/25 hover:text-red-400 transition-colors flex-shrink-0"
+          className="ml-auto text-xs text-white/50 hover:text-red-400 transition-colors flex-shrink-0"
           title="Remove step"
         >
           × Remove
@@ -175,7 +175,7 @@ function StepCard({
       <div className="p-3 flex flex-col gap-2.5">
         {/* Template textarea */}
         <div className="flex flex-col gap-1">
-          <p className="text-xs text-white/30">Template <span className="text-white/20">(select text then click "Make slot")</span></p>
+          <p className="text-xs text-white/60">Template <span className="text-white/45">(select text then click "Make slot")</span></p>
           <textarea
             ref={textareaRef}
             value={step.templateText}
@@ -221,7 +221,7 @@ function StepCard({
             </button>
             <button
               onClick={cancelMakeSlot}
-              className="rounded-md px-2 py-1.5 text-xs text-white/40 hover:text-white/70 transition-colors"
+              className="rounded-md px-2 py-1.5 text-xs text-white/70 hover:text-white/70 transition-colors"
             >
               Cancel
             </button>
@@ -242,7 +242,7 @@ function StepCard({
           <div className="flex flex-wrap gap-x-4 gap-y-2 items-center">
             {step.slots.map((slot) => (
               <div key={slot.id} className="flex items-center gap-1.5">
-                <label className="text-xs text-white/40 flex-shrink-0">{slot.label}:</label>
+                <label className="text-xs text-white/70 flex-shrink-0">{slot.label}:</label>
                 <input
                   value={slot.value}
                   onChange={(e) => updateSlotValue(step.id, slot.id, e.target.value)}
@@ -256,7 +256,7 @@ function StepCard({
 
         {/* Link to previous */}
         {index > 0 && (
-          <label className="flex items-center gap-2 text-xs text-white/40 cursor-pointer select-none">
+          <label className="flex items-center gap-2 text-xs text-white/70 cursor-pointer select-none">
             <input
               type="checkbox"
               checked={step.linkToPrevious ?? false}
@@ -367,12 +367,12 @@ export default function PromptTemplateEditor({
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/10 flex-shrink-0">
-          <span className="text-sm font-semibold uppercase tracking-widest text-white/50">
+          <span className="text-sm font-semibold uppercase tracking-widest text-white/75">
             Prompt Templates
           </span>
           <button
             onClick={handleClose}
-            className="text-white/30 hover:text-white/70 transition-colors text-sm"
+            className="text-white/60 hover:text-white/70 transition-colors text-sm"
           >
             ✕ Close
           </button>
@@ -382,8 +382,8 @@ export default function PromptTemplateEditor({
         <div className="flex-1 overflow-y-auto min-h-0 px-5 py-4 flex flex-col gap-3">
           {steps.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 gap-3">
-              <p className="text-white/30 text-sm">No template steps yet</p>
-              <p className="text-white/20 text-xs text-center max-w-xs">
+              <p className="text-white/60 text-sm">No template steps yet</p>
+              <p className="text-white/45 text-xs text-center max-w-xs">
                 Add a step to start building a reusable prompt template with variable slots
               </p>
             </div>
@@ -403,7 +403,7 @@ export default function PromptTemplateEditor({
                 ''
               )
             }
-            className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-white/50 hover:border-white/20 hover:text-white transition-colors"
+            className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-white/75 hover:border-white/20 hover:text-white transition-colors"
           >
             ＋ Add Step
           </button>

@@ -18,6 +18,7 @@ export const OmniMedia = shadow_component((use) => {
 	const [media, setMedia, getMedia] = use.state<(Video | Image | Audio)[]>([])
 	const [placeholders, setPlaceholders, getPlaceholders] = use.state<any[]>([])
 	const [dragActive, setDragActive] = use.state(false)
+	const [thumbSize, setThumbSize] = use.state(140)
 
 	use.mount(() => {
 		media_controller.getImportedFiles().then(async (media) => {
@@ -176,24 +177,42 @@ export const OmniMedia = shadow_component((use) => {
 		`
 	}
 
+	const totalItems = media.length + placeholders.length
+
 	return StateHandler(
 		Op.all(use.context.is_webcodecs_supported.value, use.context.helpers.ffmpeg.is_loading.value),
 		() => html`
-		<div class="media-panel ${dragActive ? "drag-active" : ""}"
+		<div
+			class="media-panel ${dragActive ? "drag-active" : ""}"
+			style="--thumb-size: ${thumbSize}px"
 			@dragleave=${handleDragLeave}
 			@dragover=${handleDragOver}
 			@drop=${handleDrop}
 		>
 			<div class="header">
-				<form>
-					<label class="import-btn" for="import">
-						<span class="import-icon">${importFileSvg}</span>
-						<span class="import-text">Import Media</span>
-					</label>
-					<input type="file" accept="image/*, video/*, .mp3" id="import" class="hide" multiple @change=${(e: Event) => media_controller.import_file(e.target as HTMLInputElement)}>
-				</form>
+				<div class="header-top">
+					<span class="bin-count">${totalItems} ${totalItems === 1 ? "item" : "items"}</span>
+					<form>
+						<label class="import-btn" for="import">
+							<span class="import-icon">${importFileSvg}</span>
+							<span class="import-text">Import</span>
+						</label>
+						<input type="file" accept="image/*, video/*, .mp3" id="import" class="hide" multiple @change=${(e: Event) => media_controller.import_file(e.target as HTMLInputElement)}>
+					</form>
+				</div>
+				<div class="header-controls">
+					<input
+						class="thumb-slider"
+						type="range"
+						min="80"
+						max="260"
+						.value=${String(thumbSize)}
+						@input=${(e: Event) => setThumbSize(Number((e.target as HTMLInputElement).value))}
+						title="Thumbnail size"
+					/>
+				</div>
 			</div>
-			
+
 			<div class="media-grid">
 				${placeholders.map(
 					(_) => html`
@@ -210,14 +229,14 @@ export const OmniMedia = shadow_component((use) => {
 					if (media.kind === "audio") return render_audio_element(media)
 				})}
 			</div>
-			
+
 			${
 				media.length === 0 && placeholders.length === 0
 					? html`
 				<div class="empty-state">
 					<div class="empty-icon">${importFileSvg}</div>
-					<div class="empty-text">No media files yet</div>
-					<div class="empty-subtext">Import videos, images, or audio to get started</div>
+					<div class="empty-text">Bin is empty</div>
+					<div class="empty-subtext">Import or drag in videos, images, or audio</div>
 				</div>
 			`
 					: ""
@@ -233,4 +252,3 @@ export const OmniMedia = shadow_component((use) => {
 	`,
 	)
 })
-

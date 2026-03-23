@@ -86,13 +86,13 @@ function FeedCard({ block, isNew }: { block: FeedBlock; isNew: boolean }) {
       </div>
 
       {block.body && (
-        <p className="text-[11px] text-white/45 leading-relaxed">{block.body}</p>
+        <p className="text-[11px] text-white/72 leading-relaxed">{block.body}</p>
       )}
 
       {block.type === 'changelog' && block.items && block.items.length > 0 && (
         <ul className="mt-1 space-y-0.5">
           {block.items.map((item, i) => (
-            <li key={i} className="text-[11px] text-white/65 flex gap-1.5">
+            <li key={i} className="text-[11px] text-white/85 flex gap-1.5">
               <span className="text-[#4ae3ff] shrink-0">–</span>
               <span>{item}</span>
             </li>
@@ -100,7 +100,7 @@ function FeedCard({ block, isNew }: { block: FeedBlock; isNew: boolean }) {
         </ul>
       )}
 
-      <p className="text-[10px] text-white/22 mt-1">{timeAgo(block.publishedAt)}</p>
+      <p className="text-[10px] text-white/45 mt-1">{timeAgo(block.publishedAt)}</p>
     </div>
   )
 }
@@ -283,7 +283,7 @@ export default function SagePane(): React.ReactElement {
               Sage
             </span>
 
-            <span className="text-[9px] font-mono text-white/20 bg-white/[0.03] border border-white/8 px-2 py-0.5 rounded-full leading-none">
+            <span className="text-[9px] font-mono text-white/45 bg-white/[0.03] border border-white/8 px-2 py-0.5 rounded-full leading-none">
               Preview
             </span>
 
@@ -323,7 +323,7 @@ export default function SagePane(): React.ReactElement {
 
             <button
               onClick={() => setOpen(false)}
-              className="text-white/25 hover:text-white/60 transition-colors text-xs ml-1"
+              className="text-white/50 hover:text-white/82 transition-colors text-xs ml-1"
               title="Close"
             >
               ✕
@@ -339,7 +339,7 @@ export default function SagePane(): React.ReactElement {
 
               {!feedLoading && feedError && (
                 <div className="border-l-2 border-l-yellow-500 bg-white/[0.03] rounded px-3 py-3">
-                  <p className="text-[11px] text-white/40 mb-2">
+                  <p className="text-[11px] text-white/70 mb-2">
                     Could not load updates — check your connection.
                   </p>
                   <button
@@ -352,7 +352,7 @@ export default function SagePane(): React.ReactElement {
               )}
 
               {!feedLoading && !feedError && feed?.length === 0 && (
-                <p className="text-[11px] text-white/25 text-center py-8">Nothing here yet.</p>
+                <p className="text-[11px] text-white/50 text-center py-8">Nothing here yet.</p>
               )}
 
               {!feedLoading && !feedError && feed && feed.map(block => (

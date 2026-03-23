@@ -17,7 +17,7 @@ function CancelButton(): React.ReactElement {
   return (
     <button
       onClick={cancelActive}
-      className="rounded px-2.5 py-1 text-xs text-white/50 hover:bg-red-900/40 hover:text-red-400 transition-colors"
+      className="rounded px-2.5 py-1 text-xs text-white/75 hover:bg-red-900/40 hover:text-red-400 transition-colors"
       title="Cancel this render"
     >
       ✕ Cancel
@@ -122,7 +122,7 @@ function UseAsSourceButton({ url, mediaType }: { url: string; mediaType: string 
   if (showPicker) {
     return (
       <div className="flex flex-col gap-1.5">
-        <p className="text-xs text-white/40">Set as:</p>
+        <p className="text-xs text-white/70">Set as:</p>
         <div className="flex gap-2 flex-wrap">
           {primarySlot && (
             <button
@@ -143,7 +143,7 @@ function UseAsSourceButton({ url, mediaType }: { url: string; mediaType: string 
           ))}
           <button
             onClick={() => setShowPicker(false)}
-            className="rounded px-2 py-1.5 text-xs text-white/30 hover:text-white/60 transition-colors"
+            className="rounded px-2 py-1.5 text-xs text-white/60 hover:text-white/82 transition-colors"
           >
             Cancel
           </button>
@@ -158,7 +158,7 @@ function UseAsSourceButton({ url, mediaType }: { url: string; mediaType: string 
       className={`rounded px-3 py-1.5 text-xs font-medium transition-colors ${
         confirmed
           ? 'bg-green-700/30 text-green-400'
-          : 'bg-neutral-700 text-white/60 hover:bg-neutral-600 hover:text-white'
+          : 'bg-neutral-700 text-white/82 hover:bg-neutral-600 hover:text-white'
       }`}
     >
       {confirmed
@@ -204,8 +204,8 @@ function RenderCard({ render }: { render: QueuedRender }): React.ReactElement {
       {/* Progress bar for active/streaming */}
       {(render.status === 'active' || render.status === 'streaming') && (
         <div className="flex flex-col gap-1.5">
-          <div className="flex items-center justify-between text-sm text-white/60">
-            <span>Rendering <span className="text-white/40 font-mono text-xs">{render.workflowSlug}</span></span>
+          <div className="flex items-center justify-between text-sm text-white/82">
+            <span>Rendering <span className="text-white/70 font-mono text-xs">{render.workflowSlug}</span></span>
             <div className="flex items-center gap-2">
               <span className="font-medium text-white">{render.progress}%</span>
               <CancelButton />
@@ -226,11 +226,11 @@ function RenderCard({ render }: { render: QueuedRender }): React.ReactElement {
           <p className="text-sm text-red-400">{render.error ?? 'An unknown error occurred.'}</p>
           {help && (
             <div className="border-t border-red-500/20 pt-2 flex flex-col gap-1">
-              <p className="text-xs text-white/50">
-                <span className="text-white/30">Cause:</span> {help.cause}
+              <p className="text-xs text-white/75">
+                <span className="text-white/60">Cause:</span> {help.cause}
               </p>
-              <p className="text-xs text-white/50">
-                <span className="text-white/30">Fix:</span> {help.fix}
+              <p className="text-xs text-white/75">
+                <span className="text-white/60">Fix:</span> {help.fix}
               </p>
             </div>
           )}
@@ -246,17 +246,17 @@ function RenderCard({ render }: { render: QueuedRender }): React.ReactElement {
               <button
                 onClick={() => setViewIdx(i => Math.max(0, i - 1))}
                 disabled={safeIdx === 0}
-                className="rounded px-2 py-0.5 text-xs text-white/50 hover:text-white/90 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+                className="rounded px-2 py-0.5 text-xs text-white/75 hover:text-white/90 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
               >
                 ‹ Prev
               </button>
-              <span className="text-xs text-white/40 font-mono">
+              <span className="text-xs text-white/70 font-mono">
                 {safeIdx + 1} / {mediaItems.length}
               </span>
               <button
                 onClick={() => setViewIdx(i => Math.min(mediaItems.length - 1, i + 1))}
                 disabled={safeIdx === mediaItems.length - 1}
-                className="rounded px-2 py-0.5 text-xs text-white/50 hover:text-white/90 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+                className="rounded px-2 py-0.5 text-xs text-white/75 hover:text-white/90 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
               >
                 Next ›
               </button>
@@ -282,7 +282,7 @@ function RenderCard({ render }: { render: QueuedRender }): React.ReactElement {
             className={`rounded px-3 py-1.5 text-xs font-medium transition-colors ${
               isNsfw
                 ? 'bg-red-900/40 text-red-400 hover:bg-red-900/60'
-                : 'bg-neutral-700 text-white/50 hover:bg-neutral-600 hover:text-white/80'
+                : 'bg-neutral-700 text-white/75 hover:bg-neutral-600 hover:text-white/80'
             }`}
           >
             {isNsfw ? '🔞 Remove NSFW tag' : '🔞 Mark as NSFW'}
@@ -292,27 +292,27 @@ function RenderCard({ render }: { render: QueuedRender }): React.ReactElement {
 
       {render.status === 'done' && !currentItem && (
         <div className="rounded border border-white/10 p-4">
-          <p className="text-sm text-white/50">Render complete — no media URL returned.</p>
+          <p className="text-sm text-white/75">Render complete — no media URL returned.</p>
         </div>
       )}
 
       {/* Metadata */}
       {(render.renderHash || elapsedMs !== null) && (
-        <div className="flex flex-col gap-1 rounded bg-white/5 px-3 py-2 text-xs text-white/50">
+        <div className="flex flex-col gap-1 rounded bg-white/5 px-3 py-2 text-xs text-white/75">
           {render.renderHash && (
             <div className="flex gap-2">
-              <span className="text-white/30">Hash</span>
+              <span className="text-white/60">Hash</span>
               <span className="font-mono">{render.renderHash}</span>
             </div>
           )}
           {elapsedMs !== null && (
             <div className="flex gap-2">
-              <span className="text-white/30">Time</span>
+              <span className="text-white/60">Time</span>
               <span>{formatTime(elapsedMs)}</span>
             </div>
           )}
           <div className="flex gap-2">
-            <span className="text-white/30">Workflow</span>
+            <span className="text-white/60">Workflow</span>
             <span className="font-mono">{render.workflowSlug}</span>
           </div>
         </div>
@@ -321,13 +321,13 @@ function RenderCard({ render }: { render: QueuedRender }): React.ReactElement {
       {/* Server log */}
       {render.serverLog.length > 0 && (
         <div className="flex flex-col gap-1">
-          <p className="themed-heading text-xs font-semibold uppercase tracking-widest text-white/30">
+          <p className="themed-heading text-xs font-semibold uppercase tracking-widest text-white/60">
             Server Log
           </p>
           <div className="max-h-40 overflow-y-auto rounded bg-black/40 p-2 font-mono text-xs">
             {render.serverLog.map((entry, i) => (
               <div key={i} className="flex gap-2 leading-5">
-                <span className="shrink-0 text-white/20">
+                <span className="shrink-0 text-white/45">
                   {render.startedAt ? formatTs(entry.timestamp, render.startedAt) : ''}
                 </span>
                 <span
@@ -354,7 +354,7 @@ function RenderCard({ render }: { render: QueuedRender }): React.ReactElement {
 function statusBadge(render: QueuedRender): React.ReactElement {
   switch (render.status) {
     case 'queued':
-      return <span className="text-white/30 text-xs">Queued</span>
+      return <span className="text-white/60 text-xs">Queued</span>
     case 'active':
     case 'streaming':
       return <span className="text-brand text-xs font-medium">{render.progress}%</span>
@@ -419,7 +419,7 @@ function CollapsedCard({ render }: { render: QueuedRender }): React.ReactElement
           {statusBadge(render)}
         </div>
         {elapsedMs !== null && (
-          <div className="text-white/30 text-xs mt-0.5">{formatTime(elapsedMs)}</div>
+          <div className="text-white/60 text-xs mt-0.5">{formatTime(elapsedMs)}</div>
         )}
         {(render.status === 'active' || render.status === 'streaming') && (
           <div className="mt-1 h-0.5 w-full rounded-full bg-white/10 overflow-hidden">
@@ -494,7 +494,7 @@ export default function RenderViewer(): React.ReactElement {
   if (allRenders.length === 0) {
     return (
       <div className="flex min-h-[160px] items-center justify-center rounded border border-dashed border-white/10">
-        <p className="text-sm text-white/30">Select a workflow and submit a prompt</p>
+        <p className="text-sm text-white/60">Select a workflow and submit a prompt</p>
       </div>
     )
   }
@@ -528,7 +528,7 @@ export default function RenderViewer(): React.ReactElement {
               >
                 <RenderCard render={render} />
                 {pendingNotice && (
-                  <p className="text-xs text-white/40">⏳ Queued as source — workflow list filtered</p>
+                  <p className="text-xs text-white/70">⏳ Queued as source — workflow list filtered</p>
                 )}
               </div>
             )}

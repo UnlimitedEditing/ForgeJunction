@@ -3,6 +3,7 @@ import { useRenderQueueStore } from '@/stores/renderQueue'
 import { useProjectsStore } from '@/stores/projects'
 import { useSettingsStore } from '@/stores/settings'
 import { useTagsStore } from '@/stores/tags'
+import { useVideoEditorStore } from '@/stores/videoEditor'
 
 // In dev, use VITE_EDITOR_URL or run `npx http-server x -p 3000` in alt-editor/omniclip-main.
 // In production, the Electron main process starts the bundled static server on a
@@ -67,7 +68,7 @@ function BinItem({
       className="group flex items-center gap-2 rounded px-1.5 py-1.5 hover:bg-white/5 cursor-grab active:cursor-grabbing select-none"
     >
       {/* Thumbnail */}
-      <div className="w-10 h-10 rounded overflow-hidden bg-neutral-800 flex-shrink-0 flex items-center justify-center text-white/20 text-xs">
+      <div className="w-10 h-10 rounded overflow-hidden bg-neutral-800 flex-shrink-0 flex items-center justify-center text-white/45 text-xs">
         {item.thumbnailUrl ? (
           <img src={item.thumbnailUrl} alt="" className="w-full h-full object-cover" />
         ) : (
@@ -80,13 +81,13 @@ function BinItem({
         <p className="text-[10px] text-white/70 group-hover:text-white/95 truncate leading-tight transition-colors">
           {item.prompt || item.name}
         </p>
-        <p className="text-[9px] text-white/25 font-mono truncate leading-tight">{item.name}</p>
+        <p className="text-[9px] text-white/50 font-mono truncate leading-tight">{item.name}</p>
       </div>
 
       {/* Add button */}
       <button
         onClick={handleAdd}
-        className="text-white/20 hover:text-brand text-xs flex-shrink-0 transition-colors px-1"
+        className="text-white/45 hover:text-brand text-xs flex-shrink-0 transition-colors px-1"
         title="Add to editor timeline"
       >
         +
@@ -195,12 +196,16 @@ export default function VideoEditor({ onClose, onReady }: { onClose: () => void;
     )
   }, [])
 
-  // When iframe finishes loading, push the full library + tags
+  // When iframe finishes loading, push the full library + tags and signal ready.
+  // We call onReady here (not just on fj:bridge-ready) because when the iframe
+  // is preloaded in a hidden div, Chromium may suppress the coi-serviceworker
+  // reload and the postMessage never arrives while the frame is display:none.
   const handleIframeLoad = useCallback(() => {
     setIframeReady(true)
     syncLibrary(binItemsRef.current)
     syncTags(binItemsRef.current)
-  }, [syncLibrary, syncTags])
+    onReady?.()
+  }, [syncLibrary, syncTags, onReady])
 
   // Listen for fj:bridge-ready — fires when Omniclip's bridge mounts
   // (which happens after the iframe onLoad event, so we re-sync here)
@@ -222,6 +227,18 @@ export default function VideoEditor({ onClose, onReady }: { onClose: () => void;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [iframeReady, binItems.length])
 
+  // When assets are queued for editor, open a new project with them on the timeline
+  const pendingEditorAssets = useVideoEditorStore(s => s.pendingEditorAssets)
+  const clearPendingEditorAssets = useVideoEditorStore(s => s.clearPendingEditorAssets)
+  useEffect(() => {
+    if (!pendingEditorAssets || pendingEditorAssets.length === 0 || !iframeReady) return
+    iframeRef.current?.contentWindow?.postMessage(
+      { type: 'fj:open-project-with-assets', assets: pendingEditorAssets },
+      '*',
+    )
+    clearPendingEditorAssets()
+  }, [pendingEditorAssets, iframeReady, clearPendingEditorAssets])
+
   // Re-sync tags whenever tags or bin changes
   useEffect(() => {
     if (iframeReady) syncTags(binItems)
@@ -235,19 +252,19 @@ export default function VideoEditor({ onClose, onReady }: { onClose: () => void;
       <div className="flex items-center gap-3 px-4 py-2.5 border-b border-white/10 bg-neutral-950 flex-shrink-0">
         <button
           onClick={onClose}
-          className="flex items-center gap-1.5 text-white/50 hover:text-white transition-colors text-xs font-medium"
+          className="flex items-center gap-1.5 text-white/75 hover:text-white transition-colors text-xs font-medium"
           title="Return to main view"
         >
           <span className="text-base leading-none">⌂</span>
           <span>Home</span>
         </button>
-        <span className="text-white/15 text-xs">·</span>
-        <span className="text-white/60 text-sm font-semibold">✂ Video Editor</span>
+        <span className="text-white/30 text-xs">·</span>
+        <span className="text-white/82 text-sm font-semibold">✂ Video Editor</span>
         {activeProject && (
           <span className="text-[10px] text-emerald-400/60 font-mono">{activeProject.name}</span>
         )}
         <div className="flex-1" />
-        <span className="text-[10px] text-white/20 select-none">Omniclip</span>
+        <span className="text-[10px] text-white/45 select-none">Omniclip</span>
       </div>
 
       {/* ── Body ── */}
@@ -257,14 +274,14 @@ export default function VideoEditor({ onClose, onReady }: { onClose: () => void;
         <aside className="w-52 flex-shrink-0 flex flex-col border-r border-white/10 bg-neutral-950/60 min-h-0">
           {/* Bin header + search */}
           <div className="px-2 pt-2 pb-1.5 border-b border-white/8 flex-shrink-0">
-            <p className="text-[9px] uppercase tracking-widest text-white/25 font-semibold mb-1.5">
+            <p className="text-[9px] uppercase tracking-widest text-white/50 font-semibold mb-1.5">
               FJ Media Bin
               {activeProject && (
                 <span className="text-emerald-400/40 normal-case ml-1">· {activeProject.name}</span>
               )}
             </p>
             <div className="relative">
-              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-white/20 text-[11px] pointer-events-none select-none">⌕</span>
+              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-white/45 text-[11px] pointer-events-none select-none">⌕</span>
               <input
                 type="text"
                 value={search}
@@ -276,7 +293,7 @@ export default function VideoEditor({ onClose, onReady }: { onClose: () => void;
               {search && (
                 <button
                   onClick={() => setSearch('')}
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 text-white/20 hover:text-white/50 text-[10px]"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 text-white/45 hover:text-white/75 text-[10px]"
                 >✕</button>
               )}
             </div>
@@ -285,7 +302,7 @@ export default function VideoEditor({ onClose, onReady }: { onClose: () => void;
           {/* Bin items */}
           <div className="flex-1 overflow-y-auto min-h-0 p-1.5">
             {binItems.length === 0 ? (
-              <p className="text-[10px] text-white/20 text-center px-2 py-4 leading-relaxed">
+              <p className="text-[10px] text-white/45 text-center px-2 py-4 leading-relaxed">
                 {activeProject ? 'No renders in project yet' : 'No completed renders yet'}
               </p>
             ) : (
@@ -302,7 +319,7 @@ export default function VideoEditor({ onClose, onReady }: { onClose: () => void;
                 />
               ))
             )}
-            <p className="text-[9px] text-white/15 text-center px-2 py-2 mt-1">
+            <p className="text-[9px] text-white/30 text-center px-2 py-2 mt-1">
               Drag into timeline · + to add to bin
             </p>
           </div>

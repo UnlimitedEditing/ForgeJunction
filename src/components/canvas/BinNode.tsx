@@ -105,8 +105,8 @@ export default function BinNode({ node, isSelected, isSnapTarget, isNearInputPor
           onMouseDown={onHeaderMouseDown}
         >
           <span className="text-emerald-400/50 text-xs select-none">⬡</span>
-          <span className="text-[11px] text-white/35 font-medium select-none flex-1 tracking-wide">Bin</span>
-          <span className="text-[10px] text-white/20 select-none tabular-nums">{items.length}</span>
+          <span className="text-[11px] text-white/65 font-medium select-none flex-1 tracking-wide">Bin</span>
+          <span className="text-[10px] text-white/45 select-none tabular-nums">{items.length}</span>
         </div>
 
         {/* Filters */}
@@ -115,9 +115,9 @@ export default function BinNode({ node, isSelected, isSnapTarget, isNearInputPor
           style={{ height: FILTER_H }}
         >
           <div className="flex items-center gap-2">
-            <span className="text-[9px] text-white/20 w-14 flex-shrink-0 select-none uppercase tracking-wide">Type</span>
+            <span className="text-[9px] text-white/45 w-14 flex-shrink-0 select-none uppercase tracking-wide">Type</span>
             <select
-              className="flex-1 bg-white/5 text-white/45 text-[10px] rounded px-1.5 py-0.5 outline-none cursor-pointer"
+              className="flex-1 bg-white/5 text-white/72 text-[10px] rounded px-1.5 py-0.5 outline-none cursor-pointer"
               value={filters.fileType}
               onChange={e => updateNode(node.id, { filters: { ...filters, fileType: e.target.value as any } })}
               onMouseDown={e => e.stopPropagation()}
@@ -129,10 +129,10 @@ export default function BinNode({ node, isSelected, isSnapTarget, isNearInputPor
             </select>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[9px] text-white/20 w-14 flex-shrink-0 select-none uppercase tracking-wide">Prompt</span>
+            <span className="text-[9px] text-white/45 w-14 flex-shrink-0 select-none uppercase tracking-wide">Prompt</span>
             <input
               type="text"
-              className="flex-1 bg-white/5 text-white/45 text-[10px] rounded px-1.5 py-0.5 outline-none placeholder-white/15"
+              className="flex-1 bg-white/5 text-white/72 text-[10px] rounded px-1.5 py-0.5 outline-none placeholder-white/15"
               placeholder="contains…"
               value={filters.promptContains}
               onChange={e => updateNode(node.id, { filters: { ...filters, promptContains: e.target.value } })}
@@ -140,10 +140,10 @@ export default function BinNode({ node, isSelected, isSnapTarget, isNearInputPor
             />
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[9px] text-white/20 w-14 flex-shrink-0 select-none uppercase tracking-wide">Size</span>
+            <span className="text-[9px] text-white/45 w-14 flex-shrink-0 select-none uppercase tracking-wide">Size</span>
             <input
               type="text"
-              className="flex-1 bg-white/5 text-white/45 text-[10px] rounded px-1.5 py-0.5 outline-none placeholder-white/15"
+              className="flex-1 bg-white/5 text-white/72 text-[10px] rounded px-1.5 py-0.5 outline-none placeholder-white/15"
               placeholder="1024x1024"
               value={filters.resolution}
               onChange={e => updateNode(node.id, { filters: { ...filters, resolution: e.target.value } })}
@@ -160,8 +160,8 @@ export default function BinNode({ node, isSelected, isSnapTarget, isNearInputPor
         >
           {items.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center gap-1 pointer-events-none">
-              <span className="text-[18px] text-white/8 select-none">⬡</span>
-              <span className="text-[9px] text-white/15 select-none">Connect a prompt node to collect outputs</span>
+              <span className="text-[18px] text-white/15 select-none">⬡</span>
+              <span className="text-[9px] text-white/30 select-none">Connect a prompt node to collect outputs</span>
             </div>
           ) : (
             <div

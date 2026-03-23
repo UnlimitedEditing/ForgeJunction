@@ -26,6 +26,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useChainGraphStore } from '@/stores/chainGraph'
 import { usePromptStore } from '@/stores/prompt'
 import { useWorkflowStore } from '@/stores/workflows'
+import { useVideoEditorStore } from '@/stores/videoEditor'
 import type { ThemeName } from '@/stores/theme'
 
 function LoadingScreen(): React.ReactElement {
@@ -46,11 +47,10 @@ function MainLayout({ loaded }: { loaded: boolean }): React.ReactElement {
   const [showDebugReport, setShowDebugReport] = useState(false)
   const [showChain, setShowChain] = useState(false)
   const [showVideoEditor, setShowVideoEditor] = useState(false)
-  // In production the Omniclip server starts with the app, so we always mount
-  // the editor iframe in the background for instant open.  In dev the server
-  // may not be running yet, so we mount lazily to avoid ERR_CONNECTION_REFUSED.
-  const editorPreload = import.meta.env.PROD
-  const [editorReady, setEditorReady] = useState(!import.meta.env.PROD)
+  // Always mount the editor iframe on boot so it's ready instantly when opened.
+  // In dev, if npm run dev:editor isn't running the hidden iframe just shows a
+  // connection error — acceptable since the user never sees it while it's hidden.
+  const [editorReady, setEditorReady] = useState(false)
   const [showStorage, setShowStorage] = useState(false)
   const [showProjects, setShowProjects] = useState(false)
   const [showSkills, setShowSkills] = useState(false)
@@ -120,6 +120,14 @@ function MainLayout({ loaded }: { loaded: boolean }): React.ReactElement {
     }
   }, [openDebug, setTheme])
 
+  // Auto-switch to editor when assets are queued via "Send to Editor"
+  const pendingEditorAssets = useVideoEditorStore(s => s.pendingEditorAssets)
+  useEffect(() => {
+    if (pendingEditorAssets && pendingEditorAssets.length > 0) {
+      setShowVideoEditor(true)
+    }
+  }, [pendingEditorAssets])
+
   const [mediaLibCols, setMediaLibCols] = useState(2)
   const [mediaLibSearch, setMediaLibSearch] = useState('')
   const mediaLibSearchTerm = mediaLibSearch.trim().toLowerCase()
@@ -134,13 +142,13 @@ function MainLayout({ loaded }: { loaded: boolean }): React.ReactElement {
 
           {/* Left section — Home label + shortcut icons */}
           <div className="flex items-center gap-0.5 px-3 w-[220px] flex-shrink-0 border-r border-white/8">
-            <span className="text-[11px] font-semibold text-white/40 tracking-wide mr-2 select-none">Home</span>
+            <span className="text-[11px] font-semibold text-white/70 tracking-wide mr-2 select-none">Home</span>
             <div className="w-px h-3.5 bg-white/10 mr-1" />
             {showChain && (
               <button
                 onClick={() => setChainPaneView(v => v === 'chain' ? 'workflows' : 'chain')}
                 className={`w-6 h-6 flex items-center justify-center rounded text-sm transition-colors ${
-                  chainPaneView === 'chain' ? 'text-brand bg-brand/10' : 'text-white/35 hover:text-white hover:bg-white/8'
+                  chainPaneView === 'chain' ? 'text-brand bg-brand/10' : 'text-white/65 hover:text-white hover:bg-white/8'
                 }`}
                 title={chainPaneView === 'chain' ? 'Switch to Workflows' : 'Switch to Chain Templates'}
               >
@@ -149,12 +157,12 @@ function MainLayout({ loaded }: { loaded: boolean }): React.ReactElement {
             )}
             <button
               onClick={() => setShowStorage(v => !v)}
-              className={`w-6 h-6 flex items-center justify-center rounded text-sm transition-colors ${showStorage ? 'text-brand bg-brand/10' : 'text-white/35 hover:text-white hover:bg-white/8'}`}
+              className={`w-6 h-6 flex items-center justify-center rounded text-sm transition-colors ${showStorage ? 'text-brand bg-brand/10' : 'text-white/65 hover:text-white hover:bg-white/8'}`}
               title="Storage Manager"
             >📁</button>
             <button
               onClick={() => setShowVideoEditor(v => !v)}
-              className="w-6 h-6 flex items-center justify-center rounded text-sm text-white/35 hover:text-white hover:bg-white/8 transition-colors"
+              className="w-6 h-6 flex items-center justify-center rounded text-sm text-white/65 hover:text-white hover:bg-white/8 transition-colors"
               title={editorReady ? 'Video Editor' : 'Video Editor (loading…)'}
             >
               {editorReady
@@ -164,23 +172,23 @@ function MainLayout({ loaded }: { loaded: boolean }): React.ReactElement {
             </button>
             <button
               onClick={() => setShowChain(v => !v)}
-              className={`w-6 h-6 flex items-center justify-center rounded text-sm transition-colors ${showChain ? 'text-brand bg-brand/10' : 'text-white/35 hover:text-white hover:bg-white/8'}`}
+              className={`w-6 h-6 flex items-center justify-center rounded text-sm transition-colors ${showChain ? 'text-brand bg-brand/10' : 'text-white/65 hover:text-white hover:bg-white/8'}`}
               title="Chain Builder"
             >⛓</button>
             <button
               onClick={() => setShowSkills(v => !v)}
-              className={`w-6 h-6 flex items-center justify-center rounded text-sm transition-colors ${showSkills ? 'text-brand bg-brand/10' : 'text-white/35 hover:text-white hover:bg-white/8'}`}
+              className={`w-6 h-6 flex items-center justify-center rounded text-sm transition-colors ${showSkills ? 'text-brand bg-brand/10' : 'text-white/65 hover:text-white hover:bg-white/8'}`}
               title="Skills"
             ><SkillsIcon size={13} /></button>
             <button
               onClick={() => setShowSettings(v => !v)}
-              className={`w-6 h-6 flex items-center justify-center rounded text-sm transition-colors ${showSettings ? 'text-white/80 bg-white/8' : 'text-white/35 hover:text-white hover:bg-white/8'}`}
+              className={`w-6 h-6 flex items-center justify-center rounded text-sm transition-colors ${showSettings ? 'text-white/80 bg-white/8' : 'text-white/65 hover:text-white hover:bg-white/8'}`}
               title="Settings"
             >⚙</button>
             <div className="w-px h-3.5 bg-white/10 mx-0.5" />
             <button
               onClick={() => setShowCanvas(v => !v)}
-              className={`w-6 h-6 flex items-center justify-center rounded text-sm transition-colors ${showCanvas ? 'text-brand bg-brand/10' : 'text-white/35 hover:text-white hover:bg-white/8'}`}
+              className={`w-6 h-6 flex items-center justify-center rounded text-sm transition-colors ${showCanvas ? 'text-brand bg-brand/10' : 'text-white/65 hover:text-white hover:bg-white/8'}`}
               title="Canvas Workspace"
             >⬡</button>
           </div>
@@ -190,7 +198,7 @@ function MainLayout({ loaded }: { loaded: boolean }): React.ReactElement {
             {showMediaLib ? (
               <>
                 {/* Resize icon */}
-                <svg width="13" height="13" viewBox="0 0 14 14" fill="none" className="flex-shrink-0 text-white/25" aria-hidden>
+                <svg width="13" height="13" viewBox="0 0 14 14" fill="none" className="flex-shrink-0 text-white/50" aria-hidden>
                   <rect x="0.5" y="0.5" width="9" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.2"/>
                   <rect x="7.5" y="7.5" width="5.5" height="5.5" rx="1" fill="currentColor" opacity="0.55"/>
                 </svg>
@@ -204,7 +212,7 @@ function MainLayout({ loaded }: { loaded: boolean }): React.ReactElement {
                 />
                 {/* Search */}
                 <div className="relative flex-1 min-w-0">
-                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-white/20 text-[11px] pointer-events-none select-none">⌕</span>
+                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-white/45 text-[11px] pointer-events-none select-none">⌕</span>
                   <input
                     type="text"
                     value={mediaLibSearch}
@@ -216,20 +224,20 @@ function MainLayout({ loaded }: { loaded: boolean }): React.ReactElement {
                   {mediaLibSearch && (
                     <button
                       onClick={() => setMediaLibSearch('')}
-                      className="absolute right-1.5 top-1/2 -translate-y-1/2 text-white/25 hover:text-white/55 text-[10px] transition-colors"
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 text-white/50 hover:text-white/75 text-[10px] transition-colors"
                       title="Clear"
                     >✕</button>
                   )}
                 </div>
                 {mediaLibSearchTerm && (
-                  <span className="text-[10px] text-white/25 flex-shrink-0 tabular-nums select-none">
+                  <span className="text-[10px] text-white/50 flex-shrink-0 tabular-nums select-none">
                     {/* count rendered inside grid, just show indicator */}
                     ↳
                   </span>
                 )}
               </>
             ) : (
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-white/25 select-none">
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-white/50 select-none">
                 {showStorage ? 'Storage' : showProjects ? 'Projects' : showSkills ? 'Skills' : showChain ? 'Chain Builder' : ''}
               </span>
             )}
@@ -237,7 +245,7 @@ function MainLayout({ loaded }: { loaded: boolean }): React.ReactElement {
 
           {/* Right section — Output label */}
           <div className="w-96 flex-shrink-0 flex items-center px-4">
-            <span className="text-[10px] font-semibold uppercase tracking-widest text-white/30 select-none">
+            <span className="text-[10px] font-semibold uppercase tracking-widest text-white/60 select-none">
               Output History
             </span>
             {activeProject && (
@@ -281,15 +289,13 @@ function MainLayout({ loaded }: { loaded: boolean }): React.ReactElement {
           </aside>
         )}
 
-        {/* Video editor — preloaded in prod for instant open; lazy in dev */}
-        {(editorPreload || showVideoEditor) && (
-          <div className={showVideoEditor ? 'flex flex-1 min-w-0 min-h-0' : 'hidden'}>
-            <VideoEditor
-              onClose={() => setShowVideoEditor(false)}
-              onReady={() => setEditorReady(true)}
-            />
-          </div>
-        )}
+        {/* Video editor — always mounted at boot, hidden until opened for instant switch */}
+        <div className={showVideoEditor ? 'flex flex-1 min-w-0 min-h-0' : 'hidden'}>
+          <VideoEditor
+            onClose={() => setShowVideoEditor(false)}
+            onReady={() => setEditorReady(true)}
+          />
+        </div>
 
         {!showVideoEditor && (
           <>
@@ -303,7 +309,7 @@ function MainLayout({ loaded }: { loaded: boolean }): React.ReactElement {
                     ? <div className="p-3"><SkillsPanel onClose={() => setShowSkills(false)} /></div>
                     : showChain
                       ? <ChainGraphEditor onClose={() => setShowChain(false)} />
-                      : <MediaLibraryGrid cols={mediaLibCols} search={mediaLibSearch} animateIn={loaded} />
+                      : <MediaLibraryGrid cols={mediaLibCols} onColsChange={setMediaLibCols} search={mediaLibSearch} animateIn={loaded} />
               }
               {!showStorage && (
                 <div className="absolute bottom-0 left-0 right-0 z-10">
