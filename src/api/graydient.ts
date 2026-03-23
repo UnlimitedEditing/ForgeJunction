@@ -147,7 +147,8 @@ export function connectRenderWebSocket(
   signal?: AbortSignal,
   onClose?: () => void
 ): () => void {
-  const url = `wss://app.graydient.ai/render-events/${renderHash}?token=${getApiKey()}`
+  const wsBase = BASE_URL.replace(/^https?:\/\//, 'wss://').replace(/\/api\/.*$/, '')
+  const url = `${wsBase}/render-events/${renderHash}?token=${getApiKey()}`
   let ws: WebSocket | null = null
   try {
     ws = new WebSocket(url)

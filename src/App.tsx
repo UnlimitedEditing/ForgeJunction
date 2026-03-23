@@ -13,7 +13,7 @@ import Onboarding from '@/components/Onboarding'
 import Settings from '@/components/Settings'
 import ChainGraphEditor from '@/components/ChainGraphEditor'
 import ChainTemplatePane from '@/components/ChainTemplatePane'
-import TooscutEditor from '@/components/TooscutEditor'
+import VideoEditor from '@/components/VideoEditor'
 import StorageManager from '@/components/StorageManager'
 import ProjectManager from '@/components/ProjectManager'
 import SkillsPanel from '@/components/SkillsPanel'
@@ -46,6 +46,11 @@ function MainLayout({ loaded }: { loaded: boolean }): React.ReactElement {
   const [showDebugReport, setShowDebugReport] = useState(false)
   const [showChain, setShowChain] = useState(false)
   const [showVideoEditor, setShowVideoEditor] = useState(false)
+  // In production the Omniclip server starts with the app, so we always mount
+  // the editor iframe in the background for instant open.  In dev the server
+  // may not be running yet, so we mount lazily to avoid ERR_CONNECTION_REFUSED.
+  const editorPreload = import.meta.env.PROD
+  const [editorReady, setEditorReady] = useState(!import.meta.env.PROD)
   const [showStorage, setShowStorage] = useState(false)
   const [showProjects, setShowProjects] = useState(false)
   const [showSkills, setShowSkills] = useState(false)
@@ -150,8 +155,13 @@ function MainLayout({ loaded }: { loaded: boolean }): React.ReactElement {
             <button
               onClick={() => setShowVideoEditor(v => !v)}
               className="w-6 h-6 flex items-center justify-center rounded text-sm text-white/35 hover:text-white hover:bg-white/8 transition-colors"
-              title="Video Editor"
-            >✂</button>
+              title={editorReady ? 'Video Editor' : 'Video Editor (loading…)'}
+            >
+              {editorReady
+                ? '✂'
+                : <div className="w-3 h-3 rounded-full border border-white/25 border-t-white/60 animate-spin" />
+              }
+            </button>
             <button
               onClick={() => setShowChain(v => !v)}
               className={`w-6 h-6 flex items-center justify-center rounded text-sm transition-colors ${showChain ? 'text-brand bg-brand/10' : 'text-white/35 hover:text-white hover:bg-white/8'}`}
@@ -271,12 +281,17 @@ function MainLayout({ loaded }: { loaded: boolean }): React.ReactElement {
           </aside>
         )}
 
-        {/* Video editor — full width when open */}
-        {showVideoEditor ? (
-          <div className="flex flex-1 min-w-0 min-h-0">
-            <TooscutEditor onClose={() => setShowVideoEditor(false)} />
+        {/* Video editor — preloaded in prod for instant open; lazy in dev */}
+        {(editorPreload || showVideoEditor) && (
+          <div className={showVideoEditor ? 'flex flex-1 min-w-0 min-h-0' : 'hidden'}>
+            <VideoEditor
+              onClose={() => setShowVideoEditor(false)}
+              onReady={() => setEditorReady(true)}
+            />
           </div>
-        ) : (
+        )}
+
+        {!showVideoEditor && (
           <>
             {/* Center — Media Library / Chain Builder / Storage Manager + floating Prompt Editor */}
             <main className="flex flex-1 flex-col border-r border-white/10 bg-neutral-900 min-h-0 overflow-hidden relative">

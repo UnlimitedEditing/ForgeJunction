@@ -115,9 +115,9 @@ contextBridge.exposeInMainWorld('electron', {
     },
   },
 
-  // Tooscut embedded editor URL
-  tooscut: {
-    getUrl: (): Promise<string> => ipcRenderer.invoke('tooscut:get-url'),
+  // Embedded video editor URL
+  editor: {
+    getUrl: (): Promise<string> => ipcRenderer.invoke('editor:get-url'),
   },
 
   // Storage manager

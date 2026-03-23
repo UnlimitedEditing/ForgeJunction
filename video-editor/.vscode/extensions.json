@@ -1,4 +1,0 @@
-{
-  "recommendations": ["oxc.oxc-vscode"],
-  "unwantedRecommendations": ["eslint.vscode-eslint"]
-}

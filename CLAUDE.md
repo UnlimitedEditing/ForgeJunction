@@ -101,21 +101,58 @@ src/
 
 ## Video Editor Integration
 
-The `video-editor/` subdirectory contains Tooscut, an open-source NLE with a
-GPU-accelerated Rust/WASM render engine. See `video-editor/CLAUDE.md` for its
-full architecture.
+> **STATUS (2026-03-23): Tooscut is being replaced by Omniclip.**
+> Full migration plan: `docs/omniclip-integration-roadmap.md`
+> Protocol spec (editor-agnostic): `docs/editor-integration-spec.md`
 
-### Integration approach
-- Tooscut runs as a secondary BrowserWindow, loaded from `dist-editor/`
-- IPC channel: `video-editor:*` — handlers in `electron/videoEditorBridge.ts`
-- Assets passed from canvas to editor via `video-editor:import-asset` with a
-  local file path
-- Editor exports back to ForgeJunction via `video-editor:export-complete`
+### Current state
+- `video-editor/` — Tooscut NLE source (being phased out, do not extend)
+- `alt-editor/omniclip-main/` — Omniclip NLE source (active replacement)
+- Bridge files in Omniclip are complete; Electron wiring is Phase 2 of the roadmap
 
-### Build
-- `npm run build:editor` compiles Tooscut (runs `pnpm build` in `video-editor/`)
-- Output goes to `dist-editor/` and is copied into the Electron app package
-- WASM build requires Rust toolchain — see `video-editor/CLAUDE.md`
+### Omniclip stack
+- **Lit.js** web components via `@benev/slate` signals
+- **PixiJS** 2D WebGL compositor + **GSAP** animations + **FFmpeg.wasm** export
+- Build: `npm run build` inside `alt-editor/omniclip-main/` → output to `x/`
+- Dev: `npm start` (turtle-standard-watch) + `npx serve x -p 3000`
+
+### FJ ↔ Editor postMessage protocol
+All communication crosses the iframe boundary via `postMessage`.
+
+**FJ → editor:**
+- `fj:sync-library { assets }` — full asset sync on load
+- `fj:add-asset { asset }` — single asset from "+" button in media bin
+- `fj:import-tag { assets, tagName }` — place N-th tagged clip at N-th marker
+- `fj:sync-tags { tags, tagAssets }` — tag metadata for Project panel
+
+**Editor → FJ:**
+- `fj:bridge-ready` — editor mounted, triggers FJ re-sync
+
+### Integration files (FJ side)
+- `src/components/TooscutEditor.tsx` — iframe host + FJ media bin sidebar
+  (rename to `VideoEditor.tsx` in Phase 3)
+- `src/stores/tags.ts` — FJ tag system (per-tile, color, index ordering)
+- `src/components/MediaLibraryGrid.tsx` — tag assignment UI on media tiles
+- `electron/main.ts` — spawns editor server, handles `tooscut:get-url` IPC
+- `electron/preload.ts` — exposes `window.electron.tooscut.getUrl()`
+
+### Integration files (Omniclip side, in `alt-editor/omniclip-main/s/`)
+- `context/fj-bridge.ts` — postMessage bridge (NEW, complete)
+- `context/types.ts` — `FjMarker`, `FjTag`, `FjTagAsset` types added
+- `context/actions.ts` — `add_marker`, `remove_marker`, `clear_markers`, `set_fj_tags`
+- `context/controllers/shortcuts/controller.ts` — M / Ctrl+M / Shift+M shortcuts
+- `components/omni-timeline/views/time-ruler/` — amber marker diamonds + dashed lines
+
+### Roadmap phases
+| Phase | Task | Status |
+|---|---|---|
+| 1 | Omniclip build smoke test | **complete** |
+| 2 | Electron serves Omniclip (replace Tooscut server) | **next** |
+| 3 | Rename FJ wrapper component to `VideoEditor` | pending |
+| 4 | Omniclip Project panel (markers list + tag→markers UI) | pending |
+| 5 | Delete `video-editor/` (Tooscut) | pending |
+| 6 | Strip PostHog analytics from Omniclip | optional |
+| 7 | Strip Sparrow RTC collaboration from Omniclip | optional |
 
 ## Things to test before beta
 - Wire connections end-to-end after the `pendingEdgeRef` fix
@@ -124,3 +161,6 @@ full architecture.
 - Audio file drops onto canvas — should create a MediaNode with `<audio>` player
 - NSFW toggle — tagged renders disappear/blur correctly, persist across restarts
 - MethodBrowserNode singleton — opening from toolbar twice should only show one node
+- **[NEW]** Marker shortcuts (M / Ctrl+M / Shift+M) work in Omniclip timeline
+- **[NEW]** Tag→markers import places clips at correct timeline positions
+- **[NEW]** FJ media bin assets appear in Omniclip media library after sync

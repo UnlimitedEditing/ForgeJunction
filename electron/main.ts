@@ -1,8 +1,9 @@
 import { app, BrowserWindow, shell, Menu, ipcMain } from 'electron'
 import { join } from 'path'
-import { writeFileSync, readFileSync, existsSync, mkdirSync, readdirSync } from 'fs'
-import { createServer } from 'net'
-import { spawn, type ChildProcess } from 'child_process'
+import { writeFileSync, readFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'fs'
+import { createServer as createNetServer } from 'net'
+import { createServer as createHttpServer } from 'http'
+import { extname } from 'path'
 import { isApiKeyStored, storeApiKey, retrieveApiKey, deleteApiKey } from './services/keystore'
 import { patchMainConsole, registerIpcHandlers } from './debugReporter'
 import { autoUpdater } from 'electron-updater'
@@ -15,14 +16,30 @@ app.commandLine.appendSwitch('disable-gpu-shader-disk-cache')
 
 const isDev = !app.isPackaged
 
-// ── Tooscut embedded server ────────────────────────────────────────────────────
+// ── Omniclip embedded server ───────────────────────────────────────────────────
 
-let tooscutUrl = 'http://localhost:4200' // dev default
-let tooscutProcess: ChildProcess | null = null
+// Dev: run `npx serve x -p 3000` in alt-editor/omniclip-main (or `npm start` + serve)
+let tooscutUrl = 'http://localhost:3000' // dev default
+let omniclipServer: ReturnType<typeof createHttpServer> | null = null
+
+const OMNICLIP_MIME: Record<string, string> = {
+  '.html': 'text/html; charset=utf-8',
+  '.js':   'application/javascript',
+  '.mjs':  'application/javascript',
+  '.css':  'text/css',
+  '.json': 'application/json',
+  '.svg':  'image/svg+xml',
+  '.png':  'image/png',
+  '.ico':  'image/x-icon',
+  '.wasm': 'application/wasm',
+  '.mp4':  'video/mp4',
+  '.webm': 'video/webm',
+  '.mp3':  'audio/mpeg',
+}
 
 function getFreePort(): Promise<number> {
   return new Promise((resolve, reject) => {
-    const srv = createServer()
+    const srv = createNetServer()
     srv.listen(0, '127.0.0.1', () => {
       const addr = srv.address()
       srv.close(() => resolve(typeof addr === 'object' && addr ? addr.port : 0))
@@ -31,29 +48,42 @@ function getFreePort(): Promise<number> {
   })
 }
 
-async function startTooscutServer(): Promise<void> {
-  if (isDev) return // dev uses the pnpm dev server
-  const serverEntry = join(process.resourcesPath, 'tooscut', 'server', 'index.mjs')
-  if (!existsSync(serverEntry)) {
-    console.warn('[Tooscut] server entry not found:', serverEntry)
+async function startOmniclipServer(): Promise<void> {
+  if (isDev) return // dev: serve x/ manually on port 3000
+  const staticDir = join(process.resourcesPath, 'omniclip')
+  if (!existsSync(staticDir)) {
+    console.warn('[Omniclip] static dir not found:', staticDir)
     return
   }
   const port = await getFreePort()
   tooscutUrl = `http://127.0.0.1:${port}`
-  tooscutProcess = spawn(process.execPath, [serverEntry], {
-    env: { ...process.env, PORT: String(port), HOST: '127.0.0.1' },
-    stdio: 'pipe',
+  omniclipServer = createHttpServer((req, res) => {
+    let filePath = join(staticDir, (req.url ?? '/').split('?')[0])
+    // Fall back to index.html for directory requests or missing files
+    try {
+      if (!existsSync(filePath) || statSync(filePath).isDirectory()) {
+        filePath = join(staticDir, 'index.html')
+      }
+    } catch {
+      filePath = join(staticDir, 'index.html')
+    }
+    const mime = OMNICLIP_MIME[extname(filePath)] ?? 'application/octet-stream'
+    // COOP/COEP headers are intentionally NOT set here — coi-serviceworker.js
+    // handles cross-origin isolation transparently so CDN resources (PixiJS,
+    // Shoelace) can load on the first visit before the SW is active.
+    res.writeHead(200, { 'Content-Type': mime })
+    res.end(readFileSync(filePath))
   })
-  tooscutProcess.stdout?.on('data', (d) => console.log('[Tooscut]', String(d).trim()))
-  tooscutProcess.stderr?.on('data', (d) => console.error('[Tooscut]', String(d).trim()))
-  tooscutProcess.on('error', (e) => console.error('[Tooscut] process error:', e))
-  console.log(`[Tooscut] server started on ${tooscutUrl}`)
+  omniclipServer.listen(port, '127.0.0.1', () => {
+    console.log(`[Omniclip] static server on ${tooscutUrl}`)
+  })
+  omniclipServer.on('error', (e) => console.error('[Omniclip] server error:', e))
 }
 
 app.on('will-quit', () => {
-  if (tooscutProcess) {
-    tooscutProcess.kill()
-    tooscutProcess = null
+  if (omniclipServer) {
+    omniclipServer.close()
+    omniclipServer = null
   }
 })
 
@@ -73,7 +103,10 @@ function createMainWindow(): BrowserWindow {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
-      webSecurity: false
+      // webSecurity must stay false: the Graydient API doesn't send CORS headers
+      // (it's a native-app API). The "Disabled webSecurity" dev warning is
+      // expected and intentional — it does NOT appear in packaged builds.
+      webSecurity: false,
     }
   })
 
@@ -343,7 +376,7 @@ function setupIpc(): void {
 
   ipcMain.handle('app:get-version', () => app.getVersion())
 
-  ipcMain.handle('tooscut:get-url', () => tooscutUrl)
+  ipcMain.handle('editor:get-url', () => tooscutUrl)
 
   // Suppress unused import warning — isApiKeyStored used for future extensibility
   void isApiKeyStored
@@ -411,7 +444,9 @@ function setupAutoUpdater(win: BrowserWindow): void {
 // ── App Lifecycle ─────────────────────────────────────────────────────────────
 
 app.whenReady().then(async () => {
-  await startTooscutServer()
+  // The Graydient API doesn't send CORS headers (it's not a web-facing origin).
+  // Inject them for the renderer so fetch() calls work with webSecurity enabled.
+  await startOmniclipServer()
   await initInstanceTracker()
   pingTracker('launch')
   patchMainConsole()
