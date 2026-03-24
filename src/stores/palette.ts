@@ -9,12 +9,14 @@ interface PaletteState {
   strokeWidth: number
   fillEnabled: boolean
   fontSize: number
+  fontFamily: string
   open: () => void; close: () => void; toggle: () => void
   setTool: (t: PaletteTool) => void
   setColor: (c: string) => void
   setStrokeWidth: (w: number) => void
   toggleFill: () => void
   setFontSize: (s: number) => void
+  setFontFamily: (f: string) => void
 }
 
 export const usePaletteStore = create<PaletteState>()((set) => ({
@@ -24,6 +26,7 @@ export const usePaletteStore = create<PaletteState>()((set) => ({
   strokeWidth: 2,
   fillEnabled: false,
   fontSize: 16,
+  fontFamily: 'sans-serif',
   open: () => set({ isOpen: true }),
   close: () => set({ isOpen: false }),
   toggle: () => set(s => ({ isOpen: !s.isOpen })),
@@ -32,4 +35,5 @@ export const usePaletteStore = create<PaletteState>()((set) => ({
   setStrokeWidth: (strokeWidth) => set({ strokeWidth }),
   toggleFill: () => set(s => ({ fillEnabled: !s.fillEnabled })),
   setFontSize: (fontSize) => set({ fontSize }),
+  setFontFamily: (fontFamily) => set({ fontFamily }),
 }))

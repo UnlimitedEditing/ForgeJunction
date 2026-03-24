@@ -107,8 +107,9 @@ export default function RadialMenu({ screenX, screenY, modifiers, context, onAct
   }, [showUtility])
 
   const staticUtilityItems: UtilityItem[] = [
-    { id: 'add-utility-videoeditorout', label: 'Video Editor Out', icon: '✂', description: 'Receives video exports from the editor' },
+    { id: 'add-media-library',          label: 'Media Library',     icon: '⊞', description: 'Browse & drag rendered outputs onto canvas' },
     { id: 'add-utility-bin',            label: 'Bin Node',          icon: '⬡', description: 'Collects and routes rendered outputs' },
+    { id: 'add-utility-videoeditorout', label: 'Video Editor Out',  icon: '✂', description: 'Receives video exports from the editor' },
   ]
 
   const chainItems: UtilityItem[] = templates.map(t => ({

@@ -267,10 +267,11 @@ function MainLayout({ loaded }: { loaded: boolean }): React.ReactElement {
             )}
           </div>
 
-          {/* Right section — Output label */}
+          {/* Right section — canvas label */}
           <div className="w-96 flex-shrink-0 flex items-center px-4">
-            <span className="text-[10px] font-semibold uppercase tracking-widest text-white/60 select-none">
-              Output History
+            <span className="text-[10px] font-semibold uppercase tracking-widest select-none transition-colors"
+              style={{ color: showCanvas ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.60)' }}>
+              {showCanvas ? 'Infinite Canvas' : 'Output History'}
             </span>
             {activeProject && (
               <div className="flex items-center gap-1.5 ml-auto">

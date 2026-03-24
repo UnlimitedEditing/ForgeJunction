@@ -9,6 +9,7 @@ interface LiveDrawState {
   width?: number
   fillEnabled?: boolean
   marquee?: { x: number; y: number; w: number; h: number } | null
+  textDragBox?: { x: number; y: number; w: number; h: number } | null
 }
 
 interface Props {
@@ -37,7 +38,15 @@ function AnnotationShape({ a }: { a: Annotation }) {
     if (a.shapeType === 'line') return <line x1={a.x} y1={a.y} x2={a.x + a.w} y2={a.y + a.h} stroke={a.color} strokeWidth={a.width} opacity={a.opacity} />
   }
   if (a.type === 'text') {
-    return <text x={a.x} y={a.y} fill={a.color} fontSize={a.fontSize} fontFamily="sans-serif" opacity={a.opacity}>{a.text}</text>
+    const lines = a.text.split('\n')
+    const lineH = a.fontSize * 1.2
+    return (
+      <g opacity={a.opacity}>
+        {lines.map((line, i) => (
+          <text key={i} x={a.x} y={a.y + i * lineH} fill={a.color} fontSize={a.fontSize} fontFamily={a.fontFamily ?? 'sans-serif'}>{line}</text>
+        ))}
+      </g>
+    )
   }
   return null
 }
@@ -105,6 +114,31 @@ export default function DrawingLayer({ zoomForDash, live, annotationIds }: Props
               strokeWidth={1.5 / zoomForDash}
               strokeDasharray={`${8 / zoomForDash} ${4 / zoomForDash}`} />
       )}
+
+      {/* Text tool drag-size preview */}
+      {live?.textDragBox && live.tool === 'text' && (
+        <>
+          <rect
+            x={live.textDragBox.x} y={live.textDragBox.y}
+            width={Math.max(live.textDragBox.w, 1)} height={Math.max(live.textDragBox.h, 1)}
+            fill="rgba(108,71,255,0.04)"
+            stroke={liveColor}
+            strokeWidth={1.5 / zoomForDash}
+            strokeDasharray={`${6 / zoomForDash} ${3 / zoomForDash}`}
+          />
+          {live.textDragBox.h > 12 / zoomForDash && (
+            <text
+              x={live.textDragBox.x + live.textDragBox.w / 2}
+              y={live.textDragBox.y + live.textDragBox.h * 0.82}
+              fill={liveColor}
+              fontSize={live.textDragBox.h * 0.75}
+              fontFamily="sans-serif"
+              textAnchor="middle"
+              opacity={0.45}
+            >Aa</text>
+          )}
+        </>
+      )}
       </g>
     </svg>
   )
@@ -147,8 +181,12 @@ export function drawAnnotationsToCanvas(
       }
     } else if (a.type === 'text') {
       ctx.fillStyle = a.color
-      ctx.font = `${a.fontSize}px sans-serif`
-      ctx.fillText(a.text, a.x - offsetX, a.y - offsetY)
+      ctx.font = `${a.fontSize}px ${a.fontFamily ?? 'sans-serif'}`
+      const lines = a.text.split('\n')
+      const lineH = a.fontSize * 1.2
+      lines.forEach((line, i) => {
+        ctx.fillText(line, a.x - offsetX, a.y - offsetY + i * lineH)
+      })
     }
     ctx.restore()
   }

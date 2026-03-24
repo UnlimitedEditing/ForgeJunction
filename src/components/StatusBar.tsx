@@ -1,9 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
-import SkillStar from '@/components/icons/SkillStar'
 import { useRenderQueueStore } from '@/stores/renderQueue'
 import { useChainGraphStore, findComponents } from '@/stores/chainGraph'
 import WorkflowGalleryPopup from '@/components/WorkflowGalleryPopup'
-import InspirationFeed from '@/components/InspirationFeed'
 
 export default function StatusBar(): React.ReactElement {
   const { queue, maxConcurrent, totalRendersThisSession, cancelById } = useRenderQueueStore()
@@ -26,7 +24,7 @@ export default function StatusBar(): React.ReactElement {
   const [elapsedSec, setElapsedSec] = useState(0)
   const [popupOpen, setPopupOpen] = useState(false)
   const [galleryOpen, setGalleryOpen] = useState(false)
-  const [inspirationOpen, setInspirationOpen] = useState(false)
+  const [brandHover, setBrandHover] = useState(false)
   const popupRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
 
@@ -68,33 +66,35 @@ export default function StatusBar(): React.ReactElement {
   return (
     <>
       <WorkflowGalleryPopup open={galleryOpen} onClose={() => setGalleryOpen(false)} />
-      {inspirationOpen && <InspirationFeed onClose={() => setInspirationOpen(false)} />}
 
     <div className="fixed bottom-0 left-0 right-0 h-7 bg-neutral-900 border-t border-neutral-800 flex items-center px-3 font-mono text-xs z-50 gap-4 select-none">
-      {/* Left — inspiration + gallery toggles + render status */}
+      {/* Left — brand label + render status */}
       <div className="flex items-center gap-3 flex-1 min-w-0 overflow-hidden">
-        <button
-          onClick={() => setInspirationOpen((v) => !v)}
-          className={`flex-shrink-0 flex items-center gap-1 rounded px-1.5 py-0.5 transition-colors ${
-            inspirationOpen
-              ? 'text-brand bg-brand/10'
-              : 'text-white/70 hover:text-white/70 hover:bg-white/5'
-          }`}
-          title="Inspiration feed"
+        <div
+          className="relative flex-shrink-0 flex items-center"
+          onMouseEnter={() => setBrandHover(true)}
+          onMouseLeave={() => setBrandHover(false)}
         >
-          <SkillStar size={11} className="inline-block align-middle mr-0.5" /> Inspiration
-        </button>
-        <button
-          onClick={() => setGalleryOpen((v) => !v)}
-          className={`flex-shrink-0 flex items-center gap-1 rounded px-1.5 py-0.5 transition-colors ${
-            galleryOpen
-              ? 'text-brand bg-brand/10'
-              : 'text-white/70 hover:text-white/70 hover:bg-white/5'
-          }`}
-          title="Workflow gallery"
-        >
-          ◫ Find More Workflows
-        </button>
+          <span className="text-[10px] font-semibold tracking-widest uppercase text-brand/80 cursor-default select-none leading-none">
+            FORGEJUNCTION
+          </span>
+          {brandHover && (
+            <div className="absolute bottom-6 left-0 w-64 bg-neutral-800 border border-neutral-700 rounded-md shadow-xl p-3 z-50">
+              <p className="text-white/80 text-xs leading-relaxed mb-2.5">
+                Thank you for being part of the Forge Junction alpha. Your feedback means everything — we're building this for you.
+              </p>
+              <button
+                onClick={() => window.open('https://t.me/unlimitedediting', '_blank')}
+                className="w-full flex items-center justify-center gap-2 rounded bg-brand/20 hover:bg-brand/30 border border-brand/30 text-brand text-xs py-1.5 transition-colors"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248-1.97 9.288c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.085 14.42l-2.953-.924c-.643-.204-.657-.643.136-.953l11.52-4.44c.537-.194 1.006.131.774.144z"/>
+                </svg>
+                Contact @unlimitedediting
+              </button>
+            </div>
+          )}
+        </div>
         {chainRunning && (
           <span className="shrink-0 text-brand/70">
             ⛓ Chain {chainDone}/{chainTotal} · {chainCount} chain{chainCount !== 1 ? 's' : ''}

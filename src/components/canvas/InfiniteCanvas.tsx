@@ -1,6 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react'
 import { useCanvasStore, type CanvasNode, OUTPUT_HEADER_H, outputPortRelY } from '@/stores/canvasStore'
-import { useRenderQueueStore } from '@/stores/renderQueue'
 import PromptNode from './PromptNode'
 import SkillNode from './SkillNode'
 import SkillsBrowserNode from './SkillsBrowserNode'
@@ -14,8 +13,9 @@ import MediaLightbox from './MediaLightbox'
 import DrawingLayer from './DrawingLayer'
 import PaletteDock from './PaletteDock'
 import ArtNode from './ArtNode'
+import MediaLibraryBrowserNode from './MediaLibraryBrowserNode'
 import { usePaletteStore } from '@/stores/palette'
-import { useAnnotationStore } from '@/stores/annotations'
+import { useAnnotationStore, type TextAnnotation } from '@/stores/annotations'
 import { useUndoHistory } from '@/stores/undoHistory'
 
 const MIN_ZOOM = 0.08
@@ -124,109 +124,12 @@ function isEdgeHighlighted(edge: { fromItemIndex: number | null }, fromNode: Can
   return fromNode.selectedOutputIndex === edge.fromItemIndex
 }
 
-// ── Canvas Output History HUD ───────────────────────────────────────────────
-
-function CanvasHistoryHUD(): React.ReactElement {
-  const queue = useRenderQueueStore(s => s.queue)
-  const [open, setOpen] = useState(false)
-
-  // Last 5 renders: active/streaming first, then most-recent by submittedAt
-  const recent = [...queue]
-    .sort((a, b) => {
-      const activeOrder = (r: typeof a) => (r.status === 'active' || r.status === 'streaming') ? 0 : 1
-      return activeOrder(a) - activeOrder(b) || b.submittedAt - a.submittedAt
-    })
-    .slice(0, 5)
-
-  const activeCount = queue.filter(r => r.status === 'active' || r.status === 'streaming' || r.status === 'queued').length
-
-  return (
-    <div
-      className="absolute top-3 right-3 z-30 flex flex-col items-end gap-1.5 pointer-events-none"
-    >
-      {/* Label / trigger */}
-      <div
-        className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-black/30 border border-white/8 cursor-default select-none backdrop-blur-sm pointer-events-auto"
-        onMouseEnter={() => setOpen(true)}
-        onMouseLeave={() => setOpen(false)}
-      >
-        {activeCount > 0 && <div className="w-1.5 h-1.5 rounded-full bg-brand animate-pulse flex-shrink-0" />}
-        <span className="text-[10px] text-white/60 font-mono">Output History</span>
-        {queue.length > 0 && (
-          <span className="text-[9px] text-white/45 tabular-nums">{queue.length}</span>
-        )}
-      </div>
-
-      {/* Feed panel */}
-      {open && recent.length > 0 && (
-        <div
-          className="flex flex-col gap-1 w-52 bg-black/70 border border-white/10 rounded-lg p-1.5 backdrop-blur-sm shadow-2xl pointer-events-auto"
-          onMouseEnter={() => setOpen(true)}
-          onMouseLeave={() => setOpen(false)}
-        >
-          {recent.map(r => {
-            const isActive = r.status === 'active' || r.status === 'streaming'
-            const isQueued = r.status === 'queued'
-            const isDone   = r.status === 'done'
-            const isError  = r.status === 'error'
-            const thumb    = r.resultUrls?.[0]?.url ?? r.resultUrl ?? null
-            const mediaType = r.resultUrls?.[0]?.mediaType ?? r.mediaType
-
-            return (
-              <div key={r.id} className="flex items-center gap-2 px-1.5 py-1 rounded-md hover:bg-white/5 transition-colors">
-                {/* Thumbnail / status indicator */}
-                <div className="w-9 h-9 rounded flex-shrink-0 overflow-hidden bg-white/5 flex items-center justify-center">
-                  {isDone && thumb && (mediaType === 'video' ? (
-                    <video src={thumb} className="w-full h-full object-cover" muted />
-                  ) : mediaType === 'audio' ? (
-                    <span className="text-[14px]">🎵</span>
-                  ) : (
-                    <img src={thumb} className="w-full h-full object-cover" draggable={false} />
-                  ))}
-                  {(isActive || isQueued) && (
-                    <div className="w-full h-full flex items-center justify-center">
-                      {isActive ? (
-                        <div className="w-2 h-2 rounded-full bg-brand animate-pulse" />
-                      ) : (
-                        <div className="w-2 h-2 rounded-full bg-amber-400/60" />
-                      )}
-                    </div>
-                  )}
-                  {isError && <span className="text-[10px]">✕</span>}
-                </div>
-
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <div className="text-[10px] text-white/82 truncate font-mono">{r.workflowSlug}</div>
-                  <div className="flex items-center gap-1 mt-0.5">
-                    {isActive && (
-                      <>
-                        <div className="h-0.5 flex-1 rounded-full bg-white/10 overflow-hidden">
-                          <div className="h-full rounded-full bg-brand/70 transition-all duration-500" style={{ width: `${r.progress}%` }} />
-                        </div>
-                        <span className="text-[8px] text-white/50 tabular-nums flex-shrink-0">{r.progress}%</span>
-                      </>
-                    )}
-                    {isQueued  && <span className="text-[9px] text-amber-400/50">queued</span>}
-                    {isDone    && <span className="text-[9px] text-emerald-400/60">done</span>}
-                    {isError   && <span className="text-[9px] text-red-400/60 truncate">{r.error ?? 'error'}</span>}
-                  </div>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
-    </div>
-  )
-}
-
 // ── Component ──────────────────────────────────────────────────────────────
 
 export default function InfiniteCanvas({ onOpenSettings }: Props): React.ReactElement {
   const {
     nodes, edges, viewport, setViewport,
-    addPromptNode, addSkillNode, addSkillsBrowserNode, addBinNode, addMediaNode, addMethodNode, addChainNode, addInputMedia, addVideoEditorOutNode,
+    addPromptNode, addSkillNode, addSkillsBrowserNode, addBinNode, addMediaNode, addMethodNode, addMediaLibraryNode, addChainNode, addInputMedia, addVideoEditorOutNode,
     addArtNode, skinNode,
     updateNode, removeNode, duplicateNode, addEdge,
     setSelectedNode, setSelectedNodes, selectedNodeIds,
@@ -234,20 +137,22 @@ export default function InfiniteCanvas({ onOpenSettings }: Props): React.ReactEl
     clearCanvas,
   } = useCanvasStore()
 
-  const { isOpen: paletteOpen, activeTool, color: drawColor, strokeWidth, fillEnabled, fontSize, toggle: togglePalette, setTool } = usePaletteStore()
-  const { addStroke, addShape, addText: addAnnotationText, getInBounds } = useAnnotationStore()
+  const { isOpen: paletteOpen, activeTool, color: drawColor, strokeWidth, fillEnabled, fontSize, fontFamily, toggle: togglePalette, setTool, setFontFamily } = usePaletteStore()
+  const { annotations, addStroke, addShape, addText: addAnnotationText, updateAnnotation, deleteAnnotation, getInBounds } = useAnnotationStore()
 
   // Live drawing state
   const [livePoints, setLivePoints] = useState<number[]>([])
   const [liveShape, setLiveShape] = useState<{ x: number; y: number; w: number; h: number; startX: number; startY: number } | null>(null)
   const [liveTextPos, setLiveTextPos] = useState<{ x: number; y: number } | null>(null)
   const [liveText, setLiveText] = useState('')
+  const [textDragFontSize, setTextDragFontSize] = useState<number | null>(null)
+  const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null)
   const [annotationMarquee, setAnnotationMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
 
   const liveDrawRef = useRef(false)
   const drawStartRef = useRef<{ x: number; y: number } | null>(null)
   const livePointsRef = useRef<number[]>([])
-  const textInputRef = useRef<HTMLInputElement>(null)
+  const textInputRef = useRef<HTMLTextAreaElement>(null)
   // Proximity detection — rAF throttled
   const proxRafRef   = useRef<number | null>(null)
   const lastMouseRef = useRef({ x: 0, y: 0 })
@@ -399,6 +304,11 @@ export default function InfiniteCanvas({ onOpenSettings }: Props): React.ReactEl
     if (liveTextPos) setTimeout(() => textInputRef.current?.focus(), 16)
   }, [liveTextPos])
 
+  // Deselect text annotation when switching away from text tool
+  useEffect(() => {
+    if (activeTool !== 'text') setSelectedAnnotationId(null)
+  }, [activeTool])
+
   // Non-passive wheel
   useEffect(() => {
     const el = containerRef.current
@@ -478,11 +388,27 @@ export default function InfiniteCanvas({ onOpenSettings }: Props): React.ReactEl
   }
 
   function onMouseDown(e: React.MouseEvent) {
-    // Text tool placement
+    // Text tool: hit-test existing annotations for selection, else start size-drag
     if (isDrawingActive && activeTool === 'text' && e.button === 0) {
+      e.stopPropagation()
       const wp = toWorld(e.clientX, e.clientY)
-      setLiveTextPos(wp)
-      setLiveText('')
+      const tol = 10 / viewport.zoom
+      const hit = annotations.find(a => {
+        if (a.type !== 'text') return false
+        const ta = a as TextAnnotation
+        const lines = ta.text.split('\n')
+        const totalH = ta.fontSize * 1.2 * lines.length
+        return wp.x >= ta.x - tol && wp.x <= ta.x + 400 / viewport.zoom + tol
+            && wp.y >= ta.y - ta.fontSize - tol && wp.y <= ta.y - ta.fontSize + totalH + tol
+      })
+      if (hit) {
+        setSelectedAnnotationId(hit.id)
+        return
+      }
+      setSelectedAnnotationId(null)
+      liveDrawRef.current = true
+      drawStartRef.current = wp
+      setLiveShape({ x: wp.x, y: wp.y, w: 0, h: 0, startX: wp.x, startY: wp.y })
       return
     }
 
@@ -502,7 +428,7 @@ export default function InfiniteCanvas({ onOpenSettings }: Props): React.ReactEl
     }
 
     // Drawing tool
-    if (isDrawingActive && e.button === 0) {
+    if (isDrawingActive && activeTool !== 'text' && e.button === 0) {
       e.stopPropagation()
       const wp = toWorld(e.clientX, e.clientY)
       liveDrawRef.current = true
@@ -539,7 +465,7 @@ export default function InfiniteCanvas({ onOpenSettings }: Props): React.ReactEl
       if (activeTool === 'pen') {
         livePointsRef.current = [...livePointsRef.current, wp.x, wp.y]
         setLivePoints([...livePointsRef.current])
-      } else if (activeTool === 'rect' || activeTool === 'ellipse' || activeTool === 'line') {
+      } else if (activeTool === 'rect' || activeTool === 'ellipse' || activeTool === 'line' || activeTool === 'text') {
         const x = Math.min(sx, wp.x), y = Math.min(sy, wp.y)
         setLiveShape({ x, y, w: Math.abs(wp.x - sx), h: Math.abs(wp.y - sy), startX: sx, startY: sy })
       } else if (activeTool === 'select' || isSelectAnnotation) {
@@ -590,11 +516,18 @@ export default function InfiniteCanvas({ onOpenSettings }: Props): React.ReactEl
           if (!newNearOutput) {
             const allItems = n.runs?.flatMap((r: any) => r.items) ?? []
             if ((n.type === 'prompt' || n.type === 'skill') && allItems.length > 0) {
-              for (let i = 0; i < allItems.length; i++) {
-                const portPos = promptOutputPortWorld(n, i)
-                const sx = portPos.x * vp.zoom + vp.x + cRect.left
-                const sy = portPos.y * vp.zoom + vp.y + cRect.top
-                if (Math.hypot(mx - sx, my - sy) < PROX) { newNearOutput = n.id; break }
+              if (n.outputCollapsed) {
+                // Single collapsed port in the output-header row
+                const sx = (n.position.x + n.size.w) * vp.zoom + vp.x + cRect.left
+                const sy = (n.position.y + n.size.h + OUTPUT_HEADER_H / 2) * vp.zoom + vp.y + cRect.top
+                if (Math.hypot(mx - sx, my - sy) < PROX) newNearOutput = n.id
+              } else {
+                for (let i = 0; i < allItems.length; i++) {
+                  const portPos = promptOutputPortWorld(n, i)
+                  const sx = portPos.x * vp.zoom + vp.x + cRect.left
+                  const sy = portPos.y * vp.zoom + vp.y + cRect.top
+                  if (Math.hypot(mx - sx, my - sy) < PROX) { newNearOutput = n.id; break }
+                }
               }
             } else {
               const sx = (n.position.x + n.size.w) * vp.zoom + vp.x + cRect.left
@@ -615,7 +548,19 @@ export default function InfiniteCanvas({ onOpenSettings }: Props): React.ReactEl
       liveDrawRef.current = false
       const pts = livePointsRef.current
 
-      if (activeTool === 'pen' && pts.length >= 4) {
+      if (activeTool === 'text' && liveShape) {
+        // Height of drag box = font size for this text entry
+        const minDragWorld = 8 / viewport.zoom
+        const derived = liveShape.h > minDragWorld ? liveShape.h : fontSize
+        setTextDragFontSize(derived)
+        // y = baseline (top of drag box + fontSize)
+        setLiveTextPos({ x: liveShape.x, y: liveShape.y + derived })
+        setLiveText('')
+        setLiveShape(null)
+        drawStartRef.current = null
+        livePointsRef.current = []
+        return
+      } else if (activeTool === 'pen' && pts.length >= 4) {
         addStroke({ type: 'stroke', points: pts, color: drawColor, width: strokeWidth, opacity: 1 })
       } else if ((activeTool === 'rect' || activeTool === 'ellipse' || activeTool === 'line') && liveShape && liveShape.w > 2) {
         addShape({ type: 'shape', shapeType: activeTool as 'rect'|'ellipse'|'line', x: liveShape.x, y: liveShape.y, w: liveShape.w, h: liveShape.h, color: drawColor, width: strokeWidth, fill: fillEnabled ? drawColor + '44' : null, opacity: 1 })
@@ -672,6 +617,7 @@ export default function InfiniteCanvas({ onOpenSettings }: Props): React.ReactEl
   function onCanvasClick(e: React.MouseEvent) {
     if ((e.target as HTMLElement).closest('[data-node]')) return
     if (justDidMarqueeRef.current) { justDidMarqueeRef.current = false; return }
+    if (selectedAnnotationId) { setSelectedAnnotationId(null); return }
     setSelectedNode(null)
   }
 
@@ -781,6 +727,7 @@ export default function InfiniteCanvas({ onOpenSettings }: Props): React.ReactEl
       case 'add-utility-bin':        addBinNode({ x: menu.worldX - 150, y: menu.worldY - 150 }); break
       case 'add-utility-videoeditorout': addVideoEditorOutNode('', 'Video Editor Out', { x: menu.worldX - 160, y: menu.worldY - 120 }); break
       case 'add-method':        addMethodNode({ x: menu.worldX - 160, y: menu.worldY - 240 }); break
+      case 'add-media-library': addMediaLibraryNode({ x: menu.worldX - 190, y: menu.worldY - 260 }); break
       case 'add-skills-browser':addSkillsBrowserNode({ x: menu.worldX - 160, y: menu.worldY - 240 }); break
       case 'fit-view':      fitView(); break
       case 'run-all':       runAllNodes(); break
@@ -1041,6 +988,7 @@ export default function InfiniteCanvas({ onOpenSettings }: Props): React.ReactEl
             width: strokeWidth,
             fillEnabled,
             marquee: annotationMarquee,
+            textDragBox: activeTool === 'text' ? liveShape : null,
           }}
         />
 
@@ -1136,6 +1084,13 @@ export default function InfiniteCanvas({ onOpenSettings }: Props): React.ReactEl
               onStartEdge={startEdge}
             />
           )
+          if (node.type === 'medialibrary') return (
+            <MediaLibraryBrowserNode
+              key={node.id} node={node}
+              animationClass={nodeAnimClass(node.id)}
+              onContextMenu={shared.onContextMenu}
+            />
+          )
           return (
             <BinNode
               {...shared} animationClass={animationClass}
@@ -1161,8 +1116,6 @@ export default function InfiniteCanvas({ onOpenSettings }: Props): React.ReactEl
       <div className="absolute bottom-3 right-3 text-[10px] text-white/30 pointer-events-none font-mono tabular-nums">
         {Math.round(viewport.zoom * 100)}%
       </div>
-
-      <CanvasHistoryHUD />
 
       {nodes.some(n => n.status === 'active' || n.status === 'queued') && (
         <div className="absolute bottom-3 left-3 flex items-center gap-1.5 pointer-events-none">
@@ -1209,36 +1162,127 @@ export default function InfiniteCanvas({ onOpenSettings }: Props): React.ReactEl
 
       {paletteOpen && <PaletteDock />}
 
-      {/* Text annotation input */}
-      {liveTextPos && (
-        <div
-          className="fixed z-[300]"
-          style={{
-            left: liveTextPos.x * viewport.zoom + viewport.x + (containerRef.current?.getBoundingClientRect().left ?? 0),
-            top:  liveTextPos.y * viewport.zoom + viewport.y + (containerRef.current?.getBoundingClientRect().top  ?? 0),
-          }}
-        >
-          <input
-            ref={textInputRef}
-            autoFocus
-            value={liveText}
-            onChange={e => setLiveText(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === 'Enter') {
-                if (liveText.trim()) addAnnotationText({ type: 'text', x: liveTextPos.x, y: liveTextPos.y, text: liveText, color: drawColor, fontSize, opacity: 1 })
-                setLiveTextPos(null); setLiveText('')
-              }
-              if (e.key === 'Escape') { setLiveTextPos(null); setLiveText('') }
+      {/* Text annotation textarea */}
+      {liveTextPos && (() => {
+        const effectiveFontSize = textDragFontSize ?? fontSize
+        const canvasRect = containerRef.current?.getBoundingClientRect()
+        const cl = canvasRect?.left ?? 0, ct = canvasRect?.top ?? 0
+        const lineCount = (liveText.match(/\n/g) ?? []).length + 1
+        return (
+          <div
+            className="fixed z-[300]"
+            style={{
+              left: liveTextPos.x * viewport.zoom + viewport.x + cl,
+              top:  (liveTextPos.y - effectiveFontSize) * viewport.zoom + viewport.y + ct,
             }}
-            onBlur={() => {
-              if (liveText.trim()) addAnnotationText({ type: 'text', x: liveTextPos.x, y: liveTextPos.y, text: liveText, color: drawColor, fontSize, opacity: 1 })
-              setLiveTextPos(null); setLiveText('')
-            }}
-            style={{ color: drawColor, fontSize: `${fontSize * viewport.zoom}px`, background: 'transparent', border: 'none', outline: 'none', borderBottom: `1px dashed ${drawColor}`, minWidth: 80, caretColor: drawColor }}
-            placeholder="Type…"
-          />
-        </div>
-      )}
+          >
+            <textarea
+              ref={textInputRef}
+              autoFocus
+              wrap="off"
+              rows={lineCount}
+              value={liveText}
+              onChange={e => setLiveText(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  if (liveText.trim()) {
+                    const id = addAnnotationText({ type: 'text', x: liveTextPos.x, y: liveTextPos.y, text: liveText, color: drawColor, fontSize: effectiveFontSize, fontFamily, opacity: 1 })
+                    setSelectedAnnotationId(id)
+                  }
+                  setLiveTextPos(null); setLiveText(''); setTextDragFontSize(null)
+                }
+                if (e.key === 'Escape') { setLiveTextPos(null); setLiveText(''); setTextDragFontSize(null) }
+              }}
+              onBlur={() => {
+                if (liveText.trim()) {
+                  addAnnotationText({ type: 'text', x: liveTextPos.x, y: liveTextPos.y, text: liveText, color: drawColor, fontSize: effectiveFontSize, fontFamily, opacity: 1 })
+                }
+                setLiveTextPos(null); setLiveText(''); setTextDragFontSize(null)
+              }}
+              style={{
+                color: drawColor,
+                fontSize: `${effectiveFontSize * viewport.zoom}px`,
+                fontFamily,
+                lineHeight: 1.2,
+                background: 'transparent',
+                border: 'none',
+                borderLeft: `2px dashed ${drawColor}`,
+                outline: 'none',
+                resize: 'none',
+                overflow: 'hidden',
+                caretColor: drawColor,
+                minWidth: `${Math.max(80, effectiveFontSize * viewport.zoom * 2)}px`,
+                padding: '0 0 0 4px',
+                margin: 0,
+              }}
+            />
+          </div>
+        )
+      })()}
+
+      {/* Selected text annotation toolbar */}
+      {selectedAnnotationId && (() => {
+        const ann = annotations.find(a => a.id === selectedAnnotationId)
+        if (!ann || ann.type !== 'text') return null
+        const ta = ann as TextAnnotation
+        const canvasRect = containerRef.current?.getBoundingClientRect()
+        const cl = canvasRect?.left ?? 0, ct = canvasRect?.top ?? 0
+        const screenX = ta.x * viewport.zoom + viewport.x + cl
+        const screenY = (ta.y - ta.fontSize) * viewport.zoom + viewport.y + ct - 6
+        return (
+          <div
+            className="fixed z-[300] flex items-center gap-0.5 px-2 py-1 rounded-lg shadow-xl select-none"
+            style={{ left: screenX, top: screenY, transform: 'translateY(-100%)', background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.12)' }}
+          >
+            {/* Font size */}
+            <button
+              className="w-5 h-5 flex items-center justify-center text-white/50 hover:text-white text-sm leading-none"
+              onMouseDown={e => { e.preventDefault(); updateAnnotation(ta.id, { fontSize: Math.max(6, ta.fontSize - 2) } as any) }}
+            >−</button>
+            <span className="text-white/75 text-xs min-w-[24px] text-center font-mono">{Math.round(ta.fontSize)}</span>
+            <button
+              className="w-5 h-5 flex items-center justify-center text-white/50 hover:text-white text-sm leading-none"
+              onMouseDown={e => { e.preventDefault(); updateAnnotation(ta.id, { fontSize: ta.fontSize + 2 } as any) }}
+            >+</button>
+
+            <div className="w-px h-3.5 bg-white/10 mx-1" />
+
+            {/* Font family */}
+            <select
+              className="bg-transparent text-white/65 text-[10px] border-none outline-none cursor-pointer"
+              value={ta.fontFamily ?? 'sans-serif'}
+              onChange={e => { updateAnnotation(ta.id, { fontFamily: e.target.value } as any); setFontFamily(e.target.value) }}
+            >
+              <option value="sans-serif">Sans</option>
+              <option value="serif">Serif</option>
+              <option value="monospace">Mono</option>
+              <option value="cursive">Cursive</option>
+            </select>
+
+            <div className="w-px h-3.5 bg-white/10 mx-1" />
+
+            {/* Color swatch */}
+            <label className="relative cursor-pointer flex items-center">
+              <div className="w-3.5 h-3.5 rounded-full border border-white/20" style={{ background: ta.color }} />
+              <input
+                type="color"
+                value={ta.color}
+                className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                onChange={e => updateAnnotation(ta.id, { color: e.target.value } as any)}
+              />
+            </label>
+
+            <div className="w-px h-3.5 bg-white/10 mx-1" />
+
+            {/* Delete */}
+            <button
+              className="w-5 h-5 flex items-center justify-center text-white/35 hover:text-red-400 text-xs"
+              onMouseDown={e => { e.preventDefault(); deleteAnnotation(ta.id); setSelectedAnnotationId(null) }}
+            >✕</button>
+          </div>
+        )
+      })()}
     </div>
   )
 }

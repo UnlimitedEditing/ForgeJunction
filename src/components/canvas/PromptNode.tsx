@@ -297,6 +297,20 @@ export default function PromptNode({ node, isSelected, isSnapTarget = false, isN
         />
       )}
 
+      {/* ── Output port (output exists but collapsed) ── */}
+      {hasOutput && node.outputCollapsed && (
+        <div
+          className={`absolute right-0 translate-x-1/2 w-3 h-3 rounded-full cursor-crosshair transition-all z-10 ${
+            isNearOutputPort
+              ? 'bg-brand border border-brand/80 scale-[1.8] shadow-[0_0_8px_rgba(108,71,255,0.8)]'
+              : 'bg-brand/40 border border-brand/60 hover:bg-brand hover:scale-125'
+          }`}
+          style={{ top: node.size.h + OUTPUT_HEADER_H / 2 - PORT_R }}
+          onMouseDown={(e) => { if (e.button !== 0) return; e.stopPropagation(); onStartEdge(node.id, { x: node.position.x + node.size.w, y: node.position.y + node.size.h + OUTPUT_HEADER_H / 2 }, 'prompt', undefined) }}
+          title="Output — drag to connect"
+        />
+      )}
+
       {/* ── Output gallery ── */}
       {(hasOutput || isRunning) && (
         <div className="border-t border-white/8" onMouseDown={e => e.stopPropagation()}>

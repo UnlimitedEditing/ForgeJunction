@@ -102,7 +102,7 @@ function createMainWindow(): BrowserWindow {
       titleBarOverlay: {
         color: '#0a0a0c',
         symbolColor: '#ff6b2b',
-        height: 40,
+        height: 32,
       },
     } : {}),
     webPreferences: {

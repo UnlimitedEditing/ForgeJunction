@@ -5,7 +5,7 @@ import { useWorkflowStore } from './workflows'
 import { useChainTemplateStore } from './chainTemplate'
 import { useUndoHistory } from './undoHistory'
 
-export type CanvasNodeType = 'prompt' | 'bin' | 'media' | 'utility' | 'chain' | 'skill' | 'skillsbrowser' | 'videoeditorout' | 'artnode'
+export type CanvasNodeType = 'prompt' | 'bin' | 'media' | 'utility' | 'chain' | 'skill' | 'skillsbrowser' | 'videoeditorout' | 'artnode' | 'medialibrary'
 
 // ── Run history ────────────────────────────────────────────────────────────
 
@@ -127,7 +127,11 @@ export function outputPortRelY(
   itemIndex: number | null,
   totalItems: number,
 ): number {
-  if (totalItems === 0 || itemIndex === null) return node.size.h / 2
+  if (itemIndex === null) {
+    // Output exists but collapsed (or pipe edge): port sits in the output-header row
+    if (totalItems > 0) return node.size.h + OUTPUT_HEADER_H / 2
+    return node.size.h / 2  // idle — no output yet
+  }
   return node.size.h + OUTPUT_HEADER_H + itemIndex * ITEM_ROW_H + ITEM_ROW_H / 2
 }
 
@@ -168,6 +172,7 @@ interface CanvasState {
   addBinNode: (pos: { x: number; y: number }) => string
   addMediaNode: (url: string, mediaType: string, pos: { x: number; y: number }, name?: string) => string
   addMethodNode: (pos: { x: number; y: number }) => string
+  addMediaLibraryNode: (pos: { x: number; y: number }) => string
   addVideoEditorOutNode: (url: string, name: string, pos?: { x: number; y: number }) => string
   removeNode: (id: string) => void
   duplicateNode: (id: string) => void
@@ -644,6 +649,17 @@ export const useCanvasStore = create<CanvasState>()(persist(
       set(s => ({
         nodes: [...s.nodes.filter(n => n.type !== 'utility'), node],
         edges: s.edges.filter(e => !s.nodes.find(n => n.id === e.fromNodeId && n.type === 'utility') && !s.nodes.find(n => n.id === e.toNodeId && n.type === 'utility')),
+      }))
+      useUndoHistory.getState().push(() => get().removeNode(node.id))
+      return node.id
+    },
+
+    addMediaLibraryNode: (pos) => {
+      const node = blankNode('medialibrary', pos, { w: 380, h: 520 })
+      // Singleton — only one media library browser at a time
+      set(s => ({
+        nodes: [...s.nodes.filter(n => n.type !== 'medialibrary'), node],
+        edges: s.edges.filter(e => !s.nodes.find(n => n.id === e.fromNodeId && n.type === 'medialibrary') && !s.nodes.find(n => n.id === e.toNodeId && n.type === 'medialibrary')),
       }))
       useUndoHistory.getState().push(() => get().removeNode(node.id))
       return node.id

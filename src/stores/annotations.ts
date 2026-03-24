@@ -15,7 +15,7 @@ export interface ShapeAnnotation {
 export interface TextAnnotation {
   id: string; type: 'text'
   x: number; y: number; text: string
-  color: string; fontSize: number; opacity: number
+  color: string; fontSize: number; fontFamily: string; opacity: number
 }
 export type Annotation = StrokeAnnotation | ShapeAnnotation | TextAnnotation
 
